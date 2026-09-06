@@ -15,14 +15,18 @@ below are the agent-specific sharp edges.
 - **Read the specs through the MCP tools when available** (`sysspec`
   server: `list_services`, `get_service`, `get_artifact`,
   `get_message_schema`, `get_acceptance_criteria`, `trace_channel`,
-  `search_specs`) rather than grepping files — the tools tell you which
-  artifacts are gated and who consumes what.
-- **Skills define the deeper processes**: `skills/sysspec/SKILL.md`
-  for authoring conventions and how to work against specs;
-  `skills/implement-service/SKILL.md` for building a real implementation of
-  a service (contracts.lock pinning, verification loop, sync);
-  `skills/consume-service/SKILL.md` for building a consumer — a UI or
-  client — against a service's pinned mocks.
+  `search_specs`, `list_skills`, `get_skill`) rather than grepping files —
+  the tools tell you which artifacts are gated and who consumes what.
+- **Skills define the deeper processes**, and are served over MCP
+  (`list_skills`/`get_skill`) as well as living in the tree:
+  `skills/sysspec/SKILL.md` for authoring conventions and how to work
+  against specs; `skills/implement-service/SKILL.md` for building a real
+  implementation of a service (contracts.lock pinning, verification loop,
+  sync); `skills/consume-service/SKILL.md` for building a consumer — a UI
+  or client — against a service's pinned mocks. Because the served copy is
+  baked into the `sysspec-mcp` bundle at build time, editing a skill also
+  means rebuilding `mcp/dist` (`npm run build` in `mcp/`) and bumping the
+  mcp package version — `check:mcp:dist` and `check:mcp` enforce both.
 - **Version everything you touch**: gated artifact ⇒ artifact + service
   version bumps; plugin surface (cli, mcp, skills, templates) ⇒
   `.claude-plugin/plugin.json` bump. `check:version` and `lint:manifest`
