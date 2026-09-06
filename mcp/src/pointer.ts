@@ -5,10 +5,9 @@ import { pyList, pyRepr, pySorted } from "./pyformat.js";
  * path key looks like '/paths/~1orders~1{order_id}'. A miss raises with
  * the keys available at the deepest level that did resolve.
  *
- * Knowing divergence from the Python original: YAML keys that parse as
- * numbers (an unquoted `200:` response code) become string object keys
- * here, so a pointer like '/responses/200' resolves where PyYAML missed
- * it. Strictly more permissive; nothing depends on the miss.
+ * YAML keys that parse as numbers (an unquoted `200:` response code)
+ * become string object keys, so a pointer like '/responses/200'
+ * resolves.
  */
 export function resolvePointer(doc: unknown, pointer: string): unknown {
   if (!pointer.startsWith("/")) {

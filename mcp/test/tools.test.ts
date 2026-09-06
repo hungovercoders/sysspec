@@ -1,8 +1,8 @@
-/** Port of kit/tests/test_mcp_server.py — the context-efficiency contract.
+/** The context-efficiency contract of the seven spec tools.
  *
  * Every test runs twice: against the filesystem source (stdio / node HTTP)
  * and against a bundle built from the same tree (the data path bundled
- * deployments use). Same names, same assertions as the Python originals.
+ * deployments use).
  */
 
 import { execFileSync } from "node:child_process";
@@ -228,7 +228,7 @@ describe.each(sources)("%s source", (_label, makeSource) => {
     );
   });
 
-  // -- discovery sanity (not in the Python suite, cheap to keep) ------------
+  // -- discovery sanity ------------------------------------------------------
 
   test("list_services_returns_orders_and_payments", async () => {
     const out: any = await listServices(source);

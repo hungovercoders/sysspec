@@ -87,5 +87,5 @@ but node. `task check:mcp:dist` fails CI when it is stale — rebuild and
 commit after changing `src/`.
 
 Behavioral contract notes live in `src/core.ts`; the test suite in
-`test/tools.test.ts` is a line-for-line port of the original Python
-server's suite and runs against this repo's real `specs/` tree.
+`test/tools.test.ts` pins the tool contract and runs against this repo's
+real `specs/` tree.

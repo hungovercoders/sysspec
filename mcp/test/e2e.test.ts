@@ -1,6 +1,5 @@
 /** End-to-end wiring tests: the committed dist bundle spoken to by a real
- * MCP client over both transports. This replaces what the old Python
- * entrypoint tests guarded, but at the protocol level.
+ * MCP client over both transports.
  */
 
 import { ChildProcess, spawn } from "node:child_process";

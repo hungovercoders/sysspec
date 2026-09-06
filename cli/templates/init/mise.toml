@@ -1,0 +1,7 @@
+[tools]
+node = "24"
+task = "3.52"
+# uv stays for exactly one tool: datacontract-cli (ODCS lint) has no npm
+# equivalent and is fetched by uvx on demand.
+uv = "0.11"
+"github:oasdiff/oasdiff" = "1.29.1"

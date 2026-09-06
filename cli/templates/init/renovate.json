@@ -1,0 +1,44 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended"
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^Taskfile\\.yml$/"
+      ],
+      "matchStrings": [
+        "sysspec@(?<currentValue>[0-9.]+)"
+      ],
+      "depNameTemplate": "sysspec",
+      "datasourceTemplate": "npm"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^\\.mcp\\.json$/"
+      ],
+      "matchStrings": [
+        "sysspec-mcp@(?<currentValue>[0-9.]+)"
+      ],
+      "depNameTemplate": "sysspec-mcp",
+      "datasourceTemplate": "npm"
+    }
+  ],
+  "packageRules": [
+    {
+      "matchPackageNames": [
+        "sysspec",
+        "sysspec-mcp"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
+      "automerge": true,
+      "platformAutomerge": true
+    }
+  ]
+}

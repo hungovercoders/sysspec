@@ -14,7 +14,9 @@ tasks:
       - task: lint
       - task: check:version
       - task: check:plugin
-      - task: check:kit
+      - task: check:cli
+      - task: test:cli
+      - task: check:cli:dist
       - task: check:mcp
       - task: test:mcp
       - task: check:mcp:dist
@@ -22,27 +24,41 @@ tasks:
       - task: docs:diagrams
 
   check:plugin:
-    desc: Plugin surface changes (kit, mcp, skills, manifests) must bump the plugin version
+    desc: Plugin surface changes (cli, mcp, skills, manifests) must bump the plugin version
     cmds:
       - |
         git fetch -q origin main 2>/dev/null || true
-        uv run --project kit sysspec check surface --base "origin/${GITHUB_BASE_REF:-main}" \
-          --version-file .claude-plugin/plugin.json --paths kit/,mcp/,skills/,.claude-plugin/,.mcp.json
+        node {{.ROOT_DIR}}/cli/dist/cli.mjs check surface --base "origin/${GITHUB_BASE_REF:-main}" \
+          --version-file .claude-plugin/plugin.json --paths cli/,mcp/,skills/,.claude-plugin/,.mcp.json
 
-  check:kit:
-    desc: Changes under kit/ must bump the sysspec package version
+  check:cli:
+    desc: Changes under cli/ must bump the sysspec package version
     cmds:
       - |
         git fetch -q origin main 2>/dev/null || true
-        uv run --project kit sysspec check surface --base "origin/${GITHUB_BASE_REF:-main}" \
-          --version-file kit/pyproject.toml --json-key project.version --paths kit/
+        node {{.ROOT_DIR}}/cli/dist/cli.mjs check surface --base "origin/${GITHUB_BASE_REF:-main}" \
+          --version-file cli/package.json --json-key version --paths cli/
+
+  test:cli:
+    desc: Unit + golden tests for the sysspec CLI
+    dir: cli
+    cmds:
+      - if [ -n "$CI" ]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi
+      - npx vitest run
+
+  check:cli:dist:
+    desc: The committed CLI bundle must match the source (Taskfile and plugin run it directly)
+    dir: cli
+    cmds:
+      - npm run build --silent
+      - git diff --exit-code -- dist || { echo "cli/dist is stale - run 'npm run build' in cli/ and commit"; exit 1; }
 
   check:mcp:
     desc: Changes under mcp/ must bump the sysspec-mcp package version
     cmds:
       - |
         git fetch -q origin main 2>/dev/null || true
-        uv run --project kit sysspec check surface --base "origin/${GITHUB_BASE_REF:-main}" \
+        node {{.ROOT_DIR}}/cli/dist/cli.mjs check surface --base "origin/${GITHUB_BASE_REF:-main}" \
           --version-file mcp/package.json --json-key version --paths mcp/
 
   test:mcp:
@@ -91,28 +107,28 @@ tasks:
     cmds:
       - |
         git fetch -q origin main 2>/dev/null || true
-        uv run --project kit sysspec check version --base "origin/${GITHUB_BASE_REF:-main}"
+        node {{.ROOT_DIR}}/cli/dist/cli.mjs check version --base "origin/${GITHUB_BASE_REF:-main}"
 
   docs:generate:
     desc: Emit the spec data the docs site renders from
     run: once
     cmds:
-      - uv run --project kit sysspec docs data
+      - node {{.ROOT_DIR}}/cli/dist/cli.mjs docs data
 
   docs:diagrams:
     desc: Every mermaid diagram in the generated docs must parse (mermaid-cli)
     deps: [docs:generate]
     cmds:
-      - uv run --project kit sysspec docs diagrams
+      - node {{.ROOT_DIR}}/cli/dist/cli.mjs docs diagrams
 
   docs:build:
     desc: Build the docs site into ./site
     deps: [docs:generate]
     # dir, not npm --prefix: through the docs-site symlink, --prefix makes
-    # npm rewrite the lockfile with physical ../kit/... package paths.
+    # npm rewrite the lockfile with physical ../cli/... package paths.
     dir: docs-site
     env:
-      # docs-site is a symlink into the kit's package data; without the
+      # docs-site is a symlink into the CLI package templates; without the
       # override astro would resolve ../site against the physical path.
       DOCS_SITE_OUT: "{{.ROOT_DIR}}/site"
     cmds:
@@ -135,14 +151,14 @@ tasks:
     cmds:
       - |
         git fetch -q origin main 2>/dev/null || true
-        uv run --project kit sysspec check compat --base "origin/${GITHUB_BASE_REF:-main}" {{if .SERVICE}}--service {{.SERVICE}}{{end}}
+        node {{.ROOT_DIR}}/cli/dist/cli.mjs check compat --base "origin/${GITHUB_BASE_REF:-main}" {{if .SERVICE}}--service {{.SERVICE}}{{end}}
 
   check:intent:
     desc: Added schema elements vs origin/main must be named in the service's features
     cmds:
       - |
         git fetch -q origin main 2>/dev/null || true
-        uv run --project kit sysspec check intent --base "origin/${GITHUB_BASE_REF:-main}" {{if .SERVICE}}--service {{.SERVICE}}{{end}}
+        node {{.ROOT_DIR}}/cli/dist/cli.mjs check intent --base "origin/${GITHUB_BASE_REF:-main}" {{if .SERVICE}}--service {{.SERVICE}}{{end}}
 
   ci:
     desc: Full verification - identical locally and in CI
@@ -163,17 +179,17 @@ tasks:
     cmds:
       - |
         tmp=$(mktemp -d)
-        uv run --project kit sysspec init "$tmp" --org com.example
-        kit={{.ROOT_DIR}}/kit
+        sysspec="node {{.ROOT_DIR}}/cli/dist/cli.mjs"
+        $sysspec init "$tmp" --org com.example
         cd "$tmp"
         git init -q . && git add -A && git -c user.email=ci@example.com -c user.name=ci commit -qm "chore: scaffold"
-        uv run --project "$kit" sysspec lint specs
-        uv run --project "$kit" sysspec lint features
-        uv run --project "$kit" sysspec lint datacontracts
-        uv run --project "$kit" sysspec lint manifest
-        uv run --project "$kit" sysspec check version
-        uv run --project "$kit" sysspec docs data
-        uv run --project "$kit" sysspec docs diagrams
+        $sysspec lint specs
+        $sysspec lint features
+        $sysspec lint datacontracts
+        $sysspec lint manifest
+        $sysspec check version
+        $sysspec docs data
+        $sysspec docs diagrams
         cd / && rm -rf "$tmp"
 
   check:null:
@@ -187,10 +203,10 @@ tasks:
         cat > "$tmp/honest.json" <<'EOF'
         [{"uri":"features/honest.feature","elements":[{"type":"scenario","name":"real assertion fails","line":3,"steps":[{"result":{"status":"failed"}}]}]}]
         EOF
-        if uv run --project kit sysspec null run --port 9909 --results "$tmp/r.json" -- cp "$tmp/hollow.json" "$tmp/r.json"; then
+        if node {{.ROOT_DIR}}/cli/dist/cli.mjs null run --port 9909 --results "$tmp/r.json" -- cp "$tmp/hollow.json" "$tmp/r.json"; then
           echo "check:null: a fully-passing suite was NOT flagged"; exit 1
         fi
-        uv run --project kit sysspec null run --port 9909 --results "$tmp/r.json" -- \
+        node {{.ROOT_DIR}}/cli/dist/cli.mjs null run --port 9909 --results "$tmp/r.json" -- \
           sh -c "curl -fsS -X PATCH -d probe http://127.0.0.1:9909/any/path | grep -qx '{}' && cp '$tmp/honest.json' '$tmp/r.json' && exit 1"
         rm -rf "$tmp"
 
@@ -198,41 +214,41 @@ tasks:
     desc: Start the Microcks mock stack
     run: once
     cmds:
-      - uv run --project kit sysspec mocks up
+      - node {{.ROOT_DIR}}/cli/dist/cli.mjs mocks up
 
   mocks:down:
     desc: Stop the Microcks mock stack
     cmds:
-      - uv run --project kit sysspec mocks down
+      - node {{.ROOT_DIR}}/cli/dist/cli.mjs mocks down
 
   mocks:load:
     desc: Load every service's contracts and examples into Microcks (scope with SERVICE=)
     run: once
     cmds:
-      - uv run --project kit sysspec mocks load {{if .SERVICE}}--service {{.SERVICE}}{{end}}
+      - node {{.ROOT_DIR}}/cli/dist/cli.mjs mocks load {{if .SERVICE}}--service {{.SERVICE}}{{end}}
 
   mocks:watch:
     desc: 'Watch a mock event channel (CHANNEL=Orders/2.1.0/publishOrderPlaced)'
     cmds:
-      - uv run --project kit sysspec mocks watch --channel {{.CHANNEL}}
+      - node {{.ROOT_DIR}}/cli/dist/cli.mjs mocks watch --channel {{.CHANNEL}}
 
   contract:test:
     desc: Hold a real implementation (REST_ENDPOINT/ASYNC_ENDPOINT) - or, with no overrides, the mocks - to the contracts
     run: once
     deps: [mocks:load]
     cmds:
-      - uv run --project kit sysspec contract test {{if .SERVICE}}--service {{.SERVICE}}{{end}} {{if .REST_ENDPOINT}}--rest-endpoint {{.REST_ENDPOINT}}{{end}} {{if .ASYNC_ENDPOINT}}--async-endpoint {{.ASYNC_ENDPOINT}}{{end}}
+      - node {{.ROOT_DIR}}/cli/dist/cli.mjs contract test {{if .SERVICE}}--service {{.SERVICE}}{{end}} {{if .REST_ENDPOINT}}--rest-endpoint {{.REST_ENDPOINT}}{{end}} {{if .ASYNC_ENDPOINT}}--async-endpoint {{.ASYNC_ENDPOINT}}{{end}}
 
   mocks:test:
     desc: Smoke-test the HTTP and event mocks against the example files
     deps: [mocks:load]
     cmds:
-      - uv run --project kit sysspec mocks test {{if .SERVICE}}--service {{.SERVICE}}{{end}}
+      - node {{.ROOT_DIR}}/cli/dist/cli.mjs mocks test {{if .SERVICE}}--service {{.SERVICE}}{{end}}
 
   null:run:
     desc: 'Falsifiability gate - run a bound feature suite against the null service; red unless zero scenarios pass (task null:run RESULTS=<file> -- <suite cmd>)'
     cmds:
-      - uv run --project kit sysspec null run {{if .PORT}}--port {{.PORT}}{{end}} --results {{.RESULTS}} -- {{.CLI_ARGS}}
+      - node {{.ROOT_DIR}}/cli/dist/cli.mjs null run {{if .PORT}}--port {{.PORT}}{{end}} --results {{.RESULTS}} -- {{.CLI_ARGS}}
 
   lint:
     desc: Lint specs, feature files, data contracts and manifests (scope with SERVICE=<name>)
@@ -245,19 +261,19 @@ tasks:
   lint:specs:
     desc: Spectral-lint the OpenAPI and AsyncAPI contracts
     cmds:
-      - uv run --project kit sysspec lint specs {{if .SERVICE}}--service {{.SERVICE}}{{end}}
+      - node {{.ROOT_DIR}}/cli/dist/cli.mjs lint specs {{if .SERVICE}}--service {{.SERVICE}}{{end}}
 
   lint:features:
     desc: Lint the Gherkin acceptance criteria
     cmds:
-      - uv run --project kit sysspec lint features {{if .SERVICE}}--service {{.SERVICE}}{{end}}
+      - node {{.ROOT_DIR}}/cli/dist/cli.mjs lint features {{if .SERVICE}}--service {{.SERVICE}}{{end}}
 
   lint:datacontracts:
     desc: Lint the ODCS data contracts with datacontract-cli
     cmds:
-      - uv run --project kit sysspec lint datacontracts {{if .SERVICE}}--service {{.SERVICE}}{{end}}
+      - node {{.ROOT_DIR}}/cli/dist/cli.mjs lint datacontracts {{if .SERVICE}}--service {{.SERVICE}}{{end}}
 
   lint:manifest:
     desc: Cross-check manifests against contracts and the spec graph
     cmds:
-      - uv run --project kit sysspec lint manifest {{if .SERVICE}}--service {{.SERVICE}}{{end}}
+      - node {{.ROOT_DIR}}/cli/dist/cli.mjs lint manifest {{if .SERVICE}}--service {{.SERVICE}}{{end}}

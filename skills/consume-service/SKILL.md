@@ -31,7 +31,7 @@ service's name; a consumer may pin more than one.
         chmod -R u+w .contracts 2>/dev/null || true
         rm -rf .contracts && git init -q .contracts
         git -C .contracts remote add origin https://github.com/__SPECS_REPO__
-        git -C .contracts sparse-checkout set specs/<service> mocks kit
+        git -C .contracts sparse-checkout set specs/<service> mocks cli
         git -C .contracts fetch -q --depth 1 origin "$sha"
         git -C .contracts checkout -q FETCH_HEAD
         chmod -R a-w .contracts/specs
@@ -107,7 +107,7 @@ The suite must run headlessly against the mock stack (this is also the
    hygiene.
 4. **Falsifiability** — prove the suite *can* fail: a verify suite whose
    checks are empty shells passes forever and verifies nothing. Run it once
-   against the kit's null service — `200 {}` to every request, no events —
+   against the CLI's null service — `200 {}` to every request, no events —
    and require zero passes (when the runner emits cucumber-format JSON:
    `BASE_URL=http://localhost:9099 task -d .contracts null:run
    RESULTS=<file> -- <suite cmd>`); or, minimally, run it with the mock

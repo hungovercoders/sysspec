@@ -42,7 +42,7 @@ your running implementation. Nothing in the spec repo changes.
 - **The lock** — `contracts.lock` records the tag and its commit sha. It is
   the single source of truth for which surface this implementation satisfies.
 - **The Microcks stack** — a docker-compose stack orchestrated by the spec
-  repo's kit. It plays two segregated roles: the `mocks:*` tasks serve
+  repo's CLI. It plays two segregated roles: the `mocks:*` tasks serve
   mocks of the contracts (for consumers and spec conformance), and
   `contract:test` uses the same engine to hold a real implementation to
   the contracts. You run both from the pinned fetch; you install nothing
@@ -125,7 +125,7 @@ tasks:
         chmod -R u+w .contracts 2>/dev/null || true
         rm -rf .contracts && git init -q .contracts
         git -C .contracts remote add origin https://github.com/{{.SPECS_REPO}}
-        git -C .contracts sparse-checkout set specs/{{.SERVICE}} mocks kit
+        git -C .contracts sparse-checkout set specs/{{.SERVICE}} mocks cli
         git -C .contracts fetch -q --depth 1 origin "$sha"
         git -C .contracts checkout -q FETCH_HEAD
         chmod -R a-w .contracts/specs
@@ -140,7 +140,8 @@ tasks:
 ```
 
 The sparse checkout brings the contracts plus the spec repo's `mocks/`
-examples, `kit/` and root `Taskfile.yml`, all at the pinned sha — so
+examples, `cli/` (the committed CLI bundle runs with nothing but node)
+and root `Taskfile.yml`, all at the pinned sha — so
 `task -d .contracts mocks:...` runs the spec repo's own mock orchestration,
 versioned by the pin, with nothing copied or installed. The specs are
 write-protected and `.contracts/` is regenerated on every fetch: consumable,
@@ -151,7 +152,7 @@ One consequence, spelled out: **the pinned toolchain is authoritative over
 this skill.** The task names here are the spec repo's main as of this
 skill's writing; an older pin may name them differently or lack newer gates
 (at `orders/v3.1.0`, for example, the contract test was `mocks:contract`
-and the kit had no `null:run`). When the skill and your pin disagree,
+and the toolchain had no `null:run`). When the skill and your pin disagree,
 `task -d .contracts --list` shows what the pin actually provides — follow
 the pin, and mirror a missing gate in your own repo rather than skipping
 it.
@@ -222,11 +223,11 @@ schemathesis run on the host); `REST_ENDPOINT`/`ASYNC_ENDPOINT` are how the
 *Microcks containers* reach it — `localhost` inside a container is the
 container, so a service on the host is `host.docker.internal`, and the
 `ASYNC_ENDPOINT` scheme is your chosen transport from the interview. For a
-WebSocket endpoint the kit appends `/<operation>` for each send
+WebSocket endpoint the CLI appends `/<operation>` for each send
 operation's test (`.../events/publishOrderPlaced`, ...), so each operation
 is validated on its own path — serve each channel at a path naming its
 operation or channel address, or ignore the path and send everything. Keep
-a path on the base URL itself (`/events` above): pins older than kit
+a path on the base URL itself (`/events` above): pins older than toolchain
 0.22.0 use the endpoint verbatim, and Microcks' WS consumer rejects a bare
 `ws://host:port` with the opaque "found no suitable MessageConsumptionTask
 implementation for endpoint". Broker endpoints (`kafka://`, `mqtt://`,
@@ -249,7 +250,7 @@ What each check proves, in order:
 2. **The bound feature suite** — every acceptance scenario passes against
    the running service, strict, no unbound steps.
 3. **The negative control** (`null:run`) — the same suite replayed against
-   a null service the kit serves: `200 {}` to every request, no events
+   a null service the CLI serves: `200 {}` to every request, no events
    (event awaits just time out). Red unless **zero** scenarios pass, naming
    any that do. Green against your real service means nothing unless the
    suite is also fully red against a service that does nothing — strict

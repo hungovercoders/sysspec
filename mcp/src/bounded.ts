@@ -11,8 +11,8 @@ export function bounded(text: string, maxBytes: number): Bounded {
   if (total <= maxBytes) {
     return { text, truncated: false, totalBytes: total };
   }
-  // A cut mid-sequence leaves replacement chars only at the tail; dropping
-  // them matches Python's decode(errors="ignore") for this input.
+  // A cut mid-sequence leaves replacement chars only at the tail;
+  // dropping them trims the partial trailing character.
   let cut = new TextDecoder("utf-8", { fatal: false })
     .decode(raw.slice(0, maxBytes))
     .replace(/�+$/, "");
