@@ -45,7 +45,15 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -o pipefail
-          npx wrangler versions upload --preview-alias "pr-${{ github.event.pull_request.number }}" | tee upload.log
+          if ! npx wrangler versions upload --preview-alias "pr-${{ github.event.pull_request.number }}" | tee upload.log; then
+            if grep -q 'cannot upload a new version of a Worker that does not yet exist' upload.log; then
+              echo "Worker not deployed yet; bootstrapping with wrangler deploy first."
+              npx wrangler deploy
+              npx wrangler versions upload --preview-alias "pr-${{ github.event.pull_request.number }}" | tee upload.log
+            else
+              exit 1
+            fi
+          fi
           url=$(grep -oE 'https://pr-[0-9]+-[a-z0-9.-]+\.workers\.dev' upload.log | head -1)
           [ -n "$url" ] || { echo "no preview URL in wrangler output"; exit 1; }
           echo "url=$url" >> "$GITHUB_OUTPUT"
