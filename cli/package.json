@@ -1,0 +1,44 @@
+{
+  "name": "sysspec",
+  "version": "0.1.0",
+  "description": "System specs first: enforceable system intent (contracts + gherkin) with deterministic gates, generated docs and mocks. The MCP server is the companion package sysspec-mcp.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hungovercoders/sysspec.git",
+    "directory": "cli"
+  },
+  "type": "module",
+  "bin": {
+    "sysspec": "dist/cli.mjs"
+  },
+  "files": [
+    "dist",
+    "templates",
+    "!**/node_modules",
+    "!templates/init/docs-site/.astro",
+    "!templates/init/docs-site/src/data/specs.json",
+    "!templates/init/docs-site/public/specs"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "ajv": "^8.17.1",
+    "smol-toml": "^1.4.2",
+    "ws": "^8.18.3",
+    "yaml": "^2.8.2"
+  },
+  "devDependencies": {
+    "@types/node": "^26.4.1",
+    "@types/ws": "^8.18.1",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  }
+}

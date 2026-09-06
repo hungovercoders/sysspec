@@ -19,22 +19,23 @@ conforms to the spec, never the other way round.
 
 This repo is three things at once:
 
-1. **The toolkit** — [`sysspec`](kit/) on PyPI: the `sysspec` CLI
+1. **The toolkit** — two npm packages: [`sysspec`](cli/), the CLI
    (gates, lint, docs, mock orchestration for consumers, contract testing
-   for implementations, `init` scaffold) — and [`sysspec-mcp`](mcp/) on
-   npm: the MCP server, one TypeScript implementation serving stdio
-   locally and streamable HTTP behind a URL.
+   for implementations, `init` scaffold), and [`sysspec-mcp`](mcp/), the
+   MCP server serving stdio locally and streamable HTTP behind a URL.
+   One ecosystem end to end; datacontract-cli (the ODCS linter) is
+   fetched on demand by uvx.
 2. **The distribution** — reusable GitHub workflows
    (`.github/workflows/sysspec-*.yml`) and a Claude Code plugin (MCP tools
    + the three skills).
 3. **The living example** — the `orders`/`payments` spec suite, which
-   doubles as the toolkit's regression suite: every kit change must keep
+   doubles as the toolkit's regression suite: every toolkit change must keep
    it green.
 
 ## Start your own spec suite
 
 ```bash
-uvx --from sysspec sysspec init my-specs --org com.acme
+npx -y sysspec init my-specs --org com.acme
 cd my-specs
 git init && git add -A && git commit -m "chore: scaffold specs"
 mise install
@@ -46,7 +47,7 @@ reference and stays current without you copying anything:
 
 | Piece | Reference | Updates via |
 | --- | --- | --- |
-| Gates, mocks, docs | `sysspec==X` pin in `Taskfile.yml` | Renovate (pypi), minor/patch automerge |
+| Gates, mocks, docs | `sysspec@X` pin in `Taskfile.yml` | Renovate (npm), minor/patch automerge |
 | MCP server | `sysspec-mcp@X` pin in `.mcp.json` | Renovate (npm), minor/patch automerge |
 | CI / Pages / release tagging | `uses: hungovercoders/sysspec/.github/workflows/sysspec-*.yml@v<major>` | floating major tag |
 | Agent skills | Claude Code plugin | `/plugin marketplace update` |
@@ -113,7 +114,7 @@ pre-commit hook, and in CI.
 
 ```
 sysspec/
-├── kit/                      sysspec: the CLI and gates, published to PyPI
+├── cli/                      sysspec: the CLI and gates (+ init templates), npm
 ├── mcp/                      sysspec-mcp: the MCP server (stdio + HTTP,
 │                             Dockerfile, optional Cloudflare adapter), npm
 ├── .github/workflows/        sysspec-*.yml reusable; thin local callers

@@ -5,7 +5,7 @@ contract, and they are identical locally, in the git hooks, and in CI.
 
 This repo is both the `sysspec` toolkit and its living example
 (orders/payments). Contributions here change the product; adopters running
-their own spec suites never edit this repo — they pin the kit, the reusable
+their own spec suites never edit this repo — they pin the CLI, the reusable
 workflows and the plugin, per the README's "Start your own spec suite".
 
 ## Setup
@@ -33,8 +33,8 @@ Exactly what CI runs. It composes, in order:
 | `lint:datacontracts` | datacontract-cli over the ODCS data contracts, plus Spectral for naming |
 | `lint:manifest` | manifests ⇄ contracts ⇄ spec graph consistency, semver versions, feature references resolve to real messages and channels |
 | `check:version` | any gated artifact change bumps its manifest version *and* the service's top-level version; artifact major ⇒ service major |
-| `check:plugin` | plugin surface changes (kit, skills, plugin manifests) bump the plugin version |
-| `check:kit` | changes under `kit/` bump the `sysspec` package version |
+| `check:plugin` | plugin surface changes (cli, mcp, skills, plugin manifests) bump the plugin version |
+| `check:cli` | changes under `cli/` bump the `sysspec` package version (`check:mcp` likewise for `mcp/`) |
 | `docs:build` | the generated docs site builds `--strict` |
 | `docs:diagrams` | every mermaid diagram in the generated site parses (mermaid-cli, headless Chromium) |
 | `check:commits` | conventional commit messages |
@@ -92,29 +92,32 @@ templates — bump the plugin `version` in the same PR (semver:
 breaking/feature/fix). `task check:plugin` enforces this. The plugin runs
 the committed server bundle (`mcp/dist/stdio.mjs`) directly, so a server
 change also means rebuilding it (`npm run build` in `mcp/`) —
-`task check:mcp:dist` fails when the bundle is stale.
+`task check:mcp:dist` fails when the bundle is stale; the CLI bundle
+(`cli/dist/cli.mjs`, which the Taskfile itself runs) has the same rule via
+`task check:cli:dist`.
 
 ## Releasing sysspec
 
-The kit (gates, mocks, docs) is published to PyPI as `sysspec`. To cut a
-release: make sure `kit/pyproject.toml` carries the new version
-(`check:kit` forces this whenever `kit/` changes), then tag the merge
-commit `v<version>` and push the tag. `release.yml` verifies the tag
-matches the kit version, builds with `uv build`, publishes via PyPI trusted
-publishing, and force-moves the floating `v<major>` tag that adopter
-workflows reference. Product `v*` tags live alongside the `<service>/v*`
-contract tags.
+The CLI (gates, mocks, docs, `init` scaffold) is published to npm as
+`sysspec`. To cut a release: make sure `cli/package.json` carries the new
+version (`check:cli` forces this whenever `cli/` changes), then tag the
+merge commit `v<version>` and push the tag. `release.yml` verifies the tag
+matches the package version, builds and tests, publishes via npm trusted
+publishing (OIDC — provenance attached, no token stored), and force-moves
+the floating `v<major>` tag that adopter workflows reference. Product `v*`
+tags live alongside the `<service>/v*` contract tags.
 
-One-time setup: on pypi.org, add a *trusted publisher* for the
-`sysspec` project pointing at this repository, workflow `release.yml`,
-environment `pypi`.
+One-time setup: publish the first version manually (`npm publish` from
+`cli/`, so the package exists), then on npmjs.com add a *trusted
+publisher* for `sysspec` pointing at this repository and workflow
+`release.yml`.
 
 ## Releasing sysspec-mcp
 
 The MCP server (`mcp/`) is published to npm as `sysspec-mcp`. To cut a
 release: make sure `mcp/package.json` carries the new version
 (`check:mcp` forces this whenever `mcp/` changes) and that
-`pins.SYSSPEC_MCP` in `kit/src/sysspec/pins.py` points at the version
+`SYSSPEC_MCP` in `cli/src/pins.ts` points at the version
 scaffolded repos should pin, then tag the merge commit `mcp-v<version>`
 and push the tag. `mcp-release.yml` verifies the tag matches the package
 version, builds and tests, and publishes via npm trusted publishing

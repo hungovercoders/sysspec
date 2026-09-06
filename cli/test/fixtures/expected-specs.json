@@ -1,0 +1,1385 @@
+{
+  "services": [
+    {
+      "name": "orders",
+      "title": "Orders",
+      "version": "3.2.0",
+      "domain": "Commerce",
+      "owner": "team-commerce",
+      "summary": "Owns the Order aggregate. Accepts order placement over HTTP, emits lifecycle events, and consumes payment settlement to close orders out.",
+      "implementation_repo": null,
+      "artifacts": [
+        {
+          "kind": "asyncapi",
+          "path": "asyncapi/orders.asyncapi.yaml",
+          "stem": "orders.asyncapi",
+          "version": "3.0.0",
+          "gated": true,
+          "summary": "Events emitted and consumed by the Order aggregate.",
+          "history": []
+        },
+        {
+          "kind": "openapi",
+          "path": "openapi/orders.openapi.yaml",
+          "stem": "orders.openapi",
+          "version": "3.1.0",
+          "gated": true,
+          "summary": "Synchronous order placement and lookup API.",
+          "history": []
+        },
+        {
+          "kind": "feature",
+          "path": "features/place-order.feature",
+          "stem": "place-order",
+          "version": "2.1.0",
+          "gated": true,
+          "summary": "Acceptance criteria for order placement and guaranteed event publication.",
+          "history": [],
+          "text": "Feature: Placing an order\n  As a customer\n  I want to place an order\n  So that it is fulfilled once payment settles\n\n  These scenarios are acceptance criteria, not suggestions. An\n  implementation that fails any of them is wrong. If a scenario is\n  itself wrong, that is a versioned change to this file.\n\n  Background:\n    Given the customer \"c-1001\" exists\n\n  Scenario: A valid order is accepted and its event is guaranteed\n    When the customer places an order for 2 units of \"SKU-RED\" at 1250 pence\n    Then the response status is 201\n    And the order status is \"placed\"\n    And the order total is 2500 pence\n    And an \"OrderPlaced\" event is guaranteed to be published for the order\n\n  Scenario: The order and its event succeed or fail together\n    Given event publication is unavailable\n    When the customer places an order for 1 unit of \"SKU-RED\" at 1250 pence\n    Then the response status is 201\n    And the \"OrderPlaced\" event is published once publication recovers\n    And no order ever exists without its \"OrderPlaced\" event\n\n  Scenario: Replaying an idempotency key returns the original order\n    Given the customer placed an order with idempotency key \"idem-99\"\n    When the same request is retried with idempotency key \"idem-99\"\n    Then the response status is 201\n    And the same order_id is returned\n    And no second \"OrderPlaced\" event is published\n\n  Scenario: A conflicting body on a used idempotency key is rejected\n    Given the customer placed an order with idempotency key \"idem-99\"\n    When a different order body is sent with idempotency key \"idem-99\"\n    Then the response status is 409\n\n  Scenario: Order events are CloudEvents envelopes\n    When the customer places an order for 2 units of \"SKU-RED\" at 1250 pence\n    Then an \"OrderPlaced\" event is published on \"orders.placed.v2\"\n    And the envelope carries specversion \"1.0\", a unique id and a time\n    And the envelope source is /orders and its type is com.hungovercoders.orders.placed.v2\n    And the envelope subject is the order_id, with datacontenttype \"application/json\"\n    And the data carries the order_id, customer_id, placed_at and total_pence\n    And handlers dedupe on the envelope id, not the natural key\n\n  Scenario: Cancellation is a CloudEvents envelope too\n    Given the customer placed an order\n    When the order is cancelled because \"out_of_stock\"\n    Then an \"OrderCancelled\" event is published on \"orders.cancelled.v2\"\n    And its data carries the order_id, cancelled_at and reason\n\n  Scenario: A settled payment marks the order paid\n    Given the customer placed an order\n    When a \"PaymentSettled\" event arrives on \"payments.settled.v2\" for that order_id\n    Then the order status is \"paid\"\n    And replaying the same envelope id does not change the order again\n\n  Scenario: An order can be fetched by its id\n    Given the customer placed an order via placeOrder\n    When the order is fetched by order_id via getOrder\n    Then the response status is 200\n    And the order carries the order_id, customer_id, status and total_pence\n\n  Scenario: Fetching an unknown order returns 404\n    When an unknown order_id is fetched via getOrder\n    Then the response status is 404\n\n  Scenario Outline: Orders must have at least one valid line\n    When the customer places an order with <lines>\n    Then the response status is 400\n\n    Examples:\n      | lines                       |\n      | no lines                    |\n      | a line quantity of 0        |\n      | a negative unit_price_pence |\n      | a line missing its sku      |\n",
+          "feature": {
+            "title": "Placing an order",
+            "description": [
+              "As a customer",
+              "I want to place an order",
+              "So that it is fulfilled once payment settles",
+              "",
+              "These scenarios are acceptance criteria, not suggestions. An",
+              "implementation that fails any of them is wrong. If a scenario is",
+              "itself wrong, that is a versioned change to this file."
+            ],
+            "background": [
+              {
+                "keyword": "Given",
+                "phase": "given",
+                "text": "the customer \"c-1001\" exists"
+              }
+            ],
+            "scenarios": [
+              {
+                "title": "A valid order is accepted and its event is guaranteed",
+                "steps": [
+                  {
+                    "keyword": "When",
+                    "phase": "when",
+                    "text": "the customer places an order for 2 units of \"SKU-RED\" at 1250 pence"
+                  },
+                  {
+                    "keyword": "Then",
+                    "phase": "then",
+                    "text": "the response status is 201"
+                  },
+                  {
+                    "keyword": "And",
+                    "phase": "then",
+                    "text": "the order status is \"placed\""
+                  },
+                  {
+                    "keyword": "And",
+                    "phase": "then",
+                    "text": "the order total is 2500 pence"
+                  },
+                  {
+                    "keyword": "And",
+                    "phase": "then",
+                    "text": "an \"OrderPlaced\" event is guaranteed to be published for the order"
+                  }
+                ]
+              },
+              {
+                "title": "The order and its event succeed or fail together",
+                "steps": [
+                  {
+                    "keyword": "Given",
+                    "phase": "given",
+                    "text": "event publication is unavailable"
+                  },
+                  {
+                    "keyword": "When",
+                    "phase": "when",
+                    "text": "the customer places an order for 1 unit of \"SKU-RED\" at 1250 pence"
+                  },
+                  {
+                    "keyword": "Then",
+                    "phase": "then",
+                    "text": "the response status is 201"
+                  },
+                  {
+                    "keyword": "And",
+                    "phase": "then",
+                    "text": "the \"OrderPlaced\" event is published once publication recovers"
+                  },
+                  {
+                    "keyword": "And",
+                    "phase": "then",
+                    "text": "no order ever exists without its \"OrderPlaced\" event"
+                  }
+                ]
+              },
+              {
+                "title": "Replaying an idempotency key returns the original order",
+                "steps": [
+                  {
+                    "keyword": "Given",
+                    "phase": "given",
+                    "text": "the customer placed an order with idempotency key \"idem-99\""
+                  },
+                  {
+                    "keyword": "When",
+                    "phase": "when",
+                    "text": "the same request is retried with idempotency key \"idem-99\""
+                  },
+                  {
+                    "keyword": "Then",
+                    "phase": "then",
+                    "text": "the response status is 201"
+                  },
+                  {
+                    "keyword": "And",
+                    "phase": "then",
+                    "text": "the same order_id is returned"
+                  },
+                  {
+                    "keyword": "And",
+                    "phase": "then",
+                    "text": "no second \"OrderPlaced\" event is published"
+                  }
+                ]
+              },
+              {
+                "title": "A conflicting body on a used idempotency key is rejected",
+                "steps": [
+                  {
+                    "keyword": "Given",
+                    "phase": "given",
+                    "text": "the customer placed an order with idempotency key \"idem-99\""
+                  },
+                  {
+                    "keyword": "When",
+                    "phase": "when",
+                    "text": "a different order body is sent with idempotency key \"idem-99\""
+                  },
+                  {
+                    "keyword": "Then",
+                    "phase": "then",
+                    "text": "the response status is 409"
+                  }
+                ]
+              },
+              {
+                "title": "Order events are CloudEvents envelopes",
+                "steps": [
+                  {
+                    "keyword": "When",
+                    "phase": "when",
+                    "text": "the customer places an order for 2 units of \"SKU-RED\" at 1250 pence"
+                  },
+                  {
+                    "keyword": "Then",
+                    "phase": "then",
+                    "text": "an \"OrderPlaced\" event is published on \"orders.placed.v2\""
+                  },
+                  {
+                    "keyword": "And",
+                    "phase": "then",
+                    "text": "the envelope carries specversion \"1.0\", a unique id and a time"
+                  },
+                  {
+                    "keyword": "And",
+                    "phase": "then",
+                    "text": "the envelope source is /orders and its type is com.hungovercoders.orders.placed.v2"
+                  },
+                  {
+                    "keyword": "And",
+                    "phase": "then",
+                    "text": "the envelope subject is the order_id, with datacontenttype \"application/json\""
+                  },
+                  {
+                    "keyword": "And",
+                    "phase": "then",
+                    "text": "the data carries the order_id, customer_id, placed_at and total_pence"
+                  },
+                  {
+                    "keyword": "And",
+                    "phase": "then",
+                    "text": "handlers dedupe on the envelope id, not the natural key"
+                  }
+                ]
+              },
+              {
+                "title": "Cancellation is a CloudEvents envelope too",
+                "steps": [
+                  {
+                    "keyword": "Given",
+                    "phase": "given",
+                    "text": "the customer placed an order"
+                  },
+                  {
+                    "keyword": "When",
+                    "phase": "when",
+                    "text": "the order is cancelled because \"out_of_stock\""
+                  },
+                  {
+                    "keyword": "Then",
+                    "phase": "then",
+                    "text": "an \"OrderCancelled\" event is published on \"orders.cancelled.v2\""
+                  },
+                  {
+                    "keyword": "And",
+                    "phase": "then",
+                    "text": "its data carries the order_id, cancelled_at and reason"
+                  }
+                ]
+              },
+              {
+                "title": "A settled payment marks the order paid",
+                "steps": [
+                  {
+                    "keyword": "Given",
+                    "phase": "given",
+                    "text": "the customer placed an order"
+                  },
+                  {
+                    "keyword": "When",
+                    "phase": "when",
+                    "text": "a \"PaymentSettled\" event arrives on \"payments.settled.v2\" for that order_id"
+                  },
+                  {
+                    "keyword": "Then",
+                    "phase": "then",
+                    "text": "the order status is \"paid\""
+                  },
+                  {
+                    "keyword": "And",
+                    "phase": "then",
+                    "text": "replaying the same envelope id does not change the order again"
+                  }
+                ]
+              },
+              {
+                "title": "An order can be fetched by its id",
+                "steps": [
+                  {
+                    "keyword": "Given",
+                    "phase": "given",
+                    "text": "the customer placed an order via placeOrder"
+                  },
+                  {
+                    "keyword": "When",
+                    "phase": "when",
+                    "text": "the order is fetched by order_id via getOrder"
+                  },
+                  {
+                    "keyword": "Then",
+                    "phase": "then",
+                    "text": "the response status is 200"
+                  },
+                  {
+                    "keyword": "And",
+                    "phase": "then",
+                    "text": "the order carries the order_id, customer_id, status and total_pence"
+                  }
+                ]
+              },
+              {
+                "title": "Fetching an unknown order returns 404",
+                "steps": [
+                  {
+                    "keyword": "When",
+                    "phase": "when",
+                    "text": "an unknown order_id is fetched via getOrder"
+                  },
+                  {
+                    "keyword": "Then",
+                    "phase": "then",
+                    "text": "the response status is 404"
+                  }
+                ]
+              },
+              {
+                "title": "Orders must have at least one valid line",
+                "steps": [
+                  {
+                    "keyword": "When",
+                    "phase": "when",
+                    "text": "the customer places an order with <lines>"
+                  },
+                  {
+                    "keyword": "Then",
+                    "phase": "then",
+                    "text": "the response status is 400"
+                  },
+                  {
+                    "heading": "Examples"
+                  },
+                  {
+                    "table": [
+                      [
+                        "lines"
+                      ],
+                      [
+                        "no lines"
+                      ],
+                      [
+                        "a line quantity of 0"
+                      ],
+                      [
+                        "a negative unit_price_pence"
+                      ],
+                      [
+                        "a line missing its sku"
+                      ]
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "kind": "data-contract",
+          "path": "data-contracts/orders-events.odcs.yaml",
+          "stem": "orders-events.odcs",
+          "version": "1.2.0",
+          "gated": true,
+          "summary": "Append-only historical record of the order lifecycle events.",
+          "history": [],
+          "odcs": {
+            "apiVersion": "v3.1.0",
+            "kind": "DataContract",
+            "id": "orders-events-history",
+            "name": "Order events history",
+            "version": "1.2.0",
+            "status": "active",
+            "domain": "Commerce",
+            "tenant": "hungovercoders",
+            "dataProduct": "orders",
+            "description": {
+              "purpose": "Append-only historical record of the Order aggregate's events. One row per event, mirroring the AsyncAPI payloads on orders.placed.v2 and orders.cancelled.v2 field for field - the stream is ephemeral, this table is the record.\n",
+              "usage": "Order lifecycle analytics, audit, and replay/backfill for downstream consumers that joined after the fact. Not a source for current order state - use the orders service API for that.\n",
+              "limitations": "Delivery upstream is at-least-once; rows are deduplicated on the CloudEvents envelope id, so exactly one row per event. Events land within minutes but ordering across event types is only guaranteed per order_id.\n"
+            },
+            "schema": [
+              {
+                "name": "order_placed_events",
+                "logicalType": "object",
+                "physicalName": "order_placed_events",
+                "physicalType": "table",
+                "description": "One row per OrderPlaced event on orders.placed.v2.",
+                "properties": [
+                  {
+                    "name": "event_id",
+                    "logicalType": "string",
+                    "physicalType": "uuid",
+                    "required": true,
+                    "unique": true,
+                    "primaryKey": true,
+                    "description": "CloudEvents envelope id - the dedupe key."
+                  },
+                  {
+                    "name": "event_type",
+                    "logicalType": "string",
+                    "physicalType": "text",
+                    "required": true,
+                    "description": "CloudEvents type, e.g. com.hungovercoders.orders.placed.v2."
+                  },
+                  {
+                    "name": "event_source",
+                    "logicalType": "string",
+                    "physicalType": "text",
+                    "required": true,
+                    "description": "CloudEvents source of the producing service."
+                  },
+                  {
+                    "name": "event_time",
+                    "logicalType": "date",
+                    "physicalType": "timestamp",
+                    "required": true,
+                    "description": "CloudEvents envelope time."
+                  },
+                  {
+                    "name": "order_id",
+                    "logicalType": "string",
+                    "physicalType": "uuid",
+                    "required": true,
+                    "unique": true
+                  },
+                  {
+                    "name": "customer_id",
+                    "logicalType": "string",
+                    "physicalType": "uuid",
+                    "required": true
+                  },
+                  {
+                    "name": "placed_at",
+                    "logicalType": "date",
+                    "physicalType": "timestamp",
+                    "required": true,
+                    "partitioned": true
+                  },
+                  {
+                    "name": "total_pence",
+                    "logicalType": "integer",
+                    "physicalType": "bigint",
+                    "required": true,
+                    "quality": [
+                      {
+                        "rule": "nonNegative",
+                        "mustBeGreaterThanOrEqualTo": 0
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "name": "order_cancelled_events",
+                "logicalType": "object",
+                "physicalName": "order_cancelled_events",
+                "physicalType": "table",
+                "description": "One row per OrderCancelled event on orders.cancelled.v2.",
+                "properties": [
+                  {
+                    "name": "event_id",
+                    "logicalType": "string",
+                    "physicalType": "uuid",
+                    "required": true,
+                    "unique": true,
+                    "primaryKey": true,
+                    "description": "CloudEvents envelope id - the dedupe key."
+                  },
+                  {
+                    "name": "event_type",
+                    "logicalType": "string",
+                    "physicalType": "text",
+                    "required": true,
+                    "description": "CloudEvents type, e.g. com.hungovercoders.orders.cancelled.v2."
+                  },
+                  {
+                    "name": "event_source",
+                    "logicalType": "string",
+                    "physicalType": "text",
+                    "required": true,
+                    "description": "CloudEvents source of the producing service."
+                  },
+                  {
+                    "name": "event_time",
+                    "logicalType": "date",
+                    "physicalType": "timestamp",
+                    "required": true,
+                    "description": "CloudEvents envelope time."
+                  },
+                  {
+                    "name": "order_id",
+                    "logicalType": "string",
+                    "physicalType": "uuid",
+                    "required": true,
+                    "unique": true
+                  },
+                  {
+                    "name": "cancelled_at",
+                    "logicalType": "date",
+                    "physicalType": "timestamp",
+                    "required": true,
+                    "partitioned": true
+                  },
+                  {
+                    "name": "reason",
+                    "logicalType": "string",
+                    "physicalType": "text",
+                    "required": true,
+                    "quality": [
+                      {
+                        "rule": "validValues",
+                        "validValues": [
+                          "customer_request",
+                          "payment_failed",
+                          "out_of_stock"
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "slaProperties": [
+              {
+                "property": "latency",
+                "value": 15,
+                "unit": "m"
+              }
+            ],
+            "team": [
+              {
+                "username": "team-commerce",
+                "role": "owner"
+              }
+            ],
+            "support": [
+              {
+                "channel": "#orders-support",
+                "tool": "slack"
+              }
+            ]
+          },
+          "er_mermaid": "erDiagram\n    order_placed_events {\n        string event_id PK\n        string event_type\n        string event_source\n        date event_time\n        string order_id UK\n        string customer_id\n        date placed_at\n        integer total_pence\n    }\n    order_cancelled_events {\n        string event_id PK\n        string event_type\n        string event_source\n        date event_time\n        string order_id UK\n        date cancelled_at\n        string reason\n    }"
+        }
+      ],
+      "produces": [
+        "orders.placed.v2",
+        "orders.cancelled.v2"
+      ],
+      "consumes": [
+        "payments.settled.v2"
+      ],
+      "operations": [
+        {
+          "op_id": "placeOrder",
+          "kind": "command",
+          "method": "POST",
+          "path": "/orders",
+          "summary": "Place an order",
+          "description": "Accepts an order for the given customer and lines. On success the order is persisted and an OrderPlaced event is guaranteed to be published - never one without the other.",
+          "artifact_path": "openapi/orders.openapi.yaml",
+          "artifact_version": "3.1.0",
+          "parameters": [],
+          "request_rows": [
+            {
+              "field": "customer_id",
+              "type": "string (uuid)",
+              "required": true,
+              "constraints": ""
+            },
+            {
+              "field": "lines",
+              "type": "array",
+              "required": true,
+              "constraints": "min 1 item(s)"
+            },
+            {
+              "field": "lines[].sku",
+              "type": "string",
+              "required": true,
+              "constraints": ""
+            },
+            {
+              "field": "lines[].quantity",
+              "type": "integer",
+              "required": true,
+              "constraints": "\u2265 1"
+            },
+            {
+              "field": "lines[].unit_price_pence",
+              "type": "integer",
+              "required": true,
+              "constraints": "\u2265 0"
+            }
+          ],
+          "responses": [
+            {
+              "status": "201",
+              "description": "Order accepted; an OrderPlaced event will be published."
+            },
+            {
+              "status": "400",
+              "description": "Invalid order - no lines, a line quantity below 1, a negative unit_price_pence, or a line missing its sku."
+            },
+            {
+              "status": "409",
+              "description": "Idempotency key already used with a different body."
+            }
+          ],
+          "response_body": {
+            "status": "201",
+            "rows": [
+              {
+                "field": "order_id",
+                "type": "string (uuid)",
+                "required": true,
+                "constraints": ""
+              },
+              {
+                "field": "customer_id",
+                "type": "string (uuid)",
+                "required": true,
+                "constraints": ""
+              },
+              {
+                "field": "status",
+                "type": "string",
+                "required": true,
+                "constraints": "one of placed, paid, cancelled"
+              },
+              {
+                "field": "total_pence",
+                "type": "integer",
+                "required": true,
+                "constraints": "\u2265 0"
+              }
+            ]
+          },
+          "examples": [
+            {
+              "case": "placed",
+              "request": "{\n  \"customer_id\": \"22222222-2222-2222-2222-222222222222\",\n  \"lines\": [\n    { \"sku\": \"SKU-001\", \"quantity\": 2, \"unit_price_pence\": 1250 }\n  ]\n}",
+              "status": "201",
+              "response": "{\n  \"order_id\": \"11111111-1111-1111-1111-111111111111\",\n  \"customer_id\": \"22222222-2222-2222-2222-222222222222\",\n  \"status\": \"placed\",\n  \"total_pence\": 2500\n}"
+            }
+          ]
+        },
+        {
+          "op_id": "getOrder",
+          "kind": "query",
+          "method": "GET",
+          "path": "/orders/{order_id}",
+          "summary": "Fetch an order",
+          "description": "Returns the order's current state by its id.",
+          "artifact_path": "openapi/orders.openapi.yaml",
+          "artifact_version": "3.1.0",
+          "parameters": [
+            {
+              "name": "order_id",
+              "in": "path",
+              "type": "string (uuid)",
+              "required": true
+            }
+          ],
+          "request_rows": [],
+          "responses": [
+            {
+              "status": "200",
+              "description": "The order."
+            },
+            {
+              "status": "404",
+              "description": "No such order."
+            }
+          ],
+          "response_body": {
+            "status": "200",
+            "rows": [
+              {
+                "field": "order_id",
+                "type": "string (uuid)",
+                "required": true,
+                "constraints": ""
+              },
+              {
+                "field": "customer_id",
+                "type": "string (uuid)",
+                "required": true,
+                "constraints": ""
+              },
+              {
+                "field": "status",
+                "type": "string",
+                "required": true,
+                "constraints": "one of placed, paid, cancelled"
+              },
+              {
+                "field": "total_pence",
+                "type": "integer",
+                "required": true,
+                "constraints": "\u2265 0"
+              }
+            ]
+          },
+          "examples": [
+            {
+              "case": "placed",
+              "request": null,
+              "status": "200",
+              "response": "{\n  \"order_id\": \"11111111-1111-1111-1111-111111111111\",\n  \"customer_id\": \"22222222-2222-2222-2222-222222222222\",\n  \"status\": \"placed\",\n  \"total_pence\": 2500\n}"
+            }
+          ]
+        }
+      ],
+      "data_products": [
+        {
+          "stem": "orders-events.odcs",
+          "title": "Order events history"
+        }
+      ],
+      "channels": [
+        {
+          "address": "orders.placed.v2",
+          "producer": "orders",
+          "producer_title": "Orders",
+          "artifact_path": "asyncapi/orders.asyncapi.yaml",
+          "artifact_version": "3.0.0",
+          "description": "Emitted when an order is accepted and persisted.",
+          "consumers": [
+            "payments"
+          ],
+          "sequence_mermaid": "sequenceDiagram\n    participant orders as Orders\n    participant chan as orders.placed.v2\n    participant payments as Payments\n    orders-)chan: OrderPlaced\n    chan-)payments: OrderPlaced",
+          "messages": [
+            {
+              "name": "OrderPlaced",
+              "title": "Order placed",
+              "event_type": "com.hungovercoders.orders.placed.v2",
+              "data_rows": [
+                {
+                  "field": "order_id",
+                  "type": "string (uuid)",
+                  "required": true,
+                  "constraints": ""
+                },
+                {
+                  "field": "customer_id",
+                  "type": "string (uuid)",
+                  "required": true,
+                  "constraints": ""
+                },
+                {
+                  "field": "placed_at",
+                  "type": "string (date-time)",
+                  "required": true,
+                  "constraints": ""
+                },
+                {
+                  "field": "total_pence",
+                  "type": "integer",
+                  "required": true,
+                  "constraints": "\u2265 0"
+                }
+              ],
+              "envelope_rows": [
+                {
+                  "field": "specversion",
+                  "type": "string",
+                  "required": true,
+                  "constraints": "always '1.0'"
+                },
+                {
+                  "field": "id",
+                  "type": "string (uuid)",
+                  "required": true,
+                  "constraints": ""
+                },
+                {
+                  "field": "source",
+                  "type": "string",
+                  "required": true,
+                  "constraints": "always '/orders'"
+                },
+                {
+                  "field": "type",
+                  "type": "string",
+                  "required": true,
+                  "constraints": "always 'com.hungovercoders.orders.placed.v2'"
+                },
+                {
+                  "field": "subject",
+                  "type": "string (uuid)",
+                  "required": true,
+                  "constraints": ""
+                },
+                {
+                  "field": "time",
+                  "type": "string (date-time)",
+                  "required": true,
+                  "constraints": ""
+                },
+                {
+                  "field": "datacontenttype",
+                  "type": "string",
+                  "required": true,
+                  "constraints": "always 'application/json'"
+                }
+              ]
+            }
+          ],
+          "examples": [
+            {
+              "case": "placed",
+              "payload": "{\n  \"specversion\": \"1.0\",\n  \"id\": \"aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa\",\n  \"source\": \"/orders\",\n  \"type\": \"com.hungovercoders.orders.placed.v2\",\n  \"subject\": \"11111111-1111-1111-1111-111111111111\",\n  \"time\": \"2026-08-23T09:00:00Z\",\n  \"datacontenttype\": \"application/json\",\n  \"data\": {\n    \"order_id\": \"11111111-1111-1111-1111-111111111111\",\n    \"customer_id\": \"22222222-2222-2222-2222-222222222222\",\n    \"placed_at\": \"2026-08-23T09:00:00Z\",\n    \"total_pence\": 2500\n  }\n}"
+            }
+          ]
+        },
+        {
+          "address": "orders.cancelled.v2",
+          "producer": "orders",
+          "producer_title": "Orders",
+          "artifact_path": "asyncapi/orders.asyncapi.yaml",
+          "artifact_version": "3.0.0",
+          "description": "Emitted when an order is cancelled, with the reason.",
+          "consumers": [],
+          "sequence_mermaid": "sequenceDiagram\n    participant orders as Orders\n    participant chan as orders.cancelled.v2\n    orders-)chan: OrderCancelled\n    Note over chan: no consumer in the specs yet",
+          "messages": [
+            {
+              "name": "OrderCancelled",
+              "title": "Order cancelled",
+              "event_type": "com.hungovercoders.orders.cancelled.v2",
+              "data_rows": [
+                {
+                  "field": "order_id",
+                  "type": "string (uuid)",
+                  "required": true,
+                  "constraints": ""
+                },
+                {
+                  "field": "cancelled_at",
+                  "type": "string (date-time)",
+                  "required": true,
+                  "constraints": ""
+                },
+                {
+                  "field": "reason",
+                  "type": "string",
+                  "required": true,
+                  "constraints": "one of customer_request, payment_failed, out_of_stock"
+                }
+              ],
+              "envelope_rows": [
+                {
+                  "field": "specversion",
+                  "type": "string",
+                  "required": true,
+                  "constraints": "always '1.0'"
+                },
+                {
+                  "field": "id",
+                  "type": "string (uuid)",
+                  "required": true,
+                  "constraints": ""
+                },
+                {
+                  "field": "source",
+                  "type": "string",
+                  "required": true,
+                  "constraints": "always '/orders'"
+                },
+                {
+                  "field": "type",
+                  "type": "string",
+                  "required": true,
+                  "constraints": "always 'com.hungovercoders.orders.cancelled.v2'"
+                },
+                {
+                  "field": "subject",
+                  "type": "string (uuid)",
+                  "required": true,
+                  "constraints": ""
+                },
+                {
+                  "field": "time",
+                  "type": "string (date-time)",
+                  "required": true,
+                  "constraints": ""
+                },
+                {
+                  "field": "datacontenttype",
+                  "type": "string",
+                  "required": true,
+                  "constraints": "always 'application/json'"
+                }
+              ]
+            }
+          ],
+          "examples": [
+            {
+              "case": "cancelled",
+              "payload": "{\n  \"specversion\": \"1.0\",\n  \"id\": \"bbbbbbbb-2222-4222-8222-bbbbbbbbbbbb\",\n  \"source\": \"/orders\",\n  \"type\": \"com.hungovercoders.orders.cancelled.v2\",\n  \"subject\": \"33333333-3333-3333-3333-333333333333\",\n  \"time\": \"2026-08-23T09:05:00Z\",\n  \"datacontenttype\": \"application/json\",\n  \"data\": {\n    \"order_id\": \"33333333-3333-3333-3333-333333333333\",\n    \"cancelled_at\": \"2026-08-23T09:05:00Z\",\n    \"reason\": \"customer_request\"\n  }\n}"
+            }
+          ]
+        }
+      ],
+      "changelog": [],
+      "latest_release": null,
+      "ahead": false
+    },
+    {
+      "name": "payments",
+      "title": "Payments",
+      "version": "3.0.1",
+      "domain": "Commerce",
+      "owner": "team-payments",
+      "summary": "Authorises and settles payments against orders. Publishes settlement events and a daily reconciliation dataset.",
+      "implementation_repo": null,
+      "artifacts": [
+        {
+          "kind": "asyncapi",
+          "path": "asyncapi/payments.asyncapi.yaml",
+          "stem": "payments.asyncapi",
+          "version": "2.0.0",
+          "gated": true,
+          "summary": "Payment lifecycle events.",
+          "history": []
+        },
+        {
+          "kind": "data-contract",
+          "path": "data-contracts/payments-daily.odcs.yaml",
+          "stem": "payments-daily.odcs",
+          "version": "1.0.0",
+          "gated": true,
+          "summary": "Daily settled-payments table for finance reconciliation.",
+          "history": [],
+          "odcs": {
+            "apiVersion": "v3.1.0",
+            "kind": "DataContract",
+            "id": "payments-daily-settled",
+            "name": "Daily settled payments",
+            "version": "1.0.0",
+            "status": "active",
+            "domain": "Commerce",
+            "tenant": "hungovecoders",
+            "dataProduct": "payments",
+            "description": {
+              "purpose": "Daily reconciliation of settled payments for finance. One row per settled payment, partitioned by settlement date.\n",
+              "usage": "Finance close and chargeback investigation. Not a source for real-time balances \u2014 use the payments service API for that.\n",
+              "limitations": "Settlement date is the processor's, not ours, so late arrivals can backfill up to 3 days. Do not treat a partition as final until D+3.\n"
+            },
+            "schema": [
+              {
+                "name": "settled_payments",
+                "logicalType": "object",
+                "physicalName": "payments_daily_settled",
+                "physicalType": "table",
+                "properties": [
+                  {
+                    "name": "payment_id",
+                    "logicalType": "string",
+                    "physicalType": "uuid",
+                    "required": true,
+                    "unique": true,
+                    "primaryKey": true
+                  },
+                  {
+                    "name": "order_id",
+                    "logicalType": "string",
+                    "physicalType": "uuid",
+                    "required": true
+                  },
+                  {
+                    "name": "settled_at",
+                    "logicalType": "date",
+                    "physicalType": "timestamp",
+                    "required": true,
+                    "partitioned": true
+                  },
+                  {
+                    "name": "amount_pence",
+                    "logicalType": "integer",
+                    "physicalType": "bigint",
+                    "required": true,
+                    "quality": [
+                      {
+                        "rule": "nonNegative",
+                        "mustBeGreaterThanOrEqualTo": 0
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "slaProperties": [
+              {
+                "property": "frequency",
+                "value": 1,
+                "unit": "d"
+              },
+              {
+                "property": "latency",
+                "value": 4,
+                "unit": "h"
+              }
+            ],
+            "team": [
+              {
+                "username": "team-payments",
+                "role": "owner"
+              }
+            ],
+            "support": [
+              {
+                "channel": "#payments-support",
+                "tool": "slack"
+              }
+            ]
+          },
+          "er_mermaid": "erDiagram\n    payments_daily_settled {\n        string payment_id PK\n        string order_id\n        date settled_at\n        integer amount_pence\n    }"
+        },
+        {
+          "kind": "data-contract",
+          "path": "data-contracts/payments-events.odcs.yaml",
+          "stem": "payments-events.odcs",
+          "version": "1.2.0",
+          "gated": true,
+          "summary": "Append-only historical record of the settlement events.",
+          "history": [],
+          "odcs": {
+            "apiVersion": "v3.1.0",
+            "kind": "DataContract",
+            "id": "payments-events-history",
+            "name": "Payment events history",
+            "version": "1.2.0",
+            "status": "active",
+            "domain": "Commerce",
+            "tenant": "hungovercoders",
+            "dataProduct": "payments",
+            "description": {
+              "purpose": "Append-only historical record of payment settlement events. One row per event, mirroring the AsyncAPI payload on payments.settled.v2 field for field - the stream is ephemeral, this table is the record.\n",
+              "usage": "Settlement analytics, audit, and replay/backfill for downstream consumers that joined after the fact. The daily reconciliation product (payments-daily) is derived from this record.\n",
+              "limitations": "Delivery upstream is at-least-once; rows are deduplicated on the CloudEvents envelope id, so exactly one row per settlement (settlement is terminal). Not a source for real-time balances - use the payments service API for that.\n"
+            },
+            "schema": [
+              {
+                "name": "payment_settled_events",
+                "logicalType": "object",
+                "physicalName": "payment_settled_events",
+                "physicalType": "table",
+                "description": "One row per PaymentSettled event on payments.settled.v2.",
+                "properties": [
+                  {
+                    "name": "event_id",
+                    "logicalType": "string",
+                    "physicalType": "uuid",
+                    "required": true,
+                    "unique": true,
+                    "primaryKey": true,
+                    "description": "CloudEvents envelope id - the dedupe key."
+                  },
+                  {
+                    "name": "event_type",
+                    "logicalType": "string",
+                    "physicalType": "text",
+                    "required": true,
+                    "description": "CloudEvents type, e.g. com.hungovercoders.payments.settled.v2."
+                  },
+                  {
+                    "name": "event_source",
+                    "logicalType": "string",
+                    "physicalType": "text",
+                    "required": true,
+                    "description": "CloudEvents source of the producing service."
+                  },
+                  {
+                    "name": "event_time",
+                    "logicalType": "date",
+                    "physicalType": "timestamp",
+                    "required": true,
+                    "description": "CloudEvents envelope time."
+                  },
+                  {
+                    "name": "payment_id",
+                    "logicalType": "string",
+                    "physicalType": "uuid",
+                    "required": true,
+                    "unique": true
+                  },
+                  {
+                    "name": "order_id",
+                    "logicalType": "string",
+                    "physicalType": "uuid",
+                    "required": true
+                  },
+                  {
+                    "name": "settled_at",
+                    "logicalType": "date",
+                    "physicalType": "timestamp",
+                    "required": true,
+                    "partitioned": true
+                  },
+                  {
+                    "name": "amount_pence",
+                    "logicalType": "integer",
+                    "physicalType": "bigint",
+                    "required": true,
+                    "quality": [
+                      {
+                        "rule": "nonNegative",
+                        "mustBeGreaterThanOrEqualTo": 0
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "slaProperties": [
+              {
+                "property": "latency",
+                "value": 15,
+                "unit": "m"
+              }
+            ],
+            "team": [
+              {
+                "username": "team-payments",
+                "role": "owner"
+              }
+            ],
+            "support": [
+              {
+                "channel": "#payments-support",
+                "tool": "slack"
+              }
+            ]
+          },
+          "er_mermaid": "erDiagram\n    payment_settled_events {\n        string event_id PK\n        string event_type\n        string event_source\n        date event_time\n        string payment_id UK\n        string order_id\n        date settled_at\n        integer amount_pence\n    }"
+        },
+        {
+          "kind": "feature",
+          "path": "features/settle-payment.feature",
+          "stem": "settle-payment",
+          "version": "2.0.0",
+          "gated": true,
+          "summary": "Acceptance criteria for settlement and reversal handling.",
+          "history": [],
+          "text": "Feature: Settling a payment\n  Settlement is terminal. Authorisation is not.\n\n  Scenario: Settlement emits exactly one event\n    Given an authorised payment \"p-1\" for order \"o-1\" of 2500 pence\n    When the processor confirms settlement\n    Then a \"PaymentSettled\" event is published on \"payments.settled.v2\"\n    And the event data amount_pence is 2500\n\n  Scenario: Settlement events are CloudEvents envelopes\n    Given an authorised payment \"p-3\" for order \"o-3\" of 1000 pence\n    When the processor confirms settlement\n    Then a \"PaymentSettled\" event is published on \"payments.settled.v2\"\n    And the envelope carries specversion \"1.0\", a unique id and a time\n    And the envelope source is /payments and its type is com.hungovercoders.payments.settled.v2\n    And the envelope subject is the payment_id, with datacontenttype \"application/json\"\n    And the data carries the payment_id, order_id, settled_at and amount_pence\n    And handlers dedupe on the envelope id\n\n  Scenario: Duplicate settlement callbacks are idempotent\n    Given payment \"p-1\" has already settled\n    When the processor sends the settlement callback again\n    Then no second \"PaymentSettled\" event is published\n\n  Scenario: A reversal after authorisation does not emit settlement\n    Given an authorised payment \"p-2\"\n    When the authorisation is reversed\n    Then no \"PaymentSettled\" event is published for \"p-2\"\n",
+          "feature": {
+            "title": "Settling a payment",
+            "description": [
+              "Settlement is terminal. Authorisation is not."
+            ],
+            "background": [],
+            "scenarios": [
+              {
+                "title": "Settlement emits exactly one event",
+                "steps": [
+                  {
+                    "keyword": "Given",
+                    "phase": "given",
+                    "text": "an authorised payment \"p-1\" for order \"o-1\" of 2500 pence"
+                  },
+                  {
+                    "keyword": "When",
+                    "phase": "when",
+                    "text": "the processor confirms settlement"
+                  },
+                  {
+                    "keyword": "Then",
+                    "phase": "then",
+                    "text": "a \"PaymentSettled\" event is published on \"payments.settled.v2\""
+                  },
+                  {
+                    "keyword": "And",
+                    "phase": "then",
+                    "text": "the event data amount_pence is 2500"
+                  }
+                ]
+              },
+              {
+                "title": "Settlement events are CloudEvents envelopes",
+                "steps": [
+                  {
+                    "keyword": "Given",
+                    "phase": "given",
+                    "text": "an authorised payment \"p-3\" for order \"o-3\" of 1000 pence"
+                  },
+                  {
+                    "keyword": "When",
+                    "phase": "when",
+                    "text": "the processor confirms settlement"
+                  },
+                  {
+                    "keyword": "Then",
+                    "phase": "then",
+                    "text": "a \"PaymentSettled\" event is published on \"payments.settled.v2\""
+                  },
+                  {
+                    "keyword": "And",
+                    "phase": "then",
+                    "text": "the envelope carries specversion \"1.0\", a unique id and a time"
+                  },
+                  {
+                    "keyword": "And",
+                    "phase": "then",
+                    "text": "the envelope source is /payments and its type is com.hungovercoders.payments.settled.v2"
+                  },
+                  {
+                    "keyword": "And",
+                    "phase": "then",
+                    "text": "the envelope subject is the payment_id, with datacontenttype \"application/json\""
+                  },
+                  {
+                    "keyword": "And",
+                    "phase": "then",
+                    "text": "the data carries the payment_id, order_id, settled_at and amount_pence"
+                  },
+                  {
+                    "keyword": "And",
+                    "phase": "then",
+                    "text": "handlers dedupe on the envelope id"
+                  }
+                ]
+              },
+              {
+                "title": "Duplicate settlement callbacks are idempotent",
+                "steps": [
+                  {
+                    "keyword": "Given",
+                    "phase": "given",
+                    "text": "payment \"p-1\" has already settled"
+                  },
+                  {
+                    "keyword": "When",
+                    "phase": "when",
+                    "text": "the processor sends the settlement callback again"
+                  },
+                  {
+                    "keyword": "Then",
+                    "phase": "then",
+                    "text": "no second \"PaymentSettled\" event is published"
+                  }
+                ]
+              },
+              {
+                "title": "A reversal after authorisation does not emit settlement",
+                "steps": [
+                  {
+                    "keyword": "Given",
+                    "phase": "given",
+                    "text": "an authorised payment \"p-2\""
+                  },
+                  {
+                    "keyword": "When",
+                    "phase": "when",
+                    "text": "the authorisation is reversed"
+                  },
+                  {
+                    "keyword": "Then",
+                    "phase": "then",
+                    "text": "no \"PaymentSettled\" event is published for \"p-2\""
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "produces": [
+        "payments.settled.v2"
+      ],
+      "consumes": [
+        "orders.placed.v2"
+      ],
+      "operations": [],
+      "data_products": [
+        {
+          "stem": "payments-daily.odcs",
+          "title": "Daily settled payments"
+        },
+        {
+          "stem": "payments-events.odcs",
+          "title": "Payment events history"
+        }
+      ],
+      "channels": [
+        {
+          "address": "payments.settled.v2",
+          "producer": "payments",
+          "producer_title": "Payments",
+          "artifact_path": "asyncapi/payments.asyncapi.yaml",
+          "artifact_version": "2.0.0",
+          "description": "Emitted once funds have irrevocably settled for an order.",
+          "consumers": [
+            "orders"
+          ],
+          "sequence_mermaid": "sequenceDiagram\n    participant payments as Payments\n    participant chan as payments.settled.v2\n    participant orders as Orders\n    payments-)chan: PaymentSettled\n    chan-)orders: PaymentSettled",
+          "messages": [
+            {
+              "name": "PaymentSettled",
+              "title": "Payment settled",
+              "event_type": "com.hungovercoders.payments.settled.v2",
+              "data_rows": [
+                {
+                  "field": "payment_id",
+                  "type": "string (uuid)",
+                  "required": true,
+                  "constraints": ""
+                },
+                {
+                  "field": "order_id",
+                  "type": "string (uuid)",
+                  "required": true,
+                  "constraints": ""
+                },
+                {
+                  "field": "settled_at",
+                  "type": "string (date-time)",
+                  "required": true,
+                  "constraints": ""
+                },
+                {
+                  "field": "amount_pence",
+                  "type": "integer",
+                  "required": true,
+                  "constraints": "\u2265 0"
+                }
+              ],
+              "envelope_rows": [
+                {
+                  "field": "specversion",
+                  "type": "string",
+                  "required": true,
+                  "constraints": "always '1.0'"
+                },
+                {
+                  "field": "id",
+                  "type": "string (uuid)",
+                  "required": true,
+                  "constraints": ""
+                },
+                {
+                  "field": "source",
+                  "type": "string",
+                  "required": true,
+                  "constraints": "always '/payments'"
+                },
+                {
+                  "field": "type",
+                  "type": "string",
+                  "required": true,
+                  "constraints": "always 'com.hungovercoders.payments.settled.v2'"
+                },
+                {
+                  "field": "subject",
+                  "type": "string (uuid)",
+                  "required": true,
+                  "constraints": ""
+                },
+                {
+                  "field": "time",
+                  "type": "string (date-time)",
+                  "required": true,
+                  "constraints": ""
+                },
+                {
+                  "field": "datacontenttype",
+                  "type": "string",
+                  "required": true,
+                  "constraints": "always 'application/json'"
+                }
+              ]
+            }
+          ],
+          "examples": [
+            {
+              "case": "settled",
+              "payload": "{\n  \"specversion\": \"1.0\",\n  \"id\": \"cccccccc-3333-4333-8333-cccccccccccc\",\n  \"source\": \"/payments\",\n  \"type\": \"com.hungovercoders.payments.settled.v2\",\n  \"subject\": \"44444444-4444-4444-4444-444444444444\",\n  \"time\": \"2026-08-23T09:01:30Z\",\n  \"datacontenttype\": \"application/json\",\n  \"data\": {\n    \"payment_id\": \"44444444-4444-4444-4444-444444444444\",\n    \"order_id\": \"11111111-1111-1111-1111-111111111111\",\n    \"settled_at\": \"2026-08-23T09:01:30Z\",\n    \"amount_pence\": 2500\n  }\n}"
+            }
+          ]
+        }
+      ],
+      "changelog": [],
+      "latest_release": null,
+      "ahead": false
+    }
+  ],
+  "edges": [
+    {
+      "from": "payments",
+      "channel": "payments.settled.v2",
+      "to": "orders"
+    },
+    {
+      "from": "orders",
+      "channel": "orders.placed.v2",
+      "to": "payments"
+    }
+  ],
+  "unconsumed": [
+    {
+      "channel": "orders.cancelled.v2",
+      "producer": "orders"
+    }
+  ]
+}

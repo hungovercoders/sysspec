@@ -40,9 +40,9 @@ export interface ServiceEntry {
 export class ArtifactMissingError extends Error {}
 
 export interface SpecSource {
-  /** All services keyed by name, in sorted-directory order (the order the
-   * Python server's sorted glob produced). Filesystem sources re-read on
-   * every call so spec edits show up without a server restart. */
+  /** All services keyed by name, in sorted-directory order. Filesystem
+   * sources re-read on every call so spec edits show up without a server
+   * restart. */
   loadServices(): Promise<Map<string, ServiceEntry>>;
   /** Raw text of a file under a service's directory. */
   readFile(service: ServiceEntry, relPath: string): Promise<string>;

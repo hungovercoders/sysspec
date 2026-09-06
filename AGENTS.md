@@ -24,6 +24,6 @@ below are the agent-specific sharp edges.
   `skills/consume-service/SKILL.md` for building a consumer — a UI or
   client — against a service's pinned mocks.
 - **Version everything you touch**: gated artifact ⇒ artifact + service
-  version bumps; plugin surface (kit, skills, templates) ⇒
+  version bumps; plugin surface (cli, mcp, skills, templates) ⇒
   `.claude-plugin/plugin.json` bump. `check:version` and `lint:manifest`
   catch the former; the latter is on you.

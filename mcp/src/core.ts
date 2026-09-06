@@ -1,6 +1,6 @@
 /** The seven read-only spec tools, as plain functions over a SpecSource.
  *
- * Design notes (carried from the original Python server):
+ * Design notes:
  *
  * - The specs is a graph of services, not a flat list of files. Services own
  *   artifacts and declare the channels they produce and consume, so questions
@@ -14,8 +14,8 @@
  *   carries a truncated flag and a count, never a silent cap. Every
  *   content-bearing tool has a mode that returns exactly one thing.
  *
- * Error messages reproduce the Python originals character-for-character
- * (including repr() quoting) — they are part of the served contract.
+ * Error messages are part of the served contract (the tests match on
+ * them), down to their repr()-style quoting — see pyformat.ts.
  */
 
 import { parse, stringify } from "yaml";
@@ -71,7 +71,7 @@ function utf8Len(text: string): number {
   return new TextEncoder().encode(text).length;
 }
 
-/** Python str.splitlines() for \n-separated text (no trailing empty line). */
+/** Split into lines with no trailing empty element. */
 function splitLines(text: string): string[] {
   const lines = text.split(/\r\n|\r|\n/);
   if (lines.length && lines[lines.length - 1] === "") lines.pop();

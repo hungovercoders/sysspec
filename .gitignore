@@ -4,7 +4,7 @@ __pycache__/
 .claude/settings.local.json
 site/
 .task/
-kit/src/sysspec/data/init/docs-site/node_modules/
-kit/src/sysspec/data/init/docs-site/.astro/
-kit/src/sysspec/data/init/docs-site/src/data/specs.json
-kit/src/sysspec/data/init/docs-site/public/specs/
+cli/templates/init/docs-site/node_modules/
+cli/templates/init/docs-site/.astro/
+cli/templates/init/docs-site/src/data/specs.json
+cli/templates/init/docs-site/public/specs/
