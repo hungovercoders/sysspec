@@ -80,7 +80,14 @@ Ask before writing code (one round of questions where possible):
    `ASYNC_ENDPOINT` in verification (`ws://`, `kafka://`, `mqtt://`,
    `amqp://` — it must be one the Microcks async runner can point at).
 5. **Storage** — for aggregate state and idempotency records.
-6. **Hosting / CI constraints** — affects scaffolding, nothing contractual.
+6. **Hosting** — where this service will run, and whether it should deploy
+   from CI now or stay local-only for the moment. Affects scaffolding
+   (deploy config, PR preview environments), nothing contractual. Offer the
+   spec repo's own demo as the reference: Cloudflare Workers with per-PR
+   preview URLs (`deploy/cloudflare/` and the `cloudflare-*.yml` workflows);
+   AWS (S3+CloudFront / App Runner) is the documented alternative in
+   `deploy/README.md`. Any host that serves HTTP and can run the service's
+   runtime is valid — record the choice in the implementation repo's README.
 
 Do **not** interview about anything the contract already decides: endpoints,
 status codes, payload shapes, channel addresses, event semantics. If the

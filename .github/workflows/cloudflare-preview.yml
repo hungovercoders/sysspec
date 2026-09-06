@@ -1,0 +1,79 @@
+# Per-PR preview of the whole sysspec demo: docs site + spec MCP server
+# from the PR's spec commit, uploaded as a Worker version with a stable
+# pr-<number> preview alias. The URL is posted as a sticky PR comment.
+# Uploading a version never touches the deployed demo.
+#
+# Secrets: CLOUDFLARE_API_TOKEN (Workers Scripts:Edit), CLOUDFLARE_ACCOUNT_ID.
+name: cloudflare-preview
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: cloudflare-preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  preview:
+    # Fork PRs have no secrets; skip rather than fail.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: jdx/mise-action@v2
+      - name: Build the docs site at the root base path
+        run: task docs:build
+        env:
+          DOCS_SITE_BASE: /
+      - name: Bake the specs bundle the Worker serves
+        run: |
+          npm ci --no-audit --no-fund --prefix mcp
+          node mcp/scripts/bundle-specs.mjs
+      - run: npm ci --no-audit --no-fund
+        working-directory: deploy/cloudflare
+      - name: Upload a preview version aliased to this PR
+        id: upload
+        working-directory: deploy/cloudflare
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -o pipefail
+          if ! npx wrangler versions upload --preview-alias "pr-${{ github.event.pull_request.number }}" 2>&1 | tee upload.log; then
+            if grep -q 'cannot upload a new version of a Worker that does not yet exist' upload.log; then
+              echo "Worker not deployed yet; bootstrapping with wrangler deploy first."
+              npx wrangler deploy
+              npx wrangler versions upload --preview-alias "pr-${{ github.event.pull_request.number }}" 2>&1 | tee upload.log
+            else
+              exit 1
+            fi
+          fi
+          url=$(grep -oE 'https://pr-[0-9]+-[a-z0-9.-]+\.workers\.dev' upload.log | head -1)
+          [ -n "$url" ] || { echo "no preview URL in wrangler output"; exit 1; }
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+      - name: Post the preview URL as a sticky comment
+        uses: actions/github-script@v7
+        env:
+          PREVIEW_URL: ${{ steps.upload.outputs.url }}
+        with:
+          script: |
+            const marker = '<!-- cloudflare-preview -->';
+            const url = process.env.PREVIEW_URL;
+            const body = `${marker}\n**Cloudflare preview** (site + MCP from this PR's specs)\n\n` +
+              `- Site: ${url}\n- MCP endpoint: ${url}/mcp\n\n` +
+              `Updated on every push; the alias is stable for this PR.`;
+            const { owner, repo } = context.repo;
+            const issue_number = context.payload.pull_request.number;
+            const comments = await github.rest.issues.listComments({ owner, repo, issue_number });
+            const existing = comments.data.find(c => c.body.startsWith(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }

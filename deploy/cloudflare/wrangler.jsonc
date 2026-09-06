@@ -1,0 +1,25 @@
+// The sysspec demo on Cloudflare: one Worker serving the generated docs
+// site as static assets at / and the spec MCP server at /mcp, both built
+// from the same spec commit. PR preview URLs cover the whole system.
+//
+// Build inputs (see ../../.github/workflows/cloudflare-deploy.yml):
+//   ../../site                        <- task docs:build with DOCS_SITE_BASE=/
+//   ../../mcp/dist/index.mjs          <- committed mcp build
+//   ../../mcp/src/generated/specs-bundle.json <- node mcp/scripts/bundle-specs.mjs
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "sysspec-demo",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-08-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "../../site",
+    "not_found_handling": "404-page",
+    "run_worker_first": ["/mcp", "/mcp/*"]
+  },
+  "workers_dev": true,
+  "preview_urls": true,
+  "observability": {
+    "enabled": true
+  }
+}

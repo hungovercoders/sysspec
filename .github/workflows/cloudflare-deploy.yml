@@ -1,0 +1,45 @@
+# Deploy the sysspec demo (docs site + spec MCP server, one Worker) to
+# Cloudflare on every main push. Same build as the PR previews in
+# cloudflare-preview.yml, promoted with `wrangler deploy`.
+#
+# Secrets: CLOUDFLARE_API_TOKEN (Workers Scripts:Edit), CLOUDFLARE_ACCOUNT_ID.
+name: cloudflare-deploy
+
+on:
+  push:
+    branches: [main]
+  # First deploy bootstraps the Worker that preview versions target.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloudflare-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history and tags: the generated changelog pages read the
+          # <service>/v<version> release tags, absent in a shallow clone.
+          fetch-depth: 0
+      - uses: jdx/mise-action@v2
+      - name: Build the docs site at the root base path
+        run: task docs:build
+        env:
+          DOCS_SITE_BASE: /
+      - name: Bake the specs bundle the Worker serves
+        run: |
+          npm ci --no-audit --no-fund --prefix mcp
+          node mcp/scripts/bundle-specs.mjs
+      - run: npm ci --no-audit --no-fund
+        working-directory: deploy/cloudflare
+      - run: npx wrangler deploy
+        working-directory: deploy/cloudflare
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
