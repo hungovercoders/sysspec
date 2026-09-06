@@ -3,7 +3,8 @@
 # stored; provenance attached automatically) and moves the floating
 # v<major> tag that adopter workflows reference (uses: ...@v<major>).
 # The staged version goes live only after a maintainer approves it with
-# 2FA: `npm stage approve sysspec@<version>` or on npmjs.com.
+# 2FA: `npm stage approve <uuid>` (uuid from `npm stage list sysspec`)
+# in an interactive terminal, or on npmjs.com.
 #
 # One-time setup on npmjs.com: publish the first version manually so the
 # package exists, then add a "trusted publisher" for sysspec pointing at

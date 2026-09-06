@@ -2,7 +2,8 @@
 # mcp/package.json. Stages the package on npm via trusted publishing
 # (OIDC — no token stored; provenance attached automatically). The staged
 # version goes live only after a maintainer approves it with 2FA:
-# `npm stage approve sysspec-mcp@<version>` or on npmjs.com.
+# `npm stage approve <uuid>` (uuid from `npm stage list sysspec-mcp`)
+# in an interactive terminal, or on npmjs.com.
 #
 # One-time setup on npmjs.com: publish 1.0.0 manually once so the package
 # exists, then add a "trusted publisher" for sysspec-mcp pointing at this
