@@ -13,8 +13,8 @@ and gated. Built on [sysspec](https://github.com/__SYSSPEC_REPO_SLUG__).
 - `task mocks:load` stands up Microcks mocks of every service so UIs and
   consumers can build before implementations exist.
 - The machinery arrives by reference and stays current via Renovate: the
-  `sysspec==` pin in `Taskfile.yml` / `.mcp.json`, and the reusable
-  workflows under `.github/workflows/`.
+  `sysspec==` pypi pin in `Taskfile.yml`, the `sysspec-mcp@` npm pin in
+  `.mcp.json`, and the reusable workflows under `.github/workflows/`.
 - Agents get the same specs over MCP (`.mcp.json`) and the deeper
   processes via the sysspec plugin's skills — install with
   `/plugin marketplace add __SYSSPEC_REPO_SLUG__` then `/plugin install`,

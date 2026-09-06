@@ -1,0 +1,50 @@
+# Reusable container-image publish for a sysspec repo's MCP server: bakes
+# the repo's specs/ into the sysspec-mcp image and pushes it to GHCR using
+# the built-in GITHUB_TOKEN — no host-specific secrets, no host chosen.
+# Any container platform (Coolify, AWS App Runner/ECS, Cloud Run,
+# Cloudflare Containers, a VPS) then runs the image by reference.
+#
+# Consumers (the caller must grant the permissions):
+#   permissions: { contents: read, packages: write }
+#   jobs:
+#     image:
+#       uses: hungovercoders/sysspec/.github/workflows/sysspec-mcp-image.yml@v<major>
+name: sysspec-mcp-image
+
+on:
+  workflow_call:
+    inputs:
+      dockerfile:
+        description: Dockerfile that packages the server with this repo's specs
+        type: string
+        default: mcp/Dockerfile
+      image-name:
+        description: Image name under ghcr.io/<owner>; defaults to the repo name
+        type: string
+        default: ""
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Resolve image reference
+        id: ref
+        run: |
+          name="${{ inputs.image-name }}"
+          [ -n "$name" ] || name="${GITHUB_REPOSITORY#*/}-mcp"
+          echo "image=ghcr.io/${GITHUB_REPOSITORY_OWNER}/${name}" | tr '[:upper:]' '[:lower:]' >> "$GITHUB_OUTPUT"
+      - name: Build and push
+        run: |
+          image="${{ steps.ref.outputs.image }}"
+          docker build -f "${{ inputs.dockerfile }}" -t "$image:latest" -t "$image:$GITHUB_SHA" .
+          docker push "$image:latest"
+          docker push "$image:$GITHUB_SHA"

@@ -21,7 +21,9 @@ This repo is three things at once:
 
 1. **The toolkit** — [`sysspec`](kit/) on PyPI: the `sysspec` CLI
    (gates, lint, docs, mock orchestration for consumers, contract testing
-   for implementations, `init` scaffold) and the `sysspec-mcp` server.
+   for implementations, `init` scaffold) — and [`sysspec-mcp`](mcp/) on
+   npm: the MCP server, one TypeScript implementation serving stdio
+   locally and streamable HTTP behind a URL.
 2. **The distribution** — reusable GitHub workflows
    (`.github/workflows/sysspec-*.yml`) and a Claude Code plugin (MCP tools
    + the three skills).
@@ -44,7 +46,8 @@ reference and stays current without you copying anything:
 
 | Piece | Reference | Updates via |
 | --- | --- | --- |
-| Gates, mocks, docs, MCP server | `sysspec==X` pin in `Taskfile.yml` / `.mcp.json` | Renovate (pypi), minor/patch automerge |
+| Gates, mocks, docs | `sysspec==X` pin in `Taskfile.yml` | Renovate (pypi), minor/patch automerge |
+| MCP server | `sysspec-mcp@X` pin in `.mcp.json` | Renovate (npm), minor/patch automerge |
 | CI / Pages / release tagging | `uses: hungovercoders/sysspec/.github/workflows/sysspec-*.yml@v<major>` | floating major tag |
 | Agent skills | Claude Code plugin | `/plugin marketplace update` |
 
@@ -110,7 +113,9 @@ pre-commit hook, and in CI.
 
 ```
 sysspec/
-├── kit/                      sysspec: CLI + MCP server, published to PyPI
+├── kit/                      sysspec: the CLI and gates, published to PyPI
+├── mcp/                      sysspec-mcp: the MCP server (stdio + HTTP,
+│                             Dockerfile, optional Cloudflare adapter), npm
 ├── .github/workflows/        sysspec-*.yml reusable; thin local callers
 ├── skills/                   sysspec, implement-service, consume-service
 ├── .claude-plugin/           plugin + marketplace manifests
@@ -157,7 +162,8 @@ Then ask things like:
 - "Implement the order placement handler" — it should pull the Gherkin first
 - "Change OrderPlaced to drop customer_id" — it should refuse and cite consumers
 
-Requires `uv` on PATH.
+Requires `node` on PATH (the plugin runs the committed server bundle
+directly — no install step).
 
 ## Use it from another project
 
@@ -189,14 +195,14 @@ when you are iterating on the specs themselves.
 ```bash
 claude mcp add sysspec --scope project \
   --env SPECS_DIR=/path/to/your-specs/specs \
-  -- uvx --from sysspec sysspec-mcp
+  -- npx -y sysspec-mcp
 ```
 
 This writes the consuming project's `.mcp.json` (use `--scope user` to
 make it global instead). `SPECS_DIR` is the only path the server reads,
 so this is also how you point the server at any spec tree. Tools only;
 the skills come with the plugin routes above. (Repos scaffolded by
-`sysspec init` already carry this wiring.)
+`sysspec init` already carry this wiring, pinned.)
 
 **4. Connect to a hosted URL (no local process at all).** `sysspec-mcp`
 also serves streamable HTTP, so the server can be deployed once and shared:
@@ -206,8 +212,10 @@ claude mcp add sysspec --scope project --transport http https://<your-deploy>/mc
 ```
 
 Works from clients that can't spawn a local process (remote sessions, CI).
-Tools only, like route 3. [deploy/mcp](deploy/mcp/README.md) has the
-Dockerfile and a Cloudflare Containers setup for hosting it.
+Tools only, like route 3. [mcp/](mcp/README.md) has the Dockerfile, the
+GHCR image CI keeps current with this repo's specs, and per-host notes
+(any Docker host, Coolify, AWS, Cloudflare) — the deployment is
+host-agnostic by design.
 
 Whichever route, verify with `/mcp` and then `list_services()`.
 

@@ -1,0 +1,21 @@
+name: mcp-image
+
+on:
+  push:
+    branches: [main]
+    paths: ["specs/**", "mcp/**", ".github/workflows/mcp-image.yml", ".github/workflows/sysspec-mcp-image.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: mcp-image
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    uses: ./.github/workflows/sysspec-mcp-image.yml
+    with:
+      image-name: sysspec-mcp

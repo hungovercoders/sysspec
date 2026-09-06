@@ -13,6 +13,8 @@ import re
 from importlib import metadata, resources
 from pathlib import Path
 
+from sysspec import pins
+
 RENAMES = {
     "gitignore": ".gitignore",
     "gherkin-lintrc": ".gherkin-lintrc",
@@ -70,6 +72,7 @@ def run(target_dir: str, org: str, sysspec_repo: str) -> int:
         "__ORG__": org,
         "__KIT_VERSION__": kit_version,
         "__KIT_MAJOR__": f"v{kit_version.split('.')[0]}",
+        "__MCP_VERSION__": pins.SYSSPEC_MCP.split("@")[1],
         "__SYSSPEC_REPO_SLUG__": sysspec_repo,
     }
     written = _copy(resources.files("sysspec") / "data/init", target, subs)

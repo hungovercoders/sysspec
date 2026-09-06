@@ -1,21 +1,16 @@
 [project]
 name = "sysspec"
-version = "0.24.0"
-description = "System specs first: enforceable system intent (contracts + gherkin) with deterministic gates, generated docs, mocks and read-only MCP access."
+version = "1.0.0"
+description = "System specs first: enforceable system intent (contracts + gherkin) with deterministic gates, generated docs and mocks. The MCP server ships separately as sysspec-mcp on npm."
 requires-python = ">=3.11"
 dependencies = [
-    "fastmcp>=2.0.0",
     "pyyaml>=6.0",
     "websockets>=13.0",
     "jsonschema>=4.0",
 ]
 
-[dependency-groups]
-dev = ["pytest>=8"]
-
 [project.scripts]
 sysspec = "sysspec.cli:main"
-sysspec-mcp = "sysspec_mcp.__main__:main"
 
 [build-system]
 requires = ["hatchling"]
@@ -30,4 +25,4 @@ exclude = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/sysspec", "src/sysspec_mcp"]
+packages = ["src/sysspec"]

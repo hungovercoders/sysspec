@@ -15,17 +15,19 @@ tasks:
       - task: check:version
       - task: check:plugin
       - task: check:kit
-      - task: test:kit
+      - task: check:mcp
+      - task: test:mcp
+      - task: check:mcp:dist
       - task: docs:build
       - task: docs:diagrams
 
   check:plugin:
-    desc: Plugin surface changes (kit, skills, manifests) must bump the plugin version
+    desc: Plugin surface changes (kit, mcp, skills, manifests) must bump the plugin version
     cmds:
       - |
         git fetch -q origin main 2>/dev/null || true
         uv run --project kit sysspec check surface --base "origin/${GITHUB_BASE_REF:-main}" \
-          --version-file .claude-plugin/plugin.json --paths kit/,skills/,.claude-plugin/,.mcp.json
+          --version-file .claude-plugin/plugin.json --paths kit/,mcp/,skills/,.claude-plugin/,.mcp.json
 
   check:kit:
     desc: Changes under kit/ must bump the sysspec package version
@@ -35,10 +37,27 @@ tasks:
         uv run --project kit sysspec check surface --base "origin/${GITHUB_BASE_REF:-main}" \
           --version-file kit/pyproject.toml --json-key project.version --paths kit/
 
-  test:kit:
-    desc: Unit tests for the kit (MCP server)
+  check:mcp:
+    desc: Changes under mcp/ must bump the sysspec-mcp package version
     cmds:
-      - uv run --project kit --group dev pytest kit/tests -q
+      - |
+        git fetch -q origin main 2>/dev/null || true
+        uv run --project kit sysspec check surface --base "origin/${GITHUB_BASE_REF:-main}" \
+          --version-file mcp/package.json --json-key version --paths mcp/
+
+  test:mcp:
+    desc: Unit + e2e tests for the MCP server (both spec sources, stdio, http)
+    dir: mcp
+    cmds:
+      - if [ -n "$CI" ]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi
+      - npx vitest run
+
+  check:mcp:dist:
+    desc: The committed dist bundle must match the source (plugin runs it directly)
+    dir: mcp
+    cmds:
+      - npm run build --silent
+      - git diff --exit-code -- dist || { echo "mcp/dist is stale - run 'npm run build' in mcp/ and commit"; exit 1; }
 
   check:branch:
     desc: Branch name must be main, match the Linear convention (user/gri-123-slug), or be an agent branch (claude/slug)

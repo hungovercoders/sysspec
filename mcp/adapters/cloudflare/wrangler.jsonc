@@ -1,0 +1,12 @@
+// Optional Cloudflare Workers deployment (free tier, no Durable Objects).
+// From mcp/: npx wrangler deploy --config adapters/cloudflare/wrangler.jsonc
+// Requires `wrangler login`. The build step bakes ../specs into the Worker.
+{
+  "name": "sysspec-mcp",
+  "main": "worker.ts",
+  "compatibility_date": "2025-09-01",
+  "build": {
+    "command": "node scripts/bundle-specs.mjs",
+    "cwd": ".."
+  }
+}

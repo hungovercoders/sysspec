@@ -86,17 +86,20 @@ still to create the Linear ticket first and push to its generated
 ## The Claude Code plugin
 
 This repo doubles as a Claude Code plugin (`.claude-plugin/plugin.json`):
-the MCP server plus the skills are the installed surface. If a change alters
-that surface — server behaviour, any skill, the bundled templates — bump
-the plugin `version` in the same PR (semver: breaking/feature/fix).
-`task check:plugin` enforces this.
+the MCP server (`mcp/`) plus the skills are the installed surface. If a
+change alters that surface — server behaviour, any skill, the bundled
+templates — bump the plugin `version` in the same PR (semver:
+breaking/feature/fix). `task check:plugin` enforces this. The plugin runs
+the committed server bundle (`mcp/dist/stdio.mjs`) directly, so a server
+change also means rebuilding it (`npm run build` in `mcp/`) —
+`task check:mcp:dist` fails when the bundle is stale.
 
 ## Releasing sysspec
 
-The kit (gates, mocks, docs, MCP server) is published to PyPI as
-`sysspec`. To cut a release: make sure `kit/pyproject.toml` carries the
-new version (`check:kit` forces this whenever `kit/` changes), then tag the
-merge commit `v<version>` and push the tag. `release.yml` verifies the tag
+The kit (gates, mocks, docs) is published to PyPI as `sysspec`. To cut a
+release: make sure `kit/pyproject.toml` carries the new version
+(`check:kit` forces this whenever `kit/` changes), then tag the merge
+commit `v<version>` and push the tag. `release.yml` verifies the tag
 matches the kit version, builds with `uv build`, publishes via PyPI trusted
 publishing, and force-moves the floating `v<major>` tag that adopter
 workflows reference. Product `v*` tags live alongside the `<service>/v*`
@@ -105,3 +108,24 @@ contract tags.
 One-time setup: on pypi.org, add a *trusted publisher* for the
 `sysspec` project pointing at this repository, workflow `release.yml`,
 environment `pypi`.
+
+## Releasing sysspec-mcp
+
+The MCP server (`mcp/`) is published to npm as `sysspec-mcp`. To cut a
+release: make sure `mcp/package.json` carries the new version
+(`check:mcp` forces this whenever `mcp/` changes) and that
+`pins.SYSSPEC_MCP` in `kit/src/sysspec/pins.py` points at the version
+scaffolded repos should pin, then tag the merge commit `mcp-v<version>`
+and push the tag. `mcp-release.yml` verifies the tag matches the package
+version, builds and tests, and publishes via npm trusted publishing
+(OIDC — provenance attached, no token stored).
+
+One-time setup: publish the first version manually (`npm publish` from
+`mcp/`, so the package exists), then on npmjs.com add a *trusted
+publisher* for `sysspec-mcp` pointing at this repository and workflow
+`mcp-release.yml`.
+
+The hosted-URL image needs no release: `mcp-image.yml` republishes
+`ghcr.io/hungovercoders/sysspec-mcp` (server + this repo's specs) on
+every push to main, and any container host serves it — see
+[mcp/README.md](mcp/README.md).

@@ -1,8 +1,8 @@
 {
   "mcpServers": {
     "sysspec": {
-      "command": "uvx",
-      "args": ["--from", "${CLAUDE_PLUGIN_ROOT}/kit", "sysspec-mcp"],
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/mcp/dist/stdio.mjs"],
       "env": {
         "SPECS_DIR": "${CLAUDE_PLUGIN_ROOT}/specs"
       }
