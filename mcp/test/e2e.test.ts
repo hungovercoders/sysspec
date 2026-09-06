@@ -3,14 +3,14 @@
  * entrypoint tests guarded, but at the protocol level.
  */
 
-import { spawn } from "node:child_process";
+import { ChildProcess, spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
-import { afterAll, describe, expect, test } from "vitest";
+import { afterAll, beforeAll, describe, expect, test } from "vitest";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, "..", "..");
@@ -58,23 +58,25 @@ describe.skipIf(!existsSync(distEntry))("dist/stdio.mjs end to end", () => {
 
   describe("http transport", () => {
     const port = 18931;
-    const child = spawn(
-      process.execPath,
-      [distEntry, "--transport", "http", "--port", String(port)],
-      { env: { ...process.env, SPECS_DIR: specsDir }, stdio: ["ignore", "ignore", "pipe"] },
-    );
-    const ready = new Promise<void>((resolve, reject) => {
-      child.stderr.on("data", (chunk: Buffer) => {
-        if (chunk.toString().includes("serving")) resolve();
+    let child: ChildProcess;
+    beforeAll(async () => {
+      child = spawn(
+        process.execPath,
+        [distEntry, "--transport", "http", "--port", String(port)],
+        { env: { ...process.env, SPECS_DIR: specsDir }, stdio: ["ignore", "ignore", "pipe"] },
+      );
+      await new Promise<void>((resolve, reject) => {
+        child.stderr!.on("data", (chunk: Buffer) => {
+          if (chunk.toString().includes("serving")) resolve();
+        });
+        child.on("exit", (code) => reject(new Error(`server exited early: ${code}`)));
       });
-      child.on("exit", (code) => reject(new Error(`server exited early: ${code}`)));
     });
     afterAll(() => {
-      child.kill();
+      child?.kill();
     });
 
     test("serves stateless streamable HTTP", async () => {
-      await ready;
       const client = new Client({ name: "e2e-http", version: "0.0.0" });
       const transport = new StreamableHTTPClientTransport(
         new URL(`http://127.0.0.1:${port}/mcp`),
@@ -95,7 +97,6 @@ describe.skipIf(!existsSync(distEntry))("dist/stdio.mjs end to end", () => {
     });
 
     test("info page on / and 404 elsewhere", async () => {
-      await ready;
       const info = await fetch(`http://127.0.0.1:${port}/`);
       expect(info.status).toBe(200);
       expect((await info.json()).endpoint).toBe("/mcp");

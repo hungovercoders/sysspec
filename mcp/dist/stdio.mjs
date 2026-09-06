@@ -31453,10 +31453,14 @@ function makeHttpServer(opts) {
       enableJsonResponse: true,
       ...allowedHosts.length ? { allowedHosts, enableDnsRebindingProtection: true } : {}
     });
-    res.on("close", () => {
+    let cleaned = false;
+    const cleanup = () => {
+      if (cleaned) return;
+      cleaned = true;
       void transport.close();
       void server.close();
-    });
+    };
+    res.on("close", cleanup);
     try {
       await server.connect(transport);
       await transport.handleRequest(req, res);
@@ -31465,6 +31469,8 @@ function makeHttpServer(opts) {
         res.writeHead(500, { "content-type": "application/json" });
         res.end(JSON.stringify({ error: err instanceof Error ? err.message : String(err) }));
       }
+    } finally {
+      cleanup();
     }
   });
 }
