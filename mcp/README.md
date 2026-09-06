@@ -1,9 +1,10 @@
 # sysspec-mcp
 
 Read-only MCP access to a sysspec spec tree: AsyncAPI, OpenAPI, ODCS data
-contracts and Gherkin acceptance criteria, served as seven narrow tools
+contracts and Gherkin acceptance criteria, served as nine narrow tools
 (`list_services`, `get_service`, `get_artifact`, `get_message_schema`,
-`get_acceptance_criteria`, `trace_channel`, `search_specs`). One
+`get_acceptance_criteria`, `trace_channel`, `search_specs`, plus
+`list_skills`/`get_skill` for the deeper working processes). One
 TypeScript implementation behind every route in: stdio for local clients,
 stateless streamable HTTP for a hosted URL. There is no write tool, and
 reads are confined to artifacts a service manifest declares.
@@ -89,3 +90,16 @@ commit after changing `src/`.
 Behavioral contract notes live in `src/core.ts`; the test suite in
 `test/tools.test.ts` pins the tool contract and runs against this repo's
 real `specs/` tree.
+
+## Skills
+
+The repo's process skills (`skills/*/SKILL.md`, companion templates
+included) are baked into the served bundle at build time by
+`scripts/bundle-skills.mjs` (gitignored `src/generated/`), so every
+route — npm, the committed dist, the Docker image, the worker — serves
+the identical `list_skills`/`get_skill` content with no filesystem read.
+Editing a skill therefore means rebuilding and committing `dist/`
+(`npm run build`; `task check:mcp:dist` enforces it) and bumping this
+package's version. On a fresh checkout the generated JSON does not exist
+until any of build/typecheck/test runs — that is expected; do not commit
+it.

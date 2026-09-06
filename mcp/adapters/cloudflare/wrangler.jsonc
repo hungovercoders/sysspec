@@ -6,7 +6,7 @@
   "main": "worker.ts",
   "compatibility_date": "2025-09-01",
   "build": {
-    "command": "node scripts/bundle-specs.mjs",
+    "command": "node scripts/bundle-specs.mjs && node scripts/bundle-skills.mjs",
     "cwd": ".."
   }
 }

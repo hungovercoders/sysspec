@@ -4,3 +4,4 @@ export { FsSpecSource } from "./source/fs.js";
 export { BundledSpecSource, type SpecsBundle } from "./source/bundle.js";
 export type { SpecSource, ServiceEntry, Manifest, ArtifactMeta } from "./source/types.js";
 export * as tools from "./core.js";
+export { getSkill, listSkills } from "./skills.js";

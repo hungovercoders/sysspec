@@ -24,10 +24,12 @@ const TOOL_NAMES = [
   "get_acceptance_criteria",
   "trace_channel",
   "search_specs",
+  "list_skills",
+  "get_skill",
 ];
 
 describe.skipIf(!existsSync(distEntry))("dist/stdio.mjs end to end", () => {
-  test("stdio: lists the seven tools and answers a call", async () => {
+  test("stdio: lists the nine tools and answers a call", async () => {
     const client = new Client({ name: "e2e", version: "0.0.0" });
     const transport = new StdioClientTransport({
       command: process.execPath,
@@ -50,6 +52,14 @@ describe.skipIf(!existsSync(distEntry))("dist/stdio.mjs end to end", () => {
       });
       expect(miss.isError).toBe(true);
       expect(miss.content[0].text).toContain("No service 'nope'");
+      // Skills are baked into the committed dist: nothing on disk backs
+      // this call, only the bundle itself.
+      const skill: any = await client.callTool({
+        name: "get_skill",
+        arguments: { name: "sysspec" },
+      });
+      const served = JSON.parse(skill.content[0].text);
+      expect(served.content).toContain("Working against the system specs");
     } finally {
       await client.close();
     }
