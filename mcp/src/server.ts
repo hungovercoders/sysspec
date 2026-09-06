@@ -10,6 +10,7 @@ import {
   searchSpecs,
   traceChannel,
 } from "./core.js";
+import { getSkill, listSkills } from "./skills.js";
 import { SpecSource } from "./source/types.js";
 
 type ToolResult = {
@@ -38,7 +39,7 @@ async function run(fn: () => Promise<unknown>): Promise<ToolResult> {
  * descriptions and error messages are the served contract — see core.ts.
  */
 export function createServer(source: SpecSource): McpServer {
-  const server = new McpServer({ name: "sysspec", version: "1.0.0" });
+  const server = new McpServer({ name: "sysspec", version: "1.1.0" });
 
   server.registerTool(
     "list_services",
@@ -155,6 +156,39 @@ export function createServer(source: SpecSource): McpServer {
       },
     },
     async (args) => run(() => searchSpecs(source, args)),
+  );
+
+  server.registerTool(
+    "list_skills",
+    {
+      description:
+        "List the sysspec process skills: name and description only, no bodies.\n\n" +
+        "Skills are the deeper working processes — authoring specs, implementing\n" +
+        "a service for real, building a consumer against mocks. When a task\n" +
+        "matches one, fetch it with get_skill and follow it; do not improvise\n" +
+        "the process from the spec tools alone.",
+      inputSchema: {},
+    },
+    async () => run(async () => listSkills()),
+  );
+
+  server.registerTool(
+    "get_skill",
+    {
+      description:
+        "Fetch one skill: its full process document (markdown), by name.\n\n" +
+        "These are executable processes, not background reading — follow the\n" +
+        "steps and checklists as written. The response lists companion files\n" +
+        "some skills bundle (workflow and config templates); fetch one with\n" +
+        "file=. Responses are capped at max_bytes and say so via the truncated\n" +
+        "flag — never silently cut.",
+      inputSchema: {
+        name: z.string(),
+        file: z.string().nullable().optional(),
+        max_bytes: z.number().int().default(DEFAULT_MAX_BYTES),
+      },
+    },
+    async (args) => run(async () => getSkill(args)),
   );
 
   return server;

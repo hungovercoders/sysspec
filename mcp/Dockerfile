@@ -14,7 +14,11 @@ WORKDIR /build
 COPY mcp/package.json mcp/package-lock.json mcp/tsconfig.json mcp/tsup.config.ts ./
 RUN npm ci --no-audit --no-fund
 COPY mcp/src ./src
-RUN npx tsup
+COPY mcp/scripts ./scripts
+COPY skills ./skills
+# Regenerate the baked skills bundle in-image (after the src COPY, so any
+# stale locally generated file loses), then bundle.
+RUN SKILLS_DIR=./skills node scripts/bundle-skills.mjs && npx tsup
 
 FROM node:24-slim
 WORKDIR /app

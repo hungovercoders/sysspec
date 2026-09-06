@@ -15,13 +15,14 @@ and gated. Built on [sysspec](https://github.com/__SYSSPEC_REPO_SLUG__).
 - The machinery arrives by reference and stays current via Renovate: the
   `sysspec@` pin in `Taskfile.yml`, the `sysspec-mcp@` pin in
   `.mcp.json` (both npm), and the reusable workflows under `.github/workflows/`.
-- Agents get the same specs over MCP (`.mcp.json`) and the deeper
-  processes via the sysspec plugin's skills — install with
-  `/plugin marketplace add __SYSSPEC_REPO_SLUG__` then `/plugin install`,
-  and ask to implement or consume a service. The `implement-service` and
-  `consume-service` skills carry the whole loop, from contract pin to
-  verified definition of done, and read as walkthroughs in their own
-  right.
+- Agents get everything over MCP (`.mcp.json`): the specs, and the
+  deeper processes via `list_skills`/`get_skill` — any MCP-capable agent,
+  starting from `AGENTS.md` (which `CLAUDE.md` points at). The
+  `implement-service` and `consume-service` skills carry the whole loop,
+  from contract pin to verified definition of done, and read as
+  walkthroughs in their own right. Claude Code users can additionally
+  install them as native skills:
+  `/plugin marketplace add __SYSSPEC_REPO_SLUG__` then `/plugin install`.
 
 The `greeter` service is scaffold output - replace it with your first real
 service.

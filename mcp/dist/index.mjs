@@ -29197,6 +29197,267 @@ async function searchSpecs(source, args) {
   };
 }
 
+// src/generated/skills-bundle.json
+var skills_bundle_default = { skills: [{ name: "consume-service", description: "Build a consumer of a spec suite service \u2014 a UI, client app, or downstream system that calls its API or subscribes to its events \u2014 against mocks, before or without the real service existing. Use when asked to build a frontend or client against orders or payments, integrate with a service's API or events from outside, generate a client from the contracts, or develop against mock data.", body: "# Consume a spec suite service\n\nYou are building something that *uses* a service \u2014 you implement none of its\ncontracts, you rely on them. The mock stack stands in for the real service,\nso the consumer can be built and verified end-to-end before an\nimplementation exists. Every path below is parameterized by the consumed\nservice's name; a consumer may pin more than one.\n\n## Phase 0 \u2014 locate the contracts and mocks\n\n- **Interactive sessions**: the `sysspec` MCP tools. `get_service(<name>)`\n  for the surface, `get_acceptance_criteria(<name>)` for what the service\n  guarantees, `get_message_schema(<name>, <Message>)` for event shapes,\n  `trace_channel(<address>)` for who else is on a channel.\n- **CI and anything needing reproducible paths**: pin a released surface in\n  `contracts.lock`, exactly as an implementation repo does (see\n  `skills/implement-service/SKILL.md` step 2 \u2014 how to pick the tag, write\n  the lock, and fetch). The fetch is identical, mock stack included:\n\n  ```yaml\n  contracts:fetch:\n    desc: Fetch the pinned contract surface and mock stack into read-only .contracts/\n    cmds:\n      - |\n        sha=$(awk '/^sha:/{print $2}' contracts.lock)\n        chmod -R u+w .contracts 2>/dev/null || true\n        rm -rf .contracts && git init -q .contracts\n        git -C .contracts remote add origin https://github.com/__SPECS_REPO__\n        git -C .contracts sparse-checkout set specs/<service> mocks cli\n        git -C .contracts fetch -q --depth 1 origin \"$sha\"\n        git -C .contracts checkout -q FETCH_HEAD\n        chmod -R a-w .contracts/specs\n  ```\n\n  Root files (`Taskfile.yml`) ride along with a cone-mode sparse checkout,\n  so the specs's own mock tasks run from the pin \u2014 no copies:\n\n  ```sh\n  task -d .contracts mocks:load SERVICE=<service>   # start stack, load pinned specs + examples\n  task -d .contracts mocks:down\n  ```\n\n## Ground rules\n\n- The contracts bind the *service*; you inherit them read-only. Never edit\n  anything under `.contracts/` \u2014 if a contract blocks you, that is a spec suite\n  change to propose, not a local fix.\n- The feature files are the behavioural contract to **rely on**, not\n  scenarios to bind \u2014 the service's implementers own the step definitions.\n  Read them to learn what a 409 means, when an order becomes `paid`, what\n  delivery guarantees hold; test *your* behaviour on top of those promises.\n- Generate client types from the fetched specs; never hand-model a payload\n  from memory or from observed mock traffic.\n- Honour the event conventions the features state: dedupe on the CloudEvents\n  envelope `id`, expect at-least-once delivery, assume ordering only within\n  an aggregate, and tolerate additive change \u2014 a minor bump must never break\n  you.\n\n## Phase 1 \u2014 interview\n\n1. **Which service(s)** are consumed, if not already stated.\n2. **What kind of consumer** \u2014 UI, service, batch job, agent.\n3. **Language and framework**, and the type-generation tool that fits it.\n4. **Event transport in production** \u2014 mocks emit over WebSocket; the real\n   subscription (Kafka, MQTT, AMQP, SSE\u2026) is the consumer's choice and only\n   changes the adapter, never the envelope handling.\n5. **Where the consumer lives** \u2014 its own repository, as with\n   implementations.\n\nDo **not** interview about anything the contract decides: endpoints, status\ncodes, payload shapes, event semantics.\n\n## Phase 2 \u2014 build against the mocks\n\n- `task -d .contracts mocks:load SERVICE=<service>`, then point the client at\n  the pinned mocks (title and version come from the spec's `info` block):\n  - REST: `http://localhost:8585/rest/<Title>/<version>/...` \u2014 fixture data\n    included, so list/detail screens render real-looking aggregates.\n  - Events: `ws://localhost:8081/api/ws/<Title>/<version>/<operation>` \u2014 the\n    async-minion emits the example CloudEvents on a schedule;\n    `task -d .contracts mocks:watch CHANNEL=<Title>/<version>/<operation>`\n    to eyeball them.\n- Generate types from `.contracts/specs/<service>/openapi/*.yaml` and the\n  message payload schemas in the AsyncAPI file; wire the client through\n  them.\n- A UI built this way is demonstrable \u2014 with data \u2014 before any backend\n  exists.\n\n## Phase 3 \u2014 verify (the consumer's definition of done)\n\nThe suite must run headlessly against the mock stack (this is also the\n`contracts:verify` task the sync loop calls):\n\n1. **Client flows against the REST mocks** \u2014 every call the consumer makes,\n   exercised against Microcks, responses parsed through the generated types.\n2. **Event handling against real envelopes** \u2014 feed the handler from the WS\n   mock or directly from `mocks/<service>.events.examples.yaml`, and\n   validate each consumed payload against the AsyncAPI schema before acting\n   on it.\n3. **Idempotence** \u2014 replaying the same envelope `id` must not double-apply;\n   the features promise at-least-once delivery, so this is contract, not\n   hygiene.\n4. **Falsifiability** \u2014 prove the suite *can* fail: a verify suite whose\n   checks are empty shells passes forever and verifies nothing. Run it once\n   against the CLI's null service \u2014 `200 {}` to every request, no events \u2014\n   and require zero passes (when the runner emits cucumber-format JSON:\n   `BASE_URL=http://localhost:9099 task -d .contracts null:run\n   RESULTS=<file> -- <suite cmd>`); or, minimally, run it with the mock\n   stack down and confirm everything fails. Anything that stays green\n   against a service answering `200 {}` to everything is not a check.\n\nGreen here proves the consumer satisfies the pinned surface's examples and\nschemas \u2014 the lock records exactly which surface that was. It does not prove\nthe real service behaves; that is the *service's* verification loop.\n\n## Phase 4 \u2014 wire the consumer's CI\n\nmise-action \u2192 `task contracts:fetch` \u2192 `task -d .contracts mocks:load\nSERVICE=<service>` \u2192 the phase 3 suite \u2192 `task -d .contracts mocks:down`.\nEverything resolves against `.contracts/`, so CI verifies exactly the\nsurface the lock names.\n\n## Phase 5 \u2014 stay current\n\nIdentical machinery to implementations: the specs publishes\n`<service>/v<version>` tags, Renovate bumps `contracts.lock`, and the\ntemplates in `skills/implement-service/templates/` (`renovate.json`,\n`contract-converge.yml`) drive the loop \u2014 copy them in and substitute the\nservice name and specs owner/repo (`__SERVICE__`, `__SPECS_REPO__`). Define `contracts:verify` as the phase 3 suite. Additive\nminors go green and auto-merge \u2014 new mocks, new fixtures, no human. A red\nrun or a major bump means the surface moved under you, and only then does an\nagent wake to converge the consumer, with the failing suite as its scope.\n", files: {} }, { name: "implement-service", description: "Build a real implementation of a sysspec service, from interview to verified definition of done. Use when asked to implement a service (e.g. orders, payments), build one of its APIs for real, or take its contracts to production.", body: "# Implement a sysspec service\n\nYou are building a real service whose behaviour is already decided: the\ncontracts in the spec repo say what it must do; you choose how. This skill\nis the whole journey \u2014 what to ask, what to create, and the exact commands\nthat prove you are done. Examples use the `orders` service and the\n`hungovercoders/sysspec` spec repo; substitute your own.\n\n## What you end up with\n\nA **new repository**, separate from the spec repo, that looks like this:\n\n```\norders-service/\n\u251C\u2500\u2500 contracts.lock          # which released contract surface this repo satisfies\n\u251C\u2500\u2500 .contracts/             # read-only fetch of that surface (gitignored, regenerated)\n\u251C\u2500\u2500 Taskfile.yml            # contracts:fetch and contracts:verify (defined below)\n\u251C\u2500\u2500 src/                    # the implementation \u2014 language, storage, framework all yours\n\u251C\u2500\u2500 steps/                  # step definitions binding the pinned feature files\n\u251C\u2500\u2500 renovate.json           # pulls future contract releases into contracts.lock\n\u2514\u2500\u2500 .github/workflows/\n    \u251C\u2500\u2500 ci.yml              # fetch + verify on every push\n    \u2514\u2500\u2500 contract-converge.yml   # handles contract bumps; agent wakes only when red\n```\n\nThe definition of done is one command: `task contracts:verify` green against\nyour running implementation. Nothing in the spec repo changes.\n\n## Five terms, once\n\n- **Contract surface** \u2014 everything under `specs/<service>/` in the spec\n  repo at one released version: OpenAPI, AsyncAPI, feature files, data\n  contracts.\n- **Release tag** \u2014 every merge to the spec repo's main tags each changed\n  service `<service>/v<x.y.z>` (e.g. `orders/v3.1.0`). These are the only\n  versions you build against.\n- **The lock** \u2014 `contracts.lock` records the tag and its commit sha. It is\n  the single source of truth for which surface this implementation satisfies.\n- **The Microcks stack** \u2014 a docker-compose stack orchestrated by the spec\n  repo's CLI. It plays two segregated roles: the `mocks:*` tasks serve\n  mocks of the contracts (for consumers and spec conformance), and\n  `contract:test` uses the same engine to hold a real implementation to\n  the contracts. You run both from the pinned fetch; you install nothing\n  else.\n- **Strict binding** \u2014 the feature files run against your service via step\n  definitions you write. Strict means an unbound or pending step fails the\n  build: every sentence in the contract is enforced or the suite is red.\n  What strict cannot see is a bound-but-*empty* step \u2014 the null-service\n  check in Step 4 exists for exactly that.\n\n## Ground rules\n\n- Never edit specs or features to make the implementation pass. A red suite\n  is a finding about the implementation. If a contract looks wrong, stop and\n  raise it \u2014 contract changes happen in the spec repo, behind its own gates.\n- Never weaken verification: no disabling strict mode, no skipping scenarios,\n  no exempting scenarios from the null-service check, no editing under\n  `.contracts/`. The fetch re-applies read-only at the pinned sha, so local\n  edits cannot survive anyway.\n- Internals \u2014 storage, queue, framework \u2014 are your choice, and they stay out\n  of the implementation's public documentation for the same reason they are\n  absent from the contracts.\n- Report results honestly: a failing suite is reported failing, with output.\n\n## Step 1 \u2014 interview\n\nAsk before writing code (one round of questions where possible):\n\n1. **Which service** \u2014 decides every path below.\n2. **Language and framework** \u2014 decides the Cucumber runner and scaffolding.\n3. **Where the implementation lives** \u2014 a new repository (recommended; the\n   spec repo stays contracts-only) or a path the user names.\n4. **Event transport** \u2014 the mocks emit over WebSocket but the contract does\n   not mandate a transport. Your choice becomes the scheme of the\n   `ASYNC_ENDPOINT` in verification (`ws://`, `kafka://`, `mqtt://`,\n   `amqp://` \u2014 it must be one the Microcks async runner can point at).\n5. **Storage** \u2014 for aggregate state and idempotency records.\n6. **Hosting / CI constraints** \u2014 affects scaffolding, nothing contractual.\n\nDo **not** interview about anything the contract already decides: endpoints,\nstatus codes, payload shapes, channel addresses, event semantics. If the\nuser wants one of those changed, stop \u2014 that is spec repo work first.\n\n## Step 2 \u2014 scaffold and pin\n\nCreate the repository, then pin the newest released surface.\n\n**Find the tag and its sha** (lightweight tags, so the listed sha *is* the\ncommit sha the lock wants):\n\n```sh\ngit ls-remote https://github.com/hungovercoders/sysspec \"refs/tags/orders/v*\"\n# 6c4e1fc2e735f2491fe67c7f31390ced024d5d2a  refs/tags/orders/v3.1.0   <- highest\n```\n\n**Write `contracts.lock`** at the repo root from that line:\n\n```yaml\n# contract pin - version is the spec repo's release tag, sha its commit\nversion: orders/v3.1.0\nsha: 6c4e1fc2e735f2491fe67c7f31390ced024d5d2a\n```\n\n**Write the two tasks** the whole loop runs on (and gitignore `.contracts/`\nand `.null-results.json`):\n\n```yaml\nversion: '3'\n\nvars:\n  SERVICE: orders\n  SPECS_REPO: hungovercoders/sysspec\n\ntasks:\n  contracts:fetch:\n    desc: Fetch the pinned contract surface and its toolchain into read-only .contracts/\n    cmds:\n      - |\n        sha=$(awk '/^sha:/{print $2}' contracts.lock)\n        chmod -R u+w .contracts 2>/dev/null || true\n        rm -rf .contracts && git init -q .contracts\n        git -C .contracts remote add origin https://github.com/{{.SPECS_REPO}}\n        git -C .contracts sparse-checkout set specs/{{.SERVICE}} mocks cli\n        git -C .contracts fetch -q --depth 1 origin \"$sha\"\n        git -C .contracts checkout -q FETCH_HEAD\n        chmod -R a-w .contracts/specs\n\n  contracts:verify:\n    desc: The definition of done - run with the implementation up (see Step 4 for the URLs)\n    cmds:\n      - task -d .contracts contract:test SERVICE={{.SERVICE}} REST_ENDPOINT={{.REST_ENDPOINT}} ASYNC_ENDPOINT={{.ASYNC_ENDPOINT}}\n      - BASE_URL={{.BASE_URL}} npx cucumber-js .contracts/specs/{{.SERVICE}}/features --require steps/\n      - BASE_URL=http://localhost:9099 task -d .contracts null:run RESULTS={{.ROOT_DIR}}/.null-results.json -- npx cucumber-js {{.ROOT_DIR}}/.contracts/specs/{{.SERVICE}}/features --require {{.ROOT_DIR}}/steps/ --format json:{{.ROOT_DIR}}/.null-results.json\n      - uvx schemathesis run .contracts/specs/{{.SERVICE}}/openapi/*.yaml --url {{.BASE_URL}}\n```\n\nThe sparse checkout brings the contracts plus the spec repo's `mocks/`\nexamples, `cli/` (the committed CLI bundle runs with nothing but node)\nand root `Taskfile.yml`, all at the pinned sha \u2014 so\n`task -d .contracts mocks:...` runs the spec repo's own mock orchestration,\nversioned by the pin, with nothing copied or installed. The specs are\nwrite-protected and `.contracts/` is regenerated on every fetch: consumable,\nnever editable, and the sha (not the tag) is checked out, so a re-cut tag\ncannot silently change what you build against.\n\nOne consequence, spelled out: **the pinned toolchain is authoritative over\nthis skill.** The task names here are the spec repo's main as of this\nskill's writing; an older pin may name them differently or lack newer gates\n(at `orders/v3.1.0`, for example, the contract test was `mocks:contract`\nand the toolchain had no `null:run`). When the skill and your pin disagree,\n`task -d .contracts --list` shows what the pin actually provides \u2014 follow\nthe pin, and mirror a missing gate in your own repo rather than skipping\nit.\n\nRun `task contracts:fetch` now. The contracts land under\n`.contracts/specs/orders/`:\n\n- `openapi/*.yaml` \u2014 the synchronous interface: paths, status codes, schemas\n- `asyncapi/*.yaml` \u2014 events produced and consumed: channels, envelopes, payloads\n- `features/*.feature` \u2014 acceptance criteria; every scenario must pass, bound\n- `data-contracts/*.yaml` \u2014 data products the service must expose\n\nIn interactive sessions, also use the `sysspec` MCP tools to explore \u2014\n`list_services()`, `get_service(orders)`, `get_acceptance_criteria(orders)`,\n`get_message_schema(orders, OrderPlaced)`, `trace_channel(<address>)` (who\nyou would break) \u2014 but everything you build and everything CI runs resolves\nagainst the fetched files, never a remembered copy.\n\n## Step 3 \u2014 build\n\nRead the specs and features before scaffolding; generate or hand-write from\nthe contract files. Internals are free; the surface is not.\n\nThe example files under `.contracts/mocks/` are not only mock fixtures:\n`contract:test` replays each REST example against your real service and\nexpects the example's exact response status. An example that fetches a\nwell-known id expecting 200 means your implementation must hold that state\n\u2014 seed the example fixtures at startup (idempotently, behind an env switch\nif you like) or the contract test can never pass against a real service.\n\nBind the feature files **in place** \u2014 the spec repo owns the sentences, you\nown the glue. Do not copy or paraphrase them into your repo. With\ncucumber-js (strict by default since v7):\n\n```sh\nnpx cucumber-js .contracts/specs/orders/features --require steps/\n```\n\nand each step definition maps a contract sentence onto the running service:\n\n```js\nThen('the order status is {string}', async function (status) {\n  const order = await this.api.get(`/orders/${this.orderId}`);\n  assert.equal(order.status, status);\n});\n```\n\nOther runners take the external path the same way: Cucumber-JVM\n`@CucumberOptions(features = \".contracts/...\")`, pytest-bdd\n`scenarios(\".contracts/...\")`, Reqnroll linked feature files. Whatever the\nrunner, strict mode stays on \u2014 an unbound scenario is a contract obligation\nsilently dropped.\n\n## Step 4 \u2014 verify (the definition of done)\n\nStart your implementation, then:\n\n```sh\ntask contracts:verify \\\n  BASE_URL=http://localhost:3000 \\\n  REST_ENDPOINT=http://host.docker.internal:3000 \\\n  ASYNC_ENDPOINT=ws://host.docker.internal:3001/events\n```\n\nTwo views of the same running service, and mixing them up is the classic\nfailure: `BASE_URL` is how *your machine* reaches it (the feature suite and\nschemathesis run on the host); `REST_ENDPOINT`/`ASYNC_ENDPOINT` are how the\n*Microcks containers* reach it \u2014 `localhost` inside a container is the\ncontainer, so a service on the host is `host.docker.internal`, and the\n`ASYNC_ENDPOINT` scheme is your chosen transport from the interview. For a\nWebSocket endpoint the CLI appends `/<operation>` for each send\noperation's test (`.../events/publishOrderPlaced`, ...), so each operation\nis validated on its own path \u2014 serve each channel at a path naming its\noperation or channel address, or ignore the path and send everything. Keep\na path on the base URL itself (`/events` above): pins older than toolchain\n0.22.0 use the endpoint verbatim, and Microcks' WS consumer rejects a bare\n`ws://host:port` with the opaque \"found no suitable MessageConsumptionTask\nimplementation for endpoint\". Broker endpoints (`kafka://`, `mqtt://`,\n`amqp://`) are used verbatim \u2014 the topic in the endpoint is the\nsubscription, and one shared topic for an aggregate's lifecycle events is\na legitimate topology (ordering is per aggregate id; the channel split is\nlogical, not physical). Note the trade-off: on a shared topic every test\nwindow sees every event type, so per-operation segregation needs\nper-channel topics or a filtered view to point the test at.\n\nWhat each check proves, in order:\n\n1. **Contract tests** (`contract:test`) \u2014 Microcks replays every operation\n   in the OpenAPI and AsyncAPI against your service and validates the real\n   responses and emitted events against the schemas. (The first run starts\n   the Microcks stack, which the runner needs even when testing a real\n   service; `task -d .contracts mocks:down` stops it. The `mocks:*` tasks\n   themselves are for consumers and the spec repo's own conformance checks\n   \u2014 as an implementer, `contract:test` is the only one you invoke.)\n2. **The bound feature suite** \u2014 every acceptance scenario passes against\n   the running service, strict, no unbound steps.\n3. **The negative control** (`null:run`) \u2014 the same suite replayed against\n   a null service the CLI serves: `200 {}` to every request, no events\n   (event awaits just time out). Red unless **zero** scenarios pass, naming\n   any that do. Green against your real service means nothing unless the\n   suite is also fully red against a service that does nothing \u2014 strict\n   mode catches unbound steps, this catches bound-but-empty ones. A named\n   scenario is either a hollow binding (fix the glue) or a scenario that\n   genuinely asserts nothing beyond a 200 \u2014 a spec finding to raise, never\n   a gate to exempt. The response is deliberately a plausible 200 rather\n   than an error so that status-code-only bindings are flagged too. This\n   proves the suite is falsifiable \u2014 every scenario *can* fail \u2014 not that\n   its assertions are deep.\n4. **Schema fuzz** (`schemathesis`) \u2014 declared-but-unexampled paths still\n   honour the schemas.\n\nLoop on red until all four are green. Green means the repo demonstrably\nsatisfies the surface named in `contracts.lock` \u2014 that is the claim the lock\nmakes, and this is the command that backs it.\n\n## Step 5 \u2014 wire the implementation's CI\n\nRecreate exactly that loop in the pipeline: mise-action \u2192\n`task contracts:fetch` \u2192 start the implementation \u2192 `task contracts:verify`\n(with the endpoint URLs for the CI network) \u2192 teardown. Everything resolves\nagainst `.contracts/`, so CI verifies exactly the surface the lock names \u2014\none definition of \"correct\", no drift.\n\n## Step 6 \u2014 stay in sync\n\nThe spec repo never pushes work at implementations; they pull. When a merge\npublishes a new `<service>/v<version>` tag, Renovate opens a PR here bumping\n`contracts.lock`, and CI runs the Step 5 gates against the new pin:\n\n- **Green** (typical for additive minors): the bump auto-merges. The repo\n  now records that it satisfies the new surface \u2014 no human, no agent.\n- **Red, or a major bump**: the gates have proven code changes are needed,\n  and only then does an agent wake to converge the implementation on the\n  same branch, with the failing checks as its scope.\n\nCopy in the `renovate.json` and `contract-converge.yml` templates bundled\nbeside this skill, substitute `__SERVICE__` and `__SPECS_REPO__`, and see\ntheir headers for the one-time repository settings. The converge workflow\ncalls the same `task contracts:fetch` and `task contracts:verify` you\ndefined in Step 2 \u2014 nothing new exists only in CI.\n\n## Done when\n\n- [ ] `contracts.lock` pins the intended release tag and its commit sha\n- [ ] `task contracts:fetch` produces a read-only `.contracts/` (gitignored)\n- [ ] every feature file scenario is bound \u2014 strict, no pending steps\n- [ ] the suite is falsifiable \u2014 zero scenarios pass against the null service\n- [ ] `task contracts:verify` is green against the running implementation\n- [ ] CI runs fetch + verify on every push\n- [ ] `renovate.json` + `contract-converge.yml` installed with the\n      placeholders substituted and the one-time settings from their headers\n", files: { "templates/contract-converge.yml": `# Installed into the implementation repo by the implement-service skill
+# (step 6). Replace every __SERVICE__ with the service name and every
+# __SPECS_REPO__ with the spec repo's owner/repo when copying.
+#
+# The pull half of the contract sync loop: Renovate bumps contracts.lock
+# when the spec repo tags a new __SERVICE__/v<x.y.z>; this workflow runs the
+# deterministic gates against the new pin and wakes an agent ONLY when
+# they are red. Green minors auto-merge with no agent involved.
+#
+# Assumes the repo carries \`task contracts:fetch\` (pin fetcher) and
+# \`task contracts:verify\` (contract tests + strict features + null-service
+# negative control + schemathesis, resolved against .contracts/) as defined
+# in the skill's step 2. contracts:verify holds the RUNNING implementation
+# to the contracts, so the gates step below must start your service first -
+# replace its start/wait lines with your stack's equivalents (mirror your
+# ci.yml); against nothing the gates are red and a legitimate pin bump
+# could never auto-merge.
+#
+# One-time setup:
+#   - ONE Claude credential as an actions secret - ANTHROPIC_API_KEY
+#     (Claude Console, pay-per-token) or CLAUDE_CODE_OAUTH_TOKEN (from
+#     \`claude setup-token\`, uses your Claude subscription). The API key
+#     wins when both are set; the run fails with a clear error only when
+#     the agent is needed and neither exists. Claude GitHub App installed
+#     (its pushes retrigger this workflow; plain GITHUB_TOKEN pushes would
+#     not, silently freezing the loop)
+#   - repo setting "Allow auto-merge" on; branch protection on main
+#     requiring the \`converge\` check (platformAutomerge in renovate.json
+#     then merges green bumps regardless of who pushed last)
+#
+# Behaviour notes:
+#   - This run FAILS whenever the gates are red, even after dispatching the
+#     agent - the red status on the current head is what stops auto-merge
+#     from racing the agent's push. The agent's push creates a new head
+#     whose own run decides.
+#   - Renovate stops rebasing a branch once a foreign commit lands on it,
+#     so the agent and Renovate never fight over the branch.
+#   - One agent attempt per external push: if HEAD already carries the
+#     [contract-converge] marker and the gates are still red, the workflow
+#     labels the PR contract-converge-failed and stops instead of looping.
+name: contract-converge
+on:
+  pull_request:
+    paths: ["contracts.lock"]
+
+concurrency:
+  group: contract-converge-\${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write
+
+jobs:
+  converge:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: \${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+
+      - name: Verify the lock against the spec tag
+        id: lock
+        run: |
+          version=$(awk '/^version:/{print $2}' contracts.lock)
+          sha=$(awk '/^sha:/{print $2}' contracts.lock)
+          tag_sha=$(git ls-remote https://github.com/__SPECS_REPO__ "refs/tags/$version" | cut -f1)
+          [ -n "$tag_sha" ] || { echo "::error::tag $version does not exist in the spec repo"; exit 1; }
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if [ "$sha" = "$tag_sha" ]; then
+            echo "sha_ok=true" >> "$GITHUB_OUTPUT"
+          else
+            # Lightweight tags make the tag sha the commit sha, so a mismatch
+            # means the lock digest is stale or wrong - red; the agent fixes
+            # the sha line (never the version) and pushes.
+            echo "::warning::lock sha $sha != tag commit $tag_sha"
+            echo "sha_ok=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: jdx/mise-action@v2
+
+      - name: Fetch pinned contracts and run the gates
+        id: gates
+        if: steps.lock.outputs.sha_ok == 'true'
+        continue-on-error: true
+        run: |
+          task contracts:fetch
+          # Start the implementation - REPLACE with your stack's start and
+          # health-wait (keep it identical to ci.yml), e.g.:
+          #   npm ci
+          #   (npx tsx src/server.ts > service.log 2>&1 &)
+          #   for i in $(seq 1 30); do curl -fsS localhost:3000/healthz > /dev/null 2>&1 && break; sleep 1; done
+          task -d .contracts mocks:up
+          gw=$(docker network inspect mocks_default --format '{{(index .IPAM.Config 0).Gateway}}')
+          task contracts:verify \\
+            BASE_URL=http://localhost:3000 \\
+            REST_ENDPOINT=http://$gw:3000 \\
+            ASYNC_ENDPOINT=ws://$gw:3001/events
+
+      - name: Done - gates green on this pin
+        if: steps.lock.outputs.sha_ok == 'true' && steps.gates.outcome == 'success'
+        run: echo "implementation satisfies \${{ steps.lock.outputs.version }}"
+
+      - name: Loop guard - one agent attempt per external push
+        if: steps.lock.outputs.sha_ok != 'true' || steps.gates.outcome != 'success'
+        id: guard
+        env:
+          GH_TOKEN: \${{ github.token }}
+        run: |
+          if git log -1 --format=%B | grep -q "\\[contract-converge\\]"; then
+            gh pr edit \${{ github.event.pull_request.number }} --add-label contract-converge-failed
+            gh pr comment \${{ github.event.pull_request.number }} \\
+              --body "contract-converge: the agent's attempt did not turn the gates green - see this run's logs. Converge manually or push a fix; the next external push gets one fresh agent attempt."
+            echo "spent=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "spent=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Resolve Claude credential - API key first, then OAuth token
+        id: auth
+        if: steps.guard.outputs.spent == 'false'
+        env:
+          ANTHROPIC_API_KEY: \${{ secrets.ANTHROPIC_API_KEY }}
+          CLAUDE_CODE_OAUTH_TOKEN: \${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          if [ -n "$ANTHROPIC_API_KEY" ]; then
+            echo "mode=api-key" >> "$GITHUB_OUTPUT"
+            echo "using ANTHROPIC_API_KEY (Console, pay-per-token)"
+          elif [ -n "$CLAUDE_CODE_OAUTH_TOKEN" ]; then
+            echo "mode=oauth" >> "$GITHUB_OUTPUT"
+            echo "using CLAUDE_CODE_OAUTH_TOKEN (Claude subscription)"
+          else
+            echo "::error::the converge agent needs a Claude credential and none is configured - add an actions secret: ANTHROPIC_API_KEY (Claude Console, pay-per-token) or CLAUDE_CODE_OAUTH_TOKEN (run 'claude setup-token', uses your Claude subscription)"
+            exit 1
+          fi
+
+      - uses: anthropics/claude-code-action@v1
+        if: steps.guard.outputs.spent == 'false'
+        with:
+          anthropic_api_key: \${{ steps.auth.outputs.mode == 'api-key' && secrets.ANTHROPIC_API_KEY || '' }}
+          claude_code_oauth_token: \${{ steps.auth.outputs.mode == 'oauth' && secrets.CLAUDE_CODE_OAUTH_TOKEN || '' }}
+          claude_args: "--allowedTools Bash,Edit,Write,Read,Glob,Grep"
+          prompt: |
+            The contract pin for the __SERVICE__ service this repo implements
+            has been bumped to \${{ steps.lock.outputs.version }} and the
+            deterministic gates are red. Converge the implementation - update,
+            never regenerate.
+
+            1. If the verify step reported a lock sha mismatch, correct ONLY
+               the sha line of contracts.lock to the tag's commit sha
+               (git ls-remote the spec repo for refs/tags/\${{ steps.lock.outputs.version }}).
+               Never change the version line.
+            2. Run \`task contracts:fetch\`, then diff .contracts/ against the
+               previous pin (fetch it from the base branch's contracts.lock)
+               to scope your changes; leave everything the contract diff does
+               not touch alone.
+            3. Update this implementation minimally until
+               \`task contracts:verify\` is green. Never edit anything under
+               .contracts/, never weaken tests, never disable strict feature
+               binding.
+            4. Commit (conventional message ending with the marker
+               [contract-converge]) and push to this same branch. Your push
+               retriggers the gates on the new head.
+            5. If you cannot make the gates green, still commit and push what
+               is safe, and say exactly which checks fail and why in the
+               commit body. Never force a green result.
+
+      - name: Report red - the converged head's own run decides
+        if: steps.lock.outputs.sha_ok != 'true' || steps.gates.outcome != 'success'
+        run: exit 1
+`, "templates/renovate.json": `{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Contract pin updates for a sysspec implementation. Copy into the implementation repo and replace every __SERVICE__ with the service name and every __SPECS_REPO__ with the spec repo's owner/repo: sed -i '' -e 's/__SERVICE__/orders/g' -e 's|__SPECS_REPO__|hungovercoders/sysspec|g' renovate.json. One-time setup: install the Renovate app and enable 'Allow auto-merge' on the repo, with branch protection requiring the contract-converge check.",
+  "extends": ["config:recommended"],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^contracts\\\\.lock$/"],
+      "matchStrings": [
+        "version: __SERVICE__\\\\/v(?<currentValue>[0-9.]+)\\\\s+sha: (?<currentDigest>[a-f0-9]{40})"
+      ],
+      "depNameTemplate": "sysspec/__SERVICE__",
+      "packageNameTemplate": "https://github.com/__SPECS_REPO__",
+      "datasourceTemplate": "git-tags",
+      "versioningTemplate": "semver",
+      "extractVersionTemplate": "^__SERVICE__/v(?<version>.+)$"
+    }
+  ],
+  "packageRules": [
+    {
+      "matchDepNames": ["sysspec/__SERVICE__"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "automerge": true,
+      "platformAutomerge": true
+    },
+    {
+      "matchDepNames": ["sysspec/__SERVICE__"],
+      "matchUpdateTypes": ["major"],
+      "automerge": false,
+      "labels": ["contract-major"]
+    }
+  ]
+}
+` } }, { name: "sysspec", description: "Use when working against any service in the specs \u2014 implementing an event handler or HTTP endpoint, changing a message or payload shape, writing tests, checking what an event contains, or asking who consumes a channel. Also use when the user mentions AsyncAPI, OpenAPI, ODCS or data contracts, feature files, acceptance criteria, or names a service such as orders or payments.", body: '# Working against the system specs\n\nThe specs is reached only through the `sysspec` MCP tools. Do not search\nthe filesystem for specs or feature files \u2014 the copies you would find are\nnot the record.\n\n## Two classes of artifact\n\n**Gated** \u2014 AsyncAPI, OpenAPI, ODCS data contracts, Gherkin features.\nThese are the contract of record. If an implementation disagrees with a\ngated artifact, the implementation is wrong. Never adjust one to make a\nfailing test or handler pass. If a gated artifact genuinely looks wrong,\nsay so and stop: changing it is a deliberate, versioned act in the specs\nrepo, gated in CI.\n\n**Ungated** \u2014 ADRs, runbooks, domain notes. Context and rationale. Read\nthem for the *why*, but they bind nothing and you may propose edits freely.\n\nEvery `get_artifact` response tells you which class it is. Believe it.\n\n## Order of operations\n\n1. `list_services()` \u2014 what exists.\n2. `get_service(name)` \u2014 the artifact index and the produce/consume edges.\n   Returns no file contents, so it is cheap.\n3. Then fetch narrowly:\n   - `get_message_schema(service)` \u2014 no message argument \u2014 to list message\n     and schema names; `get_message_schema(service, message)` for one\n     payload (AsyncAPI messages and OpenAPI schemas both resolve here)\n   - `get_acceptance_criteria(service, names_only=True)` for the scenario\n     index; then `scenario="..."` or `path="..."` for just the ones you\n     need. Omit all filters only when implementing the whole service.\n   - `get_artifact(service, path, section="/components/schemas/Order")`\n     for one section of a YAML spec (RFC 6901 pointer; `~1` escapes `/`\n     in OpenAPI paths); omit `section` only for a whole spec, ADR, or\n     data contract\n4. `trace_channel(address)` before changing any published shape \u2014 the\n   consumers it lists are what you will break. Empty `produced_by` and\n   `consumed_by` means nothing references the address, not an error.\n5. `search_specs(query, kind=..., service=...)` when you do not know where\n   something lives. The response says `truncated` when there were more\n   hits than it returned; raise `limit` only then.\n\nDo not pull whole documents when a single message or scenario would do \u2014\nevery accessor above has a mode for exactly one, and any response that\nhad to cut content says so with a `truncated` flag.\n\n## Implementing from Gherkin\n\nFeature files are acceptance criteria, not inspiration. Each scenario maps\nto a test. Implement toward the scenarios as written; if one cannot be\nsatisfied, that is a finding to report, not a line to edit.\n\nWhere a scenario and a schema seem to disagree, the schema wins on shape\nand the scenario wins on behaviour. Raise the conflict either way.\n\n## Conventions\n\n- **Attributes and their values are `lower_snake_case`** \u2014 every payload\n  property, every schema property, every path and query parameter, every\n  ODCS column, and every enumerated value (`out_of_stock`, not\n  `outOfStock`). This is the default across all four artifact kinds, so a\n  field is spelled the same in the AsyncAPI payload, the OpenAPI schema and\n  the data contract, and no consumer has to translate between them.\n  Enforced, not advisory: Spectral rules over the specs\n  (`contract-*-snake-case` in `.spectral.yaml`) and a Spectral ruleset over\n  the ODCS files, which `lint:datacontracts` runs alongside datacontract-cli.\n- Document-local identifiers are *not* attributes and keep their own\n  conventions: message names `PascalCase`, channel and operation keys and\n  OpenAPI `operationId`s `camelCase`, channel addresses dotted lowercase.\n  Nor are free-form string values gated \u2014 a `const` like\n  `com.hungovercoders.orders.placed.v2` or `application/json` is an\n  identifier, and only `enum` members are treated as a controlled\n  vocabulary.\n- Channel addresses: `<service>.<event>.v<major>`, lowercase, dot separated\n  (`orders.placed.v2`). Major version lives in the address; minor changes\n  never change it.\n- Every event is a CloudEvents 1.0 **structured** envelope\n  (`application/cloudevents+json`): `specversion` `"1.0"`, `id` (uuid),\n  `source` (`/<service>`), `type`\n  (`com.<org>.<service>.<event>.v<major>` \u2014 reverse-DNS org, matching the\n  channel major; these specs uses `com.hungovercoders`), `subject` (the aggregate id), `time`, `datacontenttype`, and the\n  domain payload under `data`. Envelope and `data` both set\n  `additionalProperties: false` and an explicit `required`.\n- Money is an integer in minor units, suffixed `_pence`. Never a float.\n- Identifiers are `format: uuid`. Timestamps `format: date-time`, UTC.\n- Message names are `PascalCase`, past tense (`OrderPlaced`,\n  `PaymentSettled`).\n- Delivery is at-least-once; handlers dedupe on the envelope `id`. The\n  natural key in `data` (`order_id`, `payment_id`) identifies the aggregate,\n  not the event.\n- Ordering holds only within a partition key (the aggregate id), never\n  across channels.\n- Spec `info.version` always equals the manifest version \u2014 mock URLs and\n  rendered docs surface `info.version`, and `lint:manifest` enforces the\n  match.\n- Every manifest also carries a top-level `version:` \u2014 the version of the\n  service\'s whole contract surface, which is what consumers pin. Any gated\n  artifact bump bumps it; an artifact major bump or breaking change bumps\n  its major. Merges to main are tagged `<service>/v<version>`.\n- AsyncAPI channels carry a `ws` binding (the mock transport) and every\n  operation lists explicit `messages` refs \u2014 the Microcks async runner\n  cannot validate without them.\n- Merges to main publish each changed service\'s contract surface as a\n  lightweight tag `<service>/v<version>`. Implementation repos pull these\n  tags; the specs never pushes work at them.\n- A service that has a live implementation may name it in the manifest as\n  `implementationRepo: <owner>/<repo>` \u2014 optional metadata for docs and\n  the specs graph, nothing more.\n- Every schema element you add \u2014 message, payload property, endpoint,\n  parameter \u2014 must be named in that service\'s feature files. The feature\n  change is part of the contract change, not an afterthought; `check:intent`\n  enforces this with no escape hatch. If it is not worth a scenario, it is\n  not worth adding to the contract yet.\n', files: {} }] };
+
+// src/skills.ts
+var SKILLS = skills_bundle_default.skills;
+function utf8Len2(text) {
+  return new TextEncoder().encode(text).length;
+}
+function skill(name) {
+  const found = SKILLS.find((s) => s.name === name);
+  if (!found) {
+    throw new Error(
+      `No skill ${pyRepr(name)}. Available: ${pyList(pySorted(SKILLS.map((s) => s.name)))}`
+    );
+  }
+  return found;
+}
+function listSkills() {
+  return SKILLS.map((s) => ({
+    name: s.name,
+    description: s.description,
+    files: pySorted(Object.keys(s.files)),
+    total_bytes: utf8Len2(s.body)
+  }));
+}
+function getSkill(args) {
+  const { name, file = null, max_bytes = DEFAULT_MAX_BYTES } = args;
+  const s = skill(name);
+  let text;
+  if (file !== null && file !== void 0) {
+    const body = s.files[file];
+    if (body === void 0) {
+      throw new Error(
+        `No file ${pyRepr(file)} on skill ${pyRepr(name)}. Files: ${pyList(pySorted(Object.keys(s.files)))}`
+      );
+    }
+    text = body;
+  } else {
+    text = s.body;
+  }
+  const { text: content, truncated, totalBytes } = bounded(text, max_bytes);
+  const out = {
+    name: s.name,
+    description: s.description,
+    file: file ?? null,
+    files: pySorted(Object.keys(s.files)),
+    content,
+    truncated,
+    total_bytes: totalBytes
+  };
+  if (truncated) {
+    out.note = `Truncated at ${max_bytes} of ${totalBytes} bytes. Raise max_bytes to read the rest.`;
+  }
+  return out;
+}
+
 // src/server.ts
 function ok(result) {
   return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
@@ -29213,7 +29474,7 @@ async function run(fn) {
   }
 }
 function createServer(source) {
-  const server = new McpServer({ name: "sysspec", version: "1.0.0" });
+  const server = new McpServer({ name: "sysspec", version: "1.1.0" });
   server.registerTool(
     "list_services",
     {
@@ -29285,6 +29546,26 @@ function createServer(source) {
       }
     },
     async (args) => run(() => searchSpecs(source, args))
+  );
+  server.registerTool(
+    "list_skills",
+    {
+      description: "List the sysspec process skills: name and description only, no bodies.\n\nSkills are the deeper working processes \u2014 authoring specs, implementing\na service for real, building a consumer against mocks. When a task\nmatches one, fetch it with get_skill and follow it; do not improvise\nthe process from the spec tools alone.",
+      inputSchema: {}
+    },
+    async () => run(async () => listSkills())
+  );
+  server.registerTool(
+    "get_skill",
+    {
+      description: "Fetch one skill: its full process document (markdown), by name.\n\nThese are executable processes, not background reading \u2014 follow the\nsteps and checklists as written. The response lists companion files\nsome skills bundle (workflow and config templates); fetch one with\nfile=. Responses are capped at max_bytes and say so via the truncated\nflag \u2014 never silently cut.",
+      inputSchema: {
+        name: external_exports.string(),
+        file: external_exports.string().nullable().optional(),
+        max_bytes: external_exports.number().int().default(DEFAULT_MAX_BYTES)
+      }
+    },
+    async (args) => run(async () => getSkill(args))
   );
   return server;
 }
@@ -31464,6 +31745,8 @@ export {
   BundledSpecSource,
   FsSpecSource,
   createServer,
+  getSkill,
+  listSkills,
   makeHttpServer,
   core_exports3 as tools
 };

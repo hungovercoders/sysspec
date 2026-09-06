@@ -142,6 +142,8 @@ there is no second place to forget to update.
 | `get_artifact(service, path)` | Any declared artifact, with its authority class. |
 | `trace_channel(address)` | Who produces and consumes it — i.e. who you break. |
 | `search_specs(query, kind)` | Matching lines, not whole files. |
+| `list_skills()` | The deeper working processes, by name and description. |
+| `get_skill(name)` | One process document to follow — implement, consume, author. |
 
 No write tool exists. Reads are confined to the service directory **and**
 to paths the manifest actually declares, so dropping a file into the tree
@@ -201,9 +203,12 @@ claude mcp add sysspec --scope project \
 
 This writes the consuming project's `.mcp.json` (use `--scope user` to
 make it global instead). `SPECS_DIR` is the only path the server reads,
-so this is also how you point the server at any spec tree. Tools only;
-the skills come with the plugin routes above. (Repos scaffolded by
-`sysspec init` already carry this wiring, pinned.)
+so this is also how you point the server at any spec tree. The skills
+travel with the server (`list_skills`/`get_skill`), so this route — and
+any other MCP client, not just Claude — gets the full toolkit; the
+plugin routes above additionally surface the skills natively. (Repos
+scaffolded by `sysspec init` already carry this wiring, pinned, plus an
+`AGENTS.md` entry point any agent can read.)
 
 **4. Connect to a hosted URL (no local process at all).** `sysspec-mcp`
 also serves streamable HTTP, so the server can be deployed once and shared:
@@ -212,8 +217,8 @@ also serves streamable HTTP, so the server can be deployed once and shared:
 claude mcp add sysspec --scope project --transport http https://<your-deploy>/mcp
 ```
 
-Works from clients that can't spawn a local process (remote sessions, CI).
-Tools only, like route 3. [mcp/](mcp/README.md) has the Dockerfile, the
+Works from clients that can't spawn a local process (remote sessions, CI),
+with the skills served too, like route 3. [mcp/](mcp/README.md) has the Dockerfile, the
 GHCR image CI keeps current with this repo's specs, and per-host notes
 (any Docker host, Coolify, AWS, Cloudflare) — the deployment is
 host-agnostic by design.

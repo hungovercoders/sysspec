@@ -43,6 +43,12 @@ test("scaffold writes renamed dotfiles and substituted pins", () => {
   const workflows = readFileSync(path.join(target, ".github", "workflows", "ci.yml"), "utf-8");
   expect(workflows).toContain(`@v${ownVersion.split(".")[0]}`);
 
+  // Agent entry point: canonical AGENTS.md, CLAUDE.md as a pointer to it.
+  expect(readFileSync(path.join(target, "CLAUDE.md"), "utf-8")).toBe("@AGENTS.md\n");
+  const agents = readFileSync(path.join(target, "AGENTS.md"), "utf-8");
+  expect(agents).toContain("list_skills");
+  expect(agents).not.toContain("__");
+
   const asyncapi = readFileSync(
     path.join(target, "specs", "greeter", "asyncapi", "greeter.asyncapi.yaml"),
     "utf-8",

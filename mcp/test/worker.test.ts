@@ -66,5 +66,18 @@ describe("cloudflare adapter", () => {
     const payload = (await called.json()) as any;
     const services = JSON.parse(payload.result.content[0].text);
     expect(services.map((s: any) => s.name)).toContain("orders");
+
+    const skills = await worker.fetch(
+      rpc({
+        jsonrpc: "2.0",
+        id: 3,
+        method: "tools/call",
+        params: { name: "list_skills", arguments: {} },
+      }),
+    );
+    const skillNames = JSON.parse(((await skills.json()) as any).result.content[0].text).map(
+      (s: any) => s.name,
+    );
+    expect(skillNames).toContain("implement-service");
   });
 });

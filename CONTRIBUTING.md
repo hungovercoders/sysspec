@@ -94,7 +94,10 @@ the committed server bundle (`mcp/dist/stdio.mjs`) directly, so a server
 change also means rebuilding it (`npm run build` in `mcp/`) —
 `task check:mcp:dist` fails when the bundle is stale; the CLI bundle
 (`cli/dist/cli.mjs`, which the Taskfile itself runs) has the same rule via
-`task check:cli:dist`.
+`task check:cli:dist`. The skills are baked into the MCP bundle too
+(served to any client via `list_skills`/`get_skill`), so editing a skill
+also means rebuilding `mcp/dist` and bumping the mcp package version —
+the same two gates enforce it.
 
 ## Releasing sysspec
 
