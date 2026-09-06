@@ -3,9 +3,9 @@
 import { readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { serviceDirs } from "./mocks.js";
 import { DATACONTRACT_CLI, GHERKIN_LINT, SPECTRAL_CLI } from "./pins.js";
 import { run } from "./util.js";
-import { serviceDirs as allServiceDirs } from "./manifest-lint.js";
 
 // datacontract-cli validates a contract against the ODCS schema and offers no
 // hook for house rules, so the naming half of the data-contract gate is
@@ -29,14 +29,6 @@ function isFile(p: string): boolean {
   }
 }
 
-export function serviceDirs(specsDir: string, only: string | null): string[] {
-  const dirs = allServiceDirs(specsDir).filter((d) => !only || path.basename(d) === only);
-  if (dirs.length === 0) {
-    console.error(`no services matching '${only || "*"}' under ${specsDir}/`);
-    process.exit(1);
-  }
-  return dirs;
-}
 
 function globYaml(dir: string): string[] {
   try {

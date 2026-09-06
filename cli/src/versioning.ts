@@ -66,7 +66,9 @@ export function runGate(base: string, specsDir: string): number {
     const service = serviceDir.split("/").pop()!;
 
     const manifestText = readFileText(manifestPath);
-    const baseText = blob(base, manifestPath);
+    // Baseline from the merge-base, matching the diff scope above — the
+    // base ref's head may have moved past it.
+    const baseText = blob(mb, manifestPath);
     const now = manifestVersions(manifestText);
     const before = manifestVersions(baseText);
 

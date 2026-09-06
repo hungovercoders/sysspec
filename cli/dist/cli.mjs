@@ -19636,7 +19636,7 @@ function runGate(base, specsDir) {
     const serviceDir = manifestPath.slice(0, manifestPath.lastIndexOf("/"));
     const service = serviceDir.split("/").pop();
     const manifestText = readFileText(manifestPath);
-    const baseText = blob(base, manifestPath);
+    const baseText = blob(mb, manifestPath);
     const now = manifestVersions(manifestText);
     const before = manifestVersions(baseText);
     let artifactBumped = false;
@@ -20002,26 +20002,16 @@ ${checked} changed spec(s) checked for stated intent.`);
 }
 
 // src/lint.ts
-init_pins();
-init_util();
 import { readdirSync as readdirSync4, statSync as statSync3 } from "fs";
 import path6 from "path";
-import { fileURLToPath } from "url";
+import { fileURLToPath as fileURLToPath2 } from "url";
 
-// src/manifest-lint.ts
-var import_yaml5 = __toESM(require_dist(), 1);
+// src/mocks.ts
 init_util();
-import { readdirSync as readdirSync3, readFileSync as readFileSync6, statSync as statSync2 } from "fs";
+var import_yaml5 = __toESM(require_dist(), 1);
+import { copyFileSync, mkdirSync as mkdirSync2, readdirSync as readdirSync3, readFileSync as readFileSync6, statSync as statSync2 } from "fs";
 import path5 from "path";
-var KIND_DIRS = [
-  ["asyncapi", "asyncapi"],
-  ["openapi", "openapi"],
-  ["data-contract", "data-contracts"],
-  ["feature", "features"]
-];
-var SPEC_SUFFIXES = /* @__PURE__ */ new Set([".yaml", ".yml", ".feature"]);
-var MESSAGE_RE = /"([A-Z][a-z0-9]*(?:[A-Z][a-z0-9]*)+)"/g;
-var CHANNEL_RE = /"([a-z0-9]+(?:\.[a-z0-9-]+)*\.v\d+)"/g;
+import { fileURLToPath } from "url";
 function isFile2(p) {
   try {
     return statSync2(p).isFile();
@@ -20029,288 +20019,14 @@ function isFile2(p) {
     return false;
   }
 }
-function isDir2(p) {
-  try {
-    return statSync2(p).isDirectory();
-  } catch {
-    return false;
-  }
-}
-function serviceDirs(specsDir) {
-  if (!isDir2(specsDir)) return [];
-  return readdirSync3(specsDir).sort().map((d) => path5.join(specsDir, d)).filter((d) => isFile2(path5.join(d, "service.yaml")));
-}
-function globYaml(dir) {
-  if (!isDir2(dir)) return [];
-  return readdirSync3(dir).filter((f) => /\.ya?ml$/.test(f)).sort().map((f) => path5.join(dir, f));
-}
-function readYaml2(file) {
-  return (0, import_yaml5.parse)(readFileSync6(file, "utf-8")) ?? {};
-}
-function findAll(re, text) {
-  return new Set([...text.matchAll(re)].map((m) => m[1]));
-}
-function messageIndex(dirs) {
-  const byAddress = /* @__PURE__ */ new Map();
-  const own = /* @__PURE__ */ new Map();
-  for (const d of dirs) {
-    const names = /* @__PURE__ */ new Set();
-    for (const spec of globYaml(path5.join(d, "asyncapi"))) {
-      const doc = readYaml2(spec);
-      for (const name of Object.keys(doc.components?.messages ?? {})) names.add(name);
-      for (const channel of Object.values(doc.channels ?? {})) {
-        const address = channel?.address;
-        if (address) {
-          const set = byAddress.get(address) ?? /* @__PURE__ */ new Set();
-          for (const msg of Object.keys(channel?.messages ?? {})) set.add(msg);
-          byAddress.set(address, set);
-        }
-      }
-    }
-    own.set(path5.basename(d), names);
-  }
-  return [byAddress, own];
-}
-function channelOps(doc) {
-  const channels = doc.channels ?? {};
-  const sent = /* @__PURE__ */ new Set();
-  const received = /* @__PURE__ */ new Set();
-  for (const op of Object.values(doc.operations ?? {})) {
-    const ref = op?.channel?.$ref ?? "";
-    const key = ref.split("/").pop() ?? "";
-    const address = channels[key]?.address;
-    if (!address) continue;
-    if (op?.action === "send") sent.add(address);
-    else if (op?.action === "receive") received.add(address);
-  }
-  return [sent, received];
-}
-function lintService(serviceDir, producedBy, messagesByAddress, ownMessages) {
-  const problems = [];
-  const manifest = readYaml2(path5.join(serviceDir, "service.yaml"));
-  const name = manifest.name;
-  const artifacts = manifest.artifacts ?? [];
-  const version = manifest.version;
-  if (!/^\d+\.\d+\.\d+$/.test(version ? String(version) : "")) {
-    problems.push(`${name}: manifest needs a top-level semver version, got ${pyRepr(version ?? null)}`);
-  }
-  const declared = new Set(artifacts.map((a) => a.path));
-  let sent = /* @__PURE__ */ new Set();
-  let received = /* @__PURE__ */ new Set();
-  for (const a of artifacts) {
-    const file = path5.join(serviceDir, a.path);
-    if (!isFile2(file)) {
-      problems.push(`${name}: declared artifact missing on disk: ${a.path}`);
-      continue;
-    }
-    if (a.kind === "asyncapi" || a.kind === "openapi") {
-      const doc = readYaml2(file);
-      const specVersion = doc.info?.version;
-      if (String(specVersion) !== String(a.version)) {
-        problems.push(
-          `${name}: ${a.path} info.version ${specVersion} != manifest version ${a.version}`
-        );
-      }
-      if (a.kind === "asyncapi") {
-        const [s, r] = channelOps(doc);
-        sent = /* @__PURE__ */ new Set([...sent, ...s]);
-        received = /* @__PURE__ */ new Set([...received, ...r]);
-      }
-    }
-  }
-  for (const [kind, subdir] of KIND_DIRS) {
-    const dir = path5.join(serviceDir, subdir);
-    if (!isDir2(dir)) continue;
-    for (const f of readdirSync3(dir).sort()) {
-      const rel = path5.join(subdir, f);
-      if (SPEC_SUFFIXES.has(path5.extname(f)) && !declared.has(rel)) {
-        problems.push(`${name}: ${kind} file on disk but not in manifest: ${rel}`);
-      }
-    }
-  }
-  const repo = manifest.implementationRepo;
-  if (repo !== void 0 && repo !== null && !/^[\w.-]+\/[\w.-]+$/.test(String(repo))) {
-    problems.push(`${name}: implementationRepo must be <owner>/<repo>, got ${pyRepr(String(repo))}`);
-  }
-  const produces = new Set(manifest.produces ?? []);
-  const consumes = new Set(manifest.consumes ?? []);
-  for (const address of pySorted([...produces].filter((a) => !sent.has(a)))) {
-    problems.push(`${name}: produces '${address}' but no AsyncAPI send operation publishes it`);
-  }
-  for (const address of pySorted([...sent].filter((a) => !produces.has(a)))) {
-    problems.push(
-      `${name}: AsyncAPI sends '${address}' but the manifest does not list it in produces`
-    );
-  }
-  for (const address of pySorted([...received].filter((a) => !consumes.has(a)))) {
-    problems.push(
-      `${name}: AsyncAPI receives '${address}' but the manifest does not list it in consumes`
-    );
-  }
-  for (const address of pySorted(consumes)) {
-    if (!producedBy.has(address)) {
-      problems.push(`${name}: consumes '${address}' but no service produces it`);
-    }
-  }
-  const allowedMessages = new Set(ownMessages.get(path5.basename(serviceDir)) ?? []);
-  for (const address of consumes) {
-    for (const msg of messagesByAddress.get(address) ?? []) allowedMessages.add(msg);
-  }
-  const allowedChannels = /* @__PURE__ */ new Set([...produces, ...consumes]);
-  const featuresDir = path5.join(serviceDir, "features");
-  const featureFiles = isDir2(featuresDir) ? readdirSync3(featuresDir).filter((f) => f.endsWith(".feature")).sort() : [];
-  for (const f of featureFiles) {
-    const rel = path5.join("features", f);
-    const text = readFileSync6(path5.join(featuresDir, f), "utf-8");
-    for (const token of pySorted([...findAll(MESSAGE_RE, text)].filter((t) => !allowedMessages.has(t)))) {
-      problems.push(
-        `${name}: ${rel} references message "${token}" which no owned or consumed AsyncAPI channel defines`
-      );
-    }
-    for (const token of pySorted([...findAll(CHANNEL_RE, text)].filter((t) => !allowedChannels.has(t)))) {
-      problems.push(
-        `${name}: ${rel} references channel "${token}" which the service neither produces nor consumes`
-      );
-    }
-  }
-  return problems;
-}
-function runLint(only, specsDir) {
-  const dirs = serviceDirs(specsDir);
-  if (dirs.length === 0) {
-    console.error(`no service manifests found under ${specsDir}/*/service.yaml`);
-    return 1;
-  }
-  const producedBy = /* @__PURE__ */ new Map();
-  for (const d of dirs) {
-    const manifest = readYaml2(path5.join(d, "service.yaml"));
-    for (const address of manifest.produces ?? []) producedBy.set(address, manifest.name);
-  }
-  const [messagesByAddress, ownMessages] = messageIndex(dirs);
-  const problems = [];
-  let checked = 0;
-  for (const d of dirs) {
-    if (only && path5.basename(d) !== only) continue;
-    checked += 1;
-    problems.push(...lintService(d, producedBy, messagesByAddress, ownMessages));
-  }
-  if (!checked) {
-    console.error(`no such service: ${only}`);
-    return 1;
-  }
-  if (problems.length) {
-    console.error("Manifest drift:\n  " + problems.join("\n  "));
-    return 1;
-  }
-  console.log(`${checked} manifest(s) consistent with contracts and specs graph.`);
-  return 0;
-}
-
-// src/lint.ts
-var DC_RULESET_NAME = ".spectral-datacontracts.yaml";
-var DC_RULESET_DEFAULT = path6.join(
-  path6.dirname(fileURLToPath(import.meta.url)),
-  "..",
-  "templates",
-  "spectral",
-  "datacontracts.yaml"
-);
-function isFile3(p) {
-  try {
-    return statSync3(p).isFile();
-  } catch {
-    return false;
-  }
-}
-function serviceDirs2(specsDir, only) {
-  const dirs = serviceDirs(specsDir).filter((d) => !only || path6.basename(d) === only);
-  if (dirs.length === 0) {
-    console.error(`no services matching '${only || "*"}' under ${specsDir}/`);
-    process.exit(1);
-  }
-  return dirs;
-}
-function globYaml2(dir) {
-  try {
-    return readdirSync4(dir).filter((f) => /\.ya?ml$/.test(f)).sort().map((f) => path6.join(dir, f));
-  } catch {
-    return [];
-  }
-}
-function spectral(files, ruleset = null) {
-  const args = ["npx", "-y", SPECTRAL_CLI, "lint", ...files, "--fail-severity=warn"];
-  if (ruleset !== null) args.push("--ruleset", ruleset);
-  return run(args, { inherit: true }).status;
-}
-function specs(only, specsDir) {
-  const files = [];
-  for (const d of serviceDirs2(specsDir, only)) {
-    for (const kind of ["asyncapi", "openapi"]) {
-      files.push(...globYaml2(path6.join(d, kind)));
-    }
-  }
-  if (files.length === 0) {
-    console.error(`no specs found for '${only || "*"}'`);
-    return 1;
-  }
-  return spectral(files);
-}
-function features(only, specsDir) {
-  const dirs = serviceDirs2(specsDir, only).map((d) => path6.join(d, "features")).filter((d) => {
-    try {
-      return statSync3(d).isDirectory();
-    } catch {
-      return false;
-    }
-  });
-  if (dirs.length === 0) {
-    console.log(`no feature directories for '${only || "*"}'`);
-    return 0;
-  }
-  return run(["npx", "-y", GHERKIN_LINT, ...dirs], { inherit: true }).status;
-}
-function datacontracts(only, specsDir) {
-  const files = [];
-  for (const d of serviceDirs2(specsDir, only)) {
-    files.push(...globYaml2(path6.join(d, "data-contracts")));
-  }
-  if (files.length === 0) {
-    console.log(`no data contracts for '${only || "*"}'`);
-    return 0;
-  }
-  for (const dc2 of files) {
-    console.log(`linting ${dc2}`);
-    const rc = run(["uvx", "--from", DATACONTRACT_CLI, "datacontract", "lint", dc2], {
-      inherit: true
-    }).status;
-    if (rc) return rc;
-  }
-  const ruleset = isFile3(DC_RULESET_NAME) ? DC_RULESET_NAME : DC_RULESET_DEFAULT;
-  console.log(`checking data contract naming against ${ruleset}`);
-  return spectral(files, ruleset);
-}
-
-// src/mocks.ts
-init_util();
-var import_yaml6 = __toESM(require_dist(), 1);
-import { copyFileSync, mkdirSync as mkdirSync2, readdirSync as readdirSync5, readFileSync as readFileSync7, statSync as statSync4 } from "fs";
-import path7 from "path";
-import { fileURLToPath as fileURLToPath2 } from "url";
-function isFile4(p) {
-  try {
-    return statSync4(p).isFile();
-  } catch {
-    return false;
-  }
-}
 function composeFile(arg) {
   if (arg) return arg;
-  const local = path7.join("mocks", "docker-compose.yml");
-  if (isFile4(local)) return local;
-  const target = path7.join(".sysspec", "docker-compose.yml");
-  mkdirSync2(path7.dirname(target), { recursive: true });
-  const bundled = path7.join(
-    path7.dirname(fileURLToPath2(import.meta.url)),
+  const local = path5.join("mocks", "docker-compose.yml");
+  if (isFile2(local)) return local;
+  const target = path5.join(".sysspec", "docker-compose.yml");
+  mkdirSync2(path5.dirname(target), { recursive: true });
+  const bundled = path5.join(
+    path5.dirname(fileURLToPath(import.meta.url)),
     "..",
     "templates",
     "docker-compose.yml"
@@ -20337,8 +20053,8 @@ async function upload(microcksUrl, file, main2) {
   const form = new FormData();
   form.append(
     "file",
-    new Blob([readFileSync7(file)], { type: "application/x-yaml" }),
-    path7.basename(file)
+    new Blob([readFileSync6(file)], { type: "application/x-yaml" }),
+    path5.basename(file)
   );
   const [status, out] = await http(
     "POST",
@@ -20352,10 +20068,10 @@ async function upload(microcksUrl, file, main2) {
   }
   console.log(`loaded ${file}`);
 }
-function serviceDirs3(specsDir, only) {
+function serviceDirs(specsDir, only) {
   let dirs = [];
   try {
-    dirs = readdirSync5(specsDir).sort().map((d) => path7.join(specsDir, d)).filter((d) => isFile4(path7.join(d, "service.yaml"))).filter((d) => !only || path7.basename(d) === only);
+    dirs = readdirSync3(specsDir).sort().map((d) => path5.join(specsDir, d)).filter((d) => isFile2(path5.join(d, "service.yaml"))).filter((d) => !only || path5.basename(d) === only);
   } catch {
     dirs = [];
   }
@@ -20365,14 +20081,14 @@ function serviceDirs3(specsDir, only) {
   return dirs;
 }
 function specDocs(serviceDir, kind) {
-  const dir = path7.join(serviceDir, kind);
+  const dir = path5.join(serviceDir, kind);
   let files = [];
   try {
-    files = readdirSync5(dir).filter((f) => /\.ya?ml$/.test(f)).sort().map((f) => path7.join(dir, f));
+    files = readdirSync3(dir).filter((f) => /\.ya?ml$/.test(f)).sort().map((f) => path5.join(dir, f));
   } catch {
     return [];
   }
-  return files.map((f) => [f, (0, import_yaml6.parse)(readFileSync7(f, "utf-8")) ?? {}]);
+  return files.map((f) => [f, (0, import_yaml5.parse)(readFileSync6(f, "utf-8")) ?? {}]);
 }
 function info(doc) {
   const i = doc.info ?? {};
@@ -20392,7 +20108,7 @@ function down(compose) {
 var sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 async function load(only, specsDir, mocksDir, microcksUrl, minionUrl, compose) {
   up(compose);
-  for (const d of serviceDirs3(specsDir, only)) {
+  for (const d of serviceDirs(specsDir, only)) {
     for (const kind of ["asyncapi", "openapi"]) {
       for (const [spec] of specDocs(d, kind)) {
         await upload(microcksUrl, spec, true);
@@ -20400,7 +20116,7 @@ async function load(only, specsDir, mocksDir, microcksUrl, minionUrl, compose) {
     }
     let exampleFiles = [];
     try {
-      exampleFiles = readdirSync5(mocksDir).filter((f) => f.startsWith(`${path7.basename(d)}.`) && f.endsWith(".examples.yaml")).sort().map((f) => path7.join(mocksDir, f));
+      exampleFiles = readdirSync3(mocksDir).filter((f) => f.startsWith(`${path5.basename(d)}.`) && f.endsWith(".examples.yaml")).sort().map((f) => path5.join(mocksDir, f));
     } catch {
       exampleFiles = [];
     }
@@ -20476,7 +20192,7 @@ async function runTest(microcksUrl, serviceId, runner, endpoint, timeoutMs, oper
   console.log(`contract ok: ${serviceId} - ${exchanges} exchanges validated`);
 }
 async function contract(only, specsDir, microcksUrl, restEndpoint, asyncEndpoint) {
-  for (const d of serviceDirs3(specsDir, only)) {
+  for (const d of serviceDirs(specsDir, only)) {
     for (const [, doc] of specDocs(d, "openapi")) {
       const [title, version] = info(doc);
       const encoded = title.replaceAll(" ", "+");
@@ -20617,18 +20333,18 @@ async function eventSmoke(doc, minionUrl) {
 }
 async function test(only, specsDir, mocksDir, microcksUrl, minionUrl) {
   let checked = 0;
-  for (const d of serviceDirs3(specsDir, only)) {
+  for (const d of serviceDirs(specsDir, only)) {
     for (const [, doc] of specDocs(d, "openapi")) {
-      const examplesPath = path7.join(mocksDir, `${path7.basename(d)}.rest.examples.yaml`);
-      if (!isFile4(examplesPath)) {
-        console.log(`no REST examples for ${path7.basename(d)} (${examplesPath}) - skipping`);
+      const examplesPath = path5.join(mocksDir, `${path5.basename(d)}.rest.examples.yaml`);
+      if (!isFile2(examplesPath)) {
+        console.log(`no REST examples for ${path5.basename(d)} (${examplesPath}) - skipping`);
         continue;
       }
       const [title, version] = info(doc);
       await restSmoke(
         title,
         version,
-        (0, import_yaml6.parse)(readFileSync7(examplesPath, "utf-8")) ?? {},
+        (0, import_yaml5.parse)(readFileSync6(examplesPath, "utf-8")) ?? {},
         microcksUrl
       );
       checked += 1;
@@ -20658,6 +20374,282 @@ async function watch(channel, minionUrl) {
     });
     ws.on("close", () => resolve());
   });
+  return 0;
+}
+
+// src/lint.ts
+init_pins();
+init_util();
+var DC_RULESET_NAME = ".spectral-datacontracts.yaml";
+var DC_RULESET_DEFAULT = path6.join(
+  path6.dirname(fileURLToPath2(import.meta.url)),
+  "..",
+  "templates",
+  "spectral",
+  "datacontracts.yaml"
+);
+function isFile3(p) {
+  try {
+    return statSync3(p).isFile();
+  } catch {
+    return false;
+  }
+}
+function globYaml(dir) {
+  try {
+    return readdirSync4(dir).filter((f) => /\.ya?ml$/.test(f)).sort().map((f) => path6.join(dir, f));
+  } catch {
+    return [];
+  }
+}
+function spectral(files, ruleset = null) {
+  const args = ["npx", "-y", SPECTRAL_CLI, "lint", ...files, "--fail-severity=warn"];
+  if (ruleset !== null) args.push("--ruleset", ruleset);
+  return run(args, { inherit: true }).status;
+}
+function specs(only, specsDir) {
+  const files = [];
+  for (const d of serviceDirs(specsDir, only)) {
+    for (const kind of ["asyncapi", "openapi"]) {
+      files.push(...globYaml(path6.join(d, kind)));
+    }
+  }
+  if (files.length === 0) {
+    console.error(`no specs found for '${only || "*"}'`);
+    return 1;
+  }
+  return spectral(files);
+}
+function features(only, specsDir) {
+  const dirs = serviceDirs(specsDir, only).map((d) => path6.join(d, "features")).filter((d) => {
+    try {
+      return statSync3(d).isDirectory();
+    } catch {
+      return false;
+    }
+  });
+  if (dirs.length === 0) {
+    console.log(`no feature directories for '${only || "*"}'`);
+    return 0;
+  }
+  return run(["npx", "-y", GHERKIN_LINT, ...dirs], { inherit: true }).status;
+}
+function datacontracts(only, specsDir) {
+  const files = [];
+  for (const d of serviceDirs(specsDir, only)) {
+    files.push(...globYaml(path6.join(d, "data-contracts")));
+  }
+  if (files.length === 0) {
+    console.log(`no data contracts for '${only || "*"}'`);
+    return 0;
+  }
+  for (const dc2 of files) {
+    console.log(`linting ${dc2}`);
+    const rc = run(["uvx", "--from", DATACONTRACT_CLI, "datacontract", "lint", dc2], {
+      inherit: true
+    }).status;
+    if (rc) return rc;
+  }
+  const ruleset = isFile3(DC_RULESET_NAME) ? DC_RULESET_NAME : DC_RULESET_DEFAULT;
+  console.log(`checking data contract naming against ${ruleset}`);
+  return spectral(files, ruleset);
+}
+
+// src/manifest-lint.ts
+var import_yaml6 = __toESM(require_dist(), 1);
+init_util();
+import { readdirSync as readdirSync5, readFileSync as readFileSync7, statSync as statSync4 } from "fs";
+import path7 from "path";
+var KIND_DIRS = [
+  ["asyncapi", "asyncapi"],
+  ["openapi", "openapi"],
+  ["data-contract", "data-contracts"],
+  ["feature", "features"]
+];
+var SPEC_SUFFIXES = /* @__PURE__ */ new Set([".yaml", ".yml", ".feature"]);
+var MESSAGE_RE = /"([A-Z][a-z0-9]*(?:[A-Z][a-z0-9]*)+)"/g;
+var CHANNEL_RE = /"([a-z0-9]+(?:\.[a-z0-9-]+)*\.v\d+)"/g;
+function isFile4(p) {
+  try {
+    return statSync4(p).isFile();
+  } catch {
+    return false;
+  }
+}
+function isDir2(p) {
+  try {
+    return statSync4(p).isDirectory();
+  } catch {
+    return false;
+  }
+}
+function serviceDirs2(specsDir) {
+  if (!isDir2(specsDir)) return [];
+  return readdirSync5(specsDir).sort().map((d) => path7.join(specsDir, d)).filter((d) => isFile4(path7.join(d, "service.yaml")));
+}
+function globYaml2(dir) {
+  if (!isDir2(dir)) return [];
+  return readdirSync5(dir).filter((f) => /\.ya?ml$/.test(f)).sort().map((f) => path7.join(dir, f));
+}
+function readYaml2(file) {
+  return (0, import_yaml6.parse)(readFileSync7(file, "utf-8")) ?? {};
+}
+function findAll(re, text) {
+  return new Set([...text.matchAll(re)].map((m) => m[1]));
+}
+function messageIndex(dirs) {
+  const byAddress = /* @__PURE__ */ new Map();
+  const own = /* @__PURE__ */ new Map();
+  for (const d of dirs) {
+    const names = /* @__PURE__ */ new Set();
+    for (const spec of globYaml2(path7.join(d, "asyncapi"))) {
+      const doc = readYaml2(spec);
+      for (const name of Object.keys(doc.components?.messages ?? {})) names.add(name);
+      for (const channel of Object.values(doc.channels ?? {})) {
+        const address = channel?.address;
+        if (address) {
+          const set = byAddress.get(address) ?? /* @__PURE__ */ new Set();
+          for (const msg of Object.keys(channel?.messages ?? {})) set.add(msg);
+          byAddress.set(address, set);
+        }
+      }
+    }
+    own.set(path7.basename(d), names);
+  }
+  return [byAddress, own];
+}
+function channelOps(doc) {
+  const channels = doc.channels ?? {};
+  const sent = /* @__PURE__ */ new Set();
+  const received = /* @__PURE__ */ new Set();
+  for (const op of Object.values(doc.operations ?? {})) {
+    const ref = op?.channel?.$ref ?? "";
+    const key = ref.split("/").pop() ?? "";
+    const address = channels[key]?.address;
+    if (!address) continue;
+    if (op?.action === "send") sent.add(address);
+    else if (op?.action === "receive") received.add(address);
+  }
+  return [sent, received];
+}
+function lintService(serviceDir, producedBy, messagesByAddress, ownMessages) {
+  const problems = [];
+  const manifest = readYaml2(path7.join(serviceDir, "service.yaml"));
+  const name = manifest.name;
+  const artifacts = manifest.artifacts ?? [];
+  const version = manifest.version;
+  if (!/^\d+\.\d+\.\d+$/.test(version ? String(version) : "")) {
+    problems.push(`${name}: manifest needs a top-level semver version, got ${pyRepr(version ?? null)}`);
+  }
+  const declared = new Set(artifacts.map((a) => a.path));
+  let sent = /* @__PURE__ */ new Set();
+  let received = /* @__PURE__ */ new Set();
+  for (const a of artifacts) {
+    const file = path7.join(serviceDir, a.path);
+    if (!isFile4(file)) {
+      problems.push(`${name}: declared artifact missing on disk: ${a.path}`);
+      continue;
+    }
+    if (a.kind === "asyncapi" || a.kind === "openapi") {
+      const doc = readYaml2(file);
+      const specVersion = doc.info?.version;
+      if (String(specVersion) !== String(a.version)) {
+        problems.push(
+          `${name}: ${a.path} info.version ${specVersion} != manifest version ${a.version}`
+        );
+      }
+      if (a.kind === "asyncapi") {
+        const [s, r] = channelOps(doc);
+        sent = /* @__PURE__ */ new Set([...sent, ...s]);
+        received = /* @__PURE__ */ new Set([...received, ...r]);
+      }
+    }
+  }
+  for (const [kind, subdir] of KIND_DIRS) {
+    const dir = path7.join(serviceDir, subdir);
+    if (!isDir2(dir)) continue;
+    for (const f of readdirSync5(dir).sort()) {
+      const rel = path7.join(subdir, f);
+      if (SPEC_SUFFIXES.has(path7.extname(f)) && !declared.has(rel)) {
+        problems.push(`${name}: ${kind} file on disk but not in manifest: ${rel}`);
+      }
+    }
+  }
+  const repo = manifest.implementationRepo;
+  if (repo !== void 0 && repo !== null && !/^[\w.-]+\/[\w.-]+$/.test(String(repo))) {
+    problems.push(`${name}: implementationRepo must be <owner>/<repo>, got ${pyRepr(String(repo))}`);
+  }
+  const produces = new Set(manifest.produces ?? []);
+  const consumes = new Set(manifest.consumes ?? []);
+  for (const address of pySorted([...produces].filter((a) => !sent.has(a)))) {
+    problems.push(`${name}: produces '${address}' but no AsyncAPI send operation publishes it`);
+  }
+  for (const address of pySorted([...sent].filter((a) => !produces.has(a)))) {
+    problems.push(
+      `${name}: AsyncAPI sends '${address}' but the manifest does not list it in produces`
+    );
+  }
+  for (const address of pySorted([...received].filter((a) => !consumes.has(a)))) {
+    problems.push(
+      `${name}: AsyncAPI receives '${address}' but the manifest does not list it in consumes`
+    );
+  }
+  for (const address of pySorted(consumes)) {
+    if (!producedBy.has(address)) {
+      problems.push(`${name}: consumes '${address}' but no service produces it`);
+    }
+  }
+  const allowedMessages = new Set(ownMessages.get(path7.basename(serviceDir)) ?? []);
+  for (const address of consumes) {
+    for (const msg of messagesByAddress.get(address) ?? []) allowedMessages.add(msg);
+  }
+  const allowedChannels = /* @__PURE__ */ new Set([...produces, ...consumes]);
+  const featuresDir = path7.join(serviceDir, "features");
+  const featureFiles = isDir2(featuresDir) ? readdirSync5(featuresDir).filter((f) => f.endsWith(".feature")).sort() : [];
+  for (const f of featureFiles) {
+    const rel = path7.join("features", f);
+    const text = readFileSync7(path7.join(featuresDir, f), "utf-8");
+    for (const token of pySorted([...findAll(MESSAGE_RE, text)].filter((t) => !allowedMessages.has(t)))) {
+      problems.push(
+        `${name}: ${rel} references message "${token}" which no owned or consumed AsyncAPI channel defines`
+      );
+    }
+    for (const token of pySorted([...findAll(CHANNEL_RE, text)].filter((t) => !allowedChannels.has(t)))) {
+      problems.push(
+        `${name}: ${rel} references channel "${token}" which the service neither produces nor consumes`
+      );
+    }
+  }
+  return problems;
+}
+function runLint(only, specsDir) {
+  const dirs = serviceDirs2(specsDir);
+  if (dirs.length === 0) {
+    console.error(`no service manifests found under ${specsDir}/*/service.yaml`);
+    return 1;
+  }
+  const producedBy = /* @__PURE__ */ new Map();
+  for (const d of dirs) {
+    const manifest = readYaml2(path7.join(d, "service.yaml"));
+    for (const address of manifest.produces ?? []) producedBy.set(address, manifest.name);
+  }
+  const [messagesByAddress, ownMessages] = messageIndex(dirs);
+  const problems = [];
+  let checked = 0;
+  for (const d of dirs) {
+    if (only && path7.basename(d) !== only) continue;
+    checked += 1;
+    problems.push(...lintService(d, producedBy, messagesByAddress, ownMessages));
+  }
+  if (!checked) {
+    console.error(`no such service: ${only}`);
+    return 1;
+  }
+  if (problems.length) {
+    console.error("Manifest drift:\n  " + problems.join("\n  "));
+    return 1;
+  }
+  console.log(`${checked} manifest(s) consistent with contracts and specs graph.`);
   return 0;
 }
 

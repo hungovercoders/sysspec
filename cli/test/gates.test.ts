@@ -165,6 +165,43 @@ describe("gates in a scratch git repo", () => {
     expect(logs.join("\n")).toContain("ok: specs/svc/features/a.feature 1.0.0 -> 1.1.0");
   });
 
+  test("version gate: baseline comes from the merge-base, not the moved base head", () => {
+    // Branch off, then let main advance with its own bump: the gate must
+    // compare against the fork point, not main's head.
+    g("checkout", "-q", "-b", "feature");
+    g("checkout", "-q", "main");
+    writeFileSync(path.join(repo, "specs", "svc", "features", "a.feature"), "Feature: main-side\n");
+    writeFileSync(
+      path.join(repo, "specs", "svc", "service.yaml"),
+      [
+        "name: svc",
+        "version: 1.1.0",
+        "artifacts:",
+        "  - { kind: feature, path: features/a.feature, version: 1.1.0 }",
+        "",
+      ].join("\n"),
+    );
+    g("add", "-A");
+    g("-c", "user.email=t@e.c", "-c", "user.name=t", "commit", "-qm", "main moves");
+    g("checkout", "-q", "feature");
+    // The branch makes the same 1.0.0 -> 1.1.0 bump independently. Against
+    // main's head that would look like "changed but version stayed"; against
+    // the merge-base it is a clean bump.
+    writeFileSync(path.join(repo, "specs", "svc", "features", "a.feature"), "Feature: branch-side\n");
+    writeFileSync(
+      path.join(repo, "specs", "svc", "service.yaml"),
+      [
+        "name: svc",
+        "version: 1.1.0",
+        "artifacts:",
+        "  - { kind: feature, path: features/a.feature, version: 1.1.0 }",
+        "",
+      ].join("\n"),
+    );
+    expect(versionGate("main", "specs")).toBe(0);
+    expect(logs.join("\n")).toContain("ok: specs/svc/features/a.feature 1.0.0 -> 1.1.0");
+  });
+
   test("version gate: artifact major requires service major", () => {
     writeFileSync(path.join(repo, "specs", "svc", "features", "a.feature"), "Feature: a2\n");
     writeFileSync(
