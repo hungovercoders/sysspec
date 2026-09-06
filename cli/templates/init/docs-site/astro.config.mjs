@@ -33,12 +33,15 @@ const servicePages = (s) => {
   return pages;
 };
 
-// On GitHub Pages the site lives under /<repo>; locally at /.
+// On GitHub Pages the site lives under /<repo>; locally at /. Other hosts
+// (the Cloudflare demo Worker) serve at the root: they set DOCS_SITE_BASE=/
+// to override, since CI always has GITHUB_REPOSITORY in the environment.
 const repo = process.env.GITHUB_REPOSITORY;
+const base = process.env.DOCS_SITE_BASE ?? (repo ? `/${repo.split('/')[1]}` : '/');
 
 export default defineConfig({
-  site: repo ? `https://${repo.split('/')[0]}.github.io` : undefined,
-  base: repo ? `/${repo.split('/')[1]}` : '/',
+  site: repo && !process.env.DOCS_SITE_BASE ? `https://${repo.split('/')[0]}.github.io` : undefined,
+  base,
   // Relative paths resolve against the config's physical location, which
   // breaks when docs-site is reached through a symlink - the kit repo
   // overrides with an absolute path.
