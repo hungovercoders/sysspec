@@ -1,4 +1,7 @@
-"""Single source for the external tool versions the kit shells out to."""
+"""Single source for the external tool versions the kit shells out to,
+and the sysspec-mcp npm version the init scaffold pins in .mcp.json."""
+
+SYSSPEC_MCP = "sysspec-mcp@1.0.0"
 
 ASYNCAPI_CLI = "@asyncapi/cli@5.0.7"
 DATACONTRACT_CLI = "datacontract-cli==1.1.1"

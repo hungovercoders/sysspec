@@ -1,0 +1,37 @@
+# Cut a sysspec-mcp release: push a tag mcp-v<version> matching
+# mcp/package.json. Publishes the package to npm via trusted publishing
+# (OIDC — no token stored; provenance attached automatically).
+#
+# One-time setup on npmjs.com: publish 1.0.0 manually once so the package
+# exists, then add a "trusted publisher" for sysspec-mcp pointing at this
+# repository and workflow mcp-release.yml.
+name: mcp-release
+
+on:
+  push:
+    tags: ["mcp-v[0-9]*"]
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mcp
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v2
+      - name: Verify the tag matches the package version
+        run: |
+          tag="${GITHUB_REF_NAME#mcp-v}"
+          version=$(node -p "require('./package.json').version")
+          [ "$tag" = "$version" ] || { echo "tag mcp-v$tag != mcp version $version"; exit 1; }
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build
+      - run: npx vitest run
+      - name: Verify the committed dist matches the build
+        run: git diff --exit-code -- dist
+      - run: npm publish

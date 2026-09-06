@@ -4,15 +4,22 @@
   "customManagers": [
     {
       "customType": "regex",
-      "managerFilePatterns": ["/^Taskfile\\.yml$/", "/^\\.mcp\\.json$/"],
+      "managerFilePatterns": ["/^Taskfile\\.yml$/"],
       "matchStrings": ["sysspec==(?<currentValue>[0-9.]+)"],
       "depNameTemplate": "sysspec",
       "datasourceTemplate": "pypi"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^\\.mcp\\.json$/"],
+      "matchStrings": ["sysspec-mcp@(?<currentValue>[0-9.]+)"],
+      "depNameTemplate": "sysspec-mcp",
+      "datasourceTemplate": "npm"
     }
   ],
   "packageRules": [
     {
-      "matchPackageNames": ["sysspec"],
+      "matchPackageNames": ["sysspec", "sysspec-mcp"],
       "matchUpdateTypes": ["minor", "patch"],
       "automerge": true,
       "platformAutomerge": true
