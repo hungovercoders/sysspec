@@ -8,6 +8,8 @@ name: cloudflare-deploy
 on:
   push:
     branches: [main]
+  # First deploy bootstraps the Worker that preview versions target.
+  workflow_dispatch:
 
 permissions:
   contents: read
