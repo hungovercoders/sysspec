@@ -22,6 +22,7 @@ tasks:
       - task: check:mcp:dist
       - task: docs:build
       - task: docs:diagrams
+      - task: site:build
 
   check:plugin:
     desc: Plugin surface changes (cli, mcp, skills, manifests) must bump the plugin version
@@ -142,6 +143,21 @@ tasks:
     dir: docs-site
     env:
       DOCS_SITE_OUT: "{{.ROOT_DIR}}/site"
+    cmds:
+      - npm install
+      - npm run dev
+
+  site:build:
+    desc: Build the sysspec website (the tool's own docs, not the spec catalog) into website/dist
+    dir: website
+    cmds:
+      - |
+        if [ -n "$CI" ]; then npm ci; else npm install; fi
+      - npm run build
+
+  site:serve:
+    desc: Serve the sysspec website locally with live reload
+    dir: website
     cmds:
       - npm install
       - npm run dev

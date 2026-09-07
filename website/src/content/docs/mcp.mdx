@@ -1,0 +1,85 @@
+---
+title: MCP server — sysspec-mcp
+description: Seven read-only tools over any spec tree — stdio locally, streamable HTTP behind a URL.
+---
+
+import { DEMO_MCP_URL, DEMO_IS_LIVE } from '../../lib/links';
+
+The [`sysspec-mcp` package](https://www.npmjs.com/package/sysspec-mcp) gives
+agents read-only MCP access to a spec tree. One TypeScript implementation
+behind every route in: stdio for local clients, stateless streamable HTTP for
+a hosted URL. There is no write tool, and reads are confined to artifacts a
+service manifest declares — dropping a file into the tree does not silently
+expose it.
+
+The server is a generic engine — the specs are per-repo data, pointed at
+with `SPECS_DIR`.
+
+## The tools
+
+| Tool | Use |
+| --- | --- |
+| `list_services()` | Discovery. Start here. |
+| `get_service(name)` | Artifact index + produce/consume edges. No file contents. |
+| `get_message_schema(service, message)` | One event payload — the cheap call. |
+| `get_acceptance_criteria(service)` | Gherkin, labelled binding. |
+| `get_artifact(service, path)` | Any declared artifact, with its authority class. |
+| `trace_channel(address)` | Who produces and consumes it — i.e. who you break. |
+| `search_specs(query, kind)` | Matching lines, not whole files. |
+
+Responses are bounded and narrowly addressable: `get_artifact` takes an
+RFC 6901 `section` pointer for one part of a spec, `get_acceptance_criteria`
+filters to one scenario, and any response that had to cut content says so
+with a `truncated` flag.
+
+## Run it locally
+
+```bash
+# stdio (what .mcp.json and the Claude plugin wire up)
+SPECS_DIR=./specs npx -y sysspec-mcp
+
+# streamable HTTP on a port
+SPECS_DIR=./specs npx -y sysspec-mcp --transport http --host 0.0.0.0 --port 8080
+```
+
+Register it with a client:
+
+```bash
+claude mcp add sysspec --scope project \
+  --env SPECS_DIR=/path/to/your-specs/specs \
+  -- npx -y sysspec-mcp
+```
+
+## Serve it over a URL
+
+HTTP mode is stateless — no session affinity, so it works behind any load
+balancer or scale-to-zero platform. The MCP endpoint is `/mcp`; `/` answers
+with a small info document. Deployment is host-agnostic:
+
+- **Any Docker host / VPS / Coolify** — deploy the
+  `ghcr.io/hungovercoders/sysspec-mcp` image CI keeps current with the
+  example specs, or build from `mcp/Dockerfile` with your own.
+- **AWS** — App Runner or ECS pulling the image, port 8080.
+- **Cloudflare** — Containers can run the same image, or a free-tier Worker
+  adapter bundles the specs at deploy time.
+
+Connect from anywhere that can't spawn a local process (remote sessions, CI):
+
+```bash
+claude mcp add sysspec --scope project --transport http https://<your-deploy>/mcp
+```
+
+{DEMO_IS_LIVE
+  ? <p>The example specs are served live — try the <a href={DEMO_MCP_URL}>demo MCP endpoint</a> with the wiring line above.</p>
+  : <p>Hosting details, hardening notes and the demo deployment live in <a href={DEMO_MCP_URL}>the deploy guide</a>.</p>}
+
+Whichever route, verify with `/mcp` and then `list_services()`.
+
+## Hardening
+
+The tools are read-only and confined to declared artifacts, so the blast
+radius of an open endpoint is "someone reads the specs". If the specs are
+not public: put an authenticating proxy (Cloudflare Access, an ALB with
+OIDC, …) in front of the URL, and set
+`SYSSPEC_MCP_ALLOWED_HOSTS=mcp.example.com` to reject requests carrying any
+other Host header (DNS-rebinding protection).

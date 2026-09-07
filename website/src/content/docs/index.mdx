@@ -1,0 +1,70 @@
+---
+title: sysspec
+description: System specs first — AsyncAPI, OpenAPI, ODCS data contracts and Gherkin as enforceable system intent, with deterministic gates.
+template: splash
+hero:
+  tagline: Write down what the system is intended to do — and make that the contract both engineers and AI agents build from, enforced mechanically in CI.
+  actions:
+    - text: Get started
+      link: /getting-started/
+      icon: right-arrow
+    - text: GitHub
+      link: https://github.com/hungovercoders/sysspec
+      icon: github
+      variant: minimal
+---
+
+import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
+import { DEMO_SITE_URL, DEMO_MCP_URL, DEMO_IS_LIVE, NPM_CLI_URL, NPM_MCP_URL } from '../../lib/links';
+
+## Specs that do double duty
+
+sysspec is a system spec tool. You author intent — AsyncAPI, OpenAPI, ODCS
+data contracts and Gherkin acceptance criteria — and those specs work twice:
+
+<CardGrid>
+  <Card title="Context to build from" icon="open-book">
+    Engineers and AI agents read the specs over MCP at implementation time
+    instead of guessing from code. Seven narrow, read-only tools serve
+    exactly the artifact, message, or scenario needed.
+  </Card>
+  <Card title="Deterministic gates" icon="approve-check">
+    The same specs are packaged and consumed by implementations for local and
+    CI testing. They cannot be quietly amended to make failing code pass,
+    because they live and version separately from every implementation.
+  </Card>
+</CardGrid>
+
+This is not documentation of what you have. Specs written next to an
+implementation drift toward whatever the code happens to do; sysspec inverts
+that. Intent is authored once, versioned deliberately, reached only through
+tools, and enforced mechanically — the implementation conforms to the spec,
+never the other way round.
+
+## The pieces
+
+<CardGrid>
+  <LinkCard title="The CLI — sysspec" href="/cli/"
+    description="Gates, lint, docs, mock orchestration, contract testing, and the init scaffold. One npm package." />
+  <LinkCard title="The MCP server — sysspec-mcp" href="/mcp/"
+    description="Seven read-only tools over any spec tree. stdio locally, streamable HTTP behind a URL." />
+  <LinkCard title="Claude Code plugin & skills" href="/plugin-and-skills/"
+    description="MCP tools plus three skills that drive the authoring, implementing, and consuming journeys." />
+  <LinkCard title="Gates and CI" href="/gates-and-ci/"
+    description="task ci is the definition of green — identical locally, in the git hooks, and in CI." />
+</CardGrid>
+
+## See it running
+
+<CardGrid>
+  <LinkCard title={DEMO_IS_LIVE ? 'Live demo spec catalog' : 'The example spec suite'}
+    href={DEMO_SITE_URL}
+    description="The orders/payments spec suite rendered as a browsable catalog — contracts, events, data, acceptance criteria, and the system graph." />
+  <LinkCard title={DEMO_IS_LIVE ? 'Demo MCP endpoint' : 'Hosting the MCP server'}
+    href={DEMO_MCP_URL}
+    description="The same specs served over streamable HTTP MCP — connect a client and call list_services()." />
+  <LinkCard title="sysspec on npm" href={NPM_CLI_URL}
+    description="npx -y sysspec init my-specs --org com.acme" />
+  <LinkCard title="sysspec-mcp on npm" href={NPM_MCP_URL}
+    description="SPECS_DIR=./specs npx -y sysspec-mcp" />
+</CardGrid>

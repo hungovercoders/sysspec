@@ -1,0 +1,21 @@
+// The sysspec website (this directory) on Cloudflare: a static-assets-only
+// Worker — no worker script, nothing dynamic to serve. Deliberately separate
+// from the sysspec-demo Worker (deploy/cloudflare/), which serves the
+// generated spec catalog and the MCP endpoint; this site links to it via
+// build-time env vars (SYSSPEC_DEMO_URL / SYSSPEC_DEMO_MCP_URL).
+//
+// Build input: ./dist  <- task site:build (npm run build in here)
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "sysspec-site",
+  "compatibility_date": "2026-08-01",
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "404-page"
+  },
+  "workers_dev": true,
+  "preview_urls": true,
+  "observability": {
+    "enabled": true
+  }
+}

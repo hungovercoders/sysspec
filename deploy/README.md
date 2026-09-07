@@ -23,6 +23,21 @@ server behind `httpServerHandler`).
 Local run: `task docs:build` with `DOCS_SITE_BASE=/`, then
 `npm run dev` in `deploy/cloudflare/`.
 
+## The sysspec website (second Worker)
+
+The tool's own website ([`website/`](../website/) — docs for the CLI, MCP
+server, plugin and the spec model, not the generated spec catalog) deploys
+as a separate static-assets-only Worker, `sysspec-site`, with the same
+pattern: `site-deploy.yml` on main pushes touching `website/`,
+`site-preview.yml` for per-PR `pr-<number>` preview aliases, the same two
+Cloudflare secrets. The site links back to this demo through the optional
+repo Actions *variables* `SYSSPEC_DEMO_URL` and `SYSSPEC_DEMO_MCP_URL`
+(unset, its pages fall back to GitHub links). First deploy: run
+`site-deploy.yml` once via workflow_dispatch to bootstrap the Worker the
+preview versions target.
+
+Local run: `task site:serve`.
+
 ## AWS (known option, not implemented)
 
 The same two halves map directly:
