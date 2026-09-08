@@ -2,10 +2,10 @@ apiVersion: v3.1.0
 kind: DataContract
 id: payments-daily-settled
 name: Daily settled payments
-version: 1.0.0
+version: 1.0.1
 status: active
 domain: Commerce
-tenant: hungovecoders
+tenant: hungovercoders
 dataProduct: payments
 description:
   purpose: >
@@ -23,6 +23,7 @@ schema:
     logicalType: object
     physicalName: payments_daily_settled
     physicalType: table
+    description: One row per settled payment, partitioned by settlement date.
     properties:
       - name: payment_id
         logicalType: string
@@ -30,19 +31,23 @@ schema:
         required: true
         unique: true
         primaryKey: true
+        description: The settled payment.
       - name: order_id
         logicalType: string
         physicalType: uuid
         required: true
+        description: The order the payment settles.
       - name: settled_at
         logicalType: date
         physicalType: timestamp
         required: true
         partitioned: true
+        description: Processor settlement time - the partition key; late arrivals backfill up to D+3.
       - name: amount_pence
         logicalType: integer
         physicalType: bigint
         required: true
+        description: Settled amount in pence.
         quality:
           - rule: nonNegative
             mustBeGreaterThanOrEqualTo: 0
