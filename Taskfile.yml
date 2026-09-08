@@ -14,12 +14,14 @@ tasks:
       - task: lint
       - task: check:version
       - task: check:plugin
+      # dist checks run before the tests: the test suites execute the
+      # committed bundles, so a stale dist must fail fast, not pass tests.
       - task: check:cli
-      - task: test:cli
       - task: check:cli:dist
+      - task: test:cli
       - task: check:mcp
-      - task: test:mcp
       - task: check:mcp:dist
+      - task: test:mcp
       - task: docs:build
       - task: docs:diagrams
       - task: site:build
@@ -45,6 +47,7 @@ tasks:
     dir: cli
     cmds:
       - if [ -n "$CI" ]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi
+      - npm run typecheck
       - npx vitest run
 
   check:cli:dist:
@@ -67,6 +70,7 @@ tasks:
     dir: mcp
     cmds:
       - if [ -n "$CI" ]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi
+      - npm run typecheck
       - npx vitest run
 
   check:mcp:dist:
@@ -244,7 +248,7 @@ tasks:
       - node {{.ROOT_DIR}}/cli/dist/cli.mjs mocks load {{if .SERVICE}}--service {{.SERVICE}}{{end}}
 
   mocks:watch:
-    desc: 'Watch a mock event channel (CHANNEL=Orders/2.1.0/publishOrderPlaced)'
+    desc: 'Watch a mock event channel (CHANNEL=<Title>/<version>/<operation>, e.g. Orders/3.0.0/publishOrderPlaced)'
     cmds:
       - node {{.ROOT_DIR}}/cli/dist/cli.mjs mocks watch --channel {{.CHANNEL}}
 

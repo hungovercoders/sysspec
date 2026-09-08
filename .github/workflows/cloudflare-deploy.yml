@@ -8,6 +8,17 @@ name: cloudflare-deploy
 on:
   push:
     branches: [main]
+    # Everything the Worker serves is built from these inputs; a
+    # website- or workflow-only push has nothing to redeploy.
+    paths:
+      - "specs/**"
+      - "mocks/**"
+      - "cli/**"
+      - "mcp/**"
+      - "deploy/cloudflare/**"
+      - "Taskfile.yml"
+      - "mise.toml"
+      - ".github/workflows/cloudflare-deploy.yml"
   # First deploy bootstraps the Worker that preview versions target.
   workflow_dispatch:
 
