@@ -41,3 +41,15 @@ operations:
             "status": "placed",
             "total_pence": 2500
           }
+    not_found:
+      request:
+        parameters:
+          order_id: 99999999-9999-9999-9999-999999999999
+      response:
+        status: "404"
+        mediaType: application/json
+        body: |-
+          {
+            "error_code": "order_not_found",
+            "message": "No order 99999999-9999-9999-9999-999999999999"
+          }
