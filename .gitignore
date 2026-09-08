@@ -8,3 +8,6 @@ cli/templates/init/docs-site/node_modules/
 cli/templates/init/docs-site/.astro/
 cli/templates/init/docs-site/src/data/specs.json
 cli/templates/init/docs-site/public/specs/
+website/dist/
+website/.astro/
+website/.wrangler/

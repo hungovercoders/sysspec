@@ -37,6 +37,7 @@ Exactly what CI runs. It composes, in order:
 | `check:cli` | changes under `cli/` bump the `sysspec` package version (`check:mcp` likewise for `mcp/`) |
 | `docs:build` | the generated docs site builds `--strict` |
 | `docs:diagrams` | every mermaid diagram in the generated site parses (mermaid-cli, headless Chromium) |
+| `site:build` | the sysspec website (`website/`, the tool's own docs) builds |
 | `check:commits` | conventional commit messages |
 | `check:compat` | breaking contract changes carry major bumps (artifact and service) |
 | `check:intent` | every added schema element is named in the service's feature files — no escape hatch |

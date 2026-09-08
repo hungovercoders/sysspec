@@ -1,0 +1,46 @@
+---
+title: The live demo
+description: The orders/payments example suite — spec catalog and MCP endpoint, deployed from every merge.
+---
+
+import { DEMO_SITE_URL, DEMO_MCP_URL, DEMO_SITE_IS_LIVE, DEMO_MCP_IS_LIVE } from '../../lib/links';
+
+The sysspec repo carries a living example: the `orders`/`payments` spec
+suite, which doubles as the toolkit's regression suite — every toolkit
+change must keep it green. It deploys as one Cloudflare Worker on every
+merge to main:
+
+- **The spec catalog** — the generated docs site (service overviews,
+  OpenAPI/AsyncAPI/data-contract renderings, acceptance criteria, the
+  interactive system graph) at the Worker root.
+- **The MCP endpoint** — the same specs served by `sysspec-mcp` over
+  streamable HTTP at `/mcp`.
+
+Both are built from the same spec commit, and every pull request against
+the specs gets its own stable preview URL of the whole system.
+
+<ul>
+  <li><strong>Spec catalog:</strong> <a href={DEMO_SITE_URL}>{DEMO_SITE_IS_LIVE ? DEMO_SITE_URL : 'the example specs on GitHub'}</a></li>
+  <li><strong>MCP endpoint:</strong> <a href={DEMO_MCP_URL}>{DEMO_MCP_IS_LIVE ? DEMO_MCP_URL : 'the deploy guide'}</a></li>
+</ul>
+
+{!DEMO_SITE_IS_LIVE || !DEMO_MCP_IS_LIVE ? (
+  <p>For links that are not live yet, see the deploy guide for how the demo
+  Worker is built and how to stand up your own.</p>
+) : null}
+
+Connect a client to the endpoint and start with `list_services()`:
+
+```bash
+claude mcp add sysspec --scope project --transport http <endpoint-url>
+```
+
+Then ask things like:
+
+- "What fields are on OrderPlaced?"
+- "Who consumes payments.settled.v2?"
+- "Change OrderPlaced to drop customer_id" — it should refuse and cite consumers
+
+This website and the demo are separate deployments: the demo renders a
+*spec suite* (what `sysspec init` gives you for your own specs), while this
+site documents the tool itself.

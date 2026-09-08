@@ -32,6 +32,11 @@ This repo is three things at once:
    doubles as the toolkit's regression suite: every toolkit change must keep
    it green.
 
+The tool's own website — docs for the CLI, MCP server, plugin and the spec
+model — lives in [website/](website/) and deploys to Cloudflare as the
+`sysspec-site` Worker, separate from the demo spec catalog
+([deploy/README.md](deploy/README.md) covers both).
+
 ## Start your own spec suite
 
 ```bash
@@ -122,6 +127,7 @@ sysspec/
 ├── .claude-plugin/           plugin + marketplace manifests
 ├── .mcp.json                 plugin root, wires server + specs
 ├── mocks/                    Microcks stack + per-service example files
+├── website/                  the sysspec website (tool docs), Cloudflare
 └── specs/                    the example: orders, payments
     └── <service>/
         ├── service.yaml      manifest: version, artifacts, produces, consumes

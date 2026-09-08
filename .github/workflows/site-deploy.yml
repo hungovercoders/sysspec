@@ -1,0 +1,43 @@
+# Deploy the sysspec website (website/ — the tool's own docs, distinct from
+# the sysspec-demo spec catalog) to Cloudflare on every main push that
+# touches it. Same build as the PR previews in site-preview.yml, promoted
+# with `wrangler deploy`.
+#
+# Secrets: CLOUDFLARE_API_TOKEN (Workers Scripts:Edit), CLOUDFLARE_ACCOUNT_ID
+# (shared with the demo Worker's workflows).
+# Variables (optional): SYSSPEC_DEMO_URL, SYSSPEC_DEMO_MCP_URL — the live
+# demo links the site renders; unset, the pages fall back to GitHub links.
+name: site-deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "website/**"
+      - ".github/workflows/site-deploy.yml"
+  # First deploy bootstraps the Worker that preview versions target.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: site-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v2
+      - name: Build the website
+        run: task site:build
+        env:
+          SYSSPEC_DEMO_URL: ${{ vars.SYSSPEC_DEMO_URL }}
+          SYSSPEC_DEMO_MCP_URL: ${{ vars.SYSSPEC_DEMO_MCP_URL }}
+      - run: npx wrangler deploy
+        working-directory: website
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
