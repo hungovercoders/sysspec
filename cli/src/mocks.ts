@@ -113,9 +113,12 @@ function specDocs(serviceDir: string, kind: string): [string, Dict][] {
   return files.map((f) => [f, (parse(readFileSync(f, "utf-8")) ?? {}) as Dict]);
 }
 
-function info(doc: Dict): [string, string] {
+export function info(doc: Dict): [string, string] {
   const i: Dict = doc.info ?? {};
-  return [i.title, String(i.version)];
+  if (!i.title || !i.version) {
+    throw new Exit("spec is missing info.title or info.version - Microcks needs both");
+  }
+  return [String(i.title), String(i.version)];
 }
 
 function sendOperations(doc: Dict): string[] {

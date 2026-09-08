@@ -3,10 +3,11 @@
  * orchestration for a contract-first service specs. Run from the specs
  * repo's root.
  *
- * A tiny hand-rolled parser keeps behavior (including the `--` tail
- * split done before parsing) predictable.
+ * The flag parser lives in args.ts; the `--` tail split happens here,
+ * before parsing.
  */
 
+import { Args } from "./args.js";
 import * as compat from "./compat.js";
 import { checkDiagrams } from "./docs-gen.js";
 import { runData } from "./docs-data.js";
@@ -19,47 +20,6 @@ import { runInit } from "./scaffold.js";
 import * as surface from "./surface.js";
 import { Exit } from "./util.js";
 import * as versioning from "./versioning.js";
-
-class Args {
-  private flags = new Map<string, string | true>();
-  positional: string[] = [];
-
-  constructor(argv: string[], private usage: string) {
-    for (let i = 0; i < argv.length; i++) {
-      const arg = argv[i];
-      if (arg.startsWith("--")) {
-        const eq = arg.indexOf("=");
-        if (eq !== -1) {
-          this.flags.set(arg.slice(2, eq), arg.slice(eq + 1));
-        } else if (i + 1 < argv.length && !argv[i + 1].startsWith("--")) {
-          this.flags.set(arg.slice(2), argv[++i]);
-        } else {
-          this.flags.set(arg.slice(2), true);
-        }
-      } else {
-        this.positional.push(arg);
-      }
-    }
-  }
-
-  get(name: string, fallback: string | null = null): string | null {
-    const v = this.flags.get(name);
-    if (v === undefined) return fallback;
-    if (v === true) throw new Exit(`${this.usage}: --${name} needs a value`);
-    return v;
-  }
-
-  require(name: string): string {
-    const v = this.get(name);
-    if (v === null) throw new Exit(`${this.usage}: --${name} is required`);
-    return v;
-  }
-
-  int(name: string, fallback: number): number {
-    const v = this.get(name);
-    return v === null ? fallback : parseInt(v, 10);
-  }
-}
 
 const USAGE = `usage: sysspec <command> ...
 
@@ -86,10 +46,20 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<numb
   if (command === "check") {
     const base = args.get("base", "origin/main")!;
     const specsDir = args.get("specs-dir", "specs")!;
-    if (sub === "version") return versioning.runGate(base, specsDir);
-    if (sub === "compat") return compat.runGate(base, args.get("service"), specsDir);
-    if (sub === "intent") return intent.runGate(base, args.get("service"), specsDir);
+    if (sub === "version") {
+      args.only("base", "specs-dir");
+      return versioning.runGate(base, specsDir);
+    }
+    if (sub === "compat") {
+      args.only("base", "specs-dir", "service");
+      return compat.runGate(base, args.get("service"), specsDir);
+    }
+    if (sub === "intent") {
+      args.only("base", "specs-dir", "service");
+      return intent.runGate(base, args.get("service"), specsDir);
+    }
     if (sub === "surface") {
+      args.only("base", "specs-dir", "version-file", "json-key", "paths");
       return surface.runGate(
         base,
         args.require("version-file"),
@@ -99,6 +69,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<numb
     }
   }
   if (command === "lint") {
+    args.only("specs-dir", "service");
     const specsDir = args.get("specs-dir", "specs")!;
     const service = args.get("service");
     if (sub === "manifest") return manifestLint(service, specsDir);
@@ -108,6 +79,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<numb
   }
   if (command === "init") {
     // argparse form: sysspec init <dir> --org com.acme [--sysspec-repo o/r]
+    args.only("org", "sysspec-repo");
     const dir = sub;
     if (!dir) throw new Exit("sysspec init: a target directory is required");
     return runInit(
@@ -119,19 +91,24 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<numb
   if (command === "docs") {
     const specsDir = args.get("specs-dir", "specs")!;
     if (sub === "data") {
+      args.only("specs-dir", "site-dir", "mocks-dir");
       return runData(specsDir, args.get("site-dir", "docs-site")!, args.get("mocks-dir", "mocks")!);
     }
     if (sub === "diagrams") {
+      args.only("specs-dir", "docs-dir", "site-dir");
       return checkDiagrams(specsDir, args.get("docs-dir", "docs")!, args.get("site-dir", "docs-site")!);
     }
   }
   if (command === "mocks") {
     if (sub === "watch") {
+      args.only("channel", "async-minion-url");
       return mocks.watch(
         args.require("channel"),
         args.get("async-minion-url", "http://localhost:8081")!,
       );
     }
+    if (sub === "up" || sub === "down") args.only("compose-file");
+    else args.only("compose-file", "service", "specs-dir", "mocks-dir", "microcks-url", "async-minion-url");
     const compose = mocks.composeFile(args.get("compose-file"));
     if (sub === "up") return mocks.up(compose);
     if (sub === "down") return mocks.down(compose);
@@ -148,6 +125,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<numb
     }
   }
   if (command === "contract" && sub === "test") {
+    args.only("service", "specs-dir", "microcks-url", "rest-endpoint", "async-endpoint");
     return mocks.contract(
       args.get("service"),
       args.get("specs-dir", "specs")!,
@@ -157,6 +135,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<numb
     );
   }
   if (command === "null" && sub === "run") {
+    args.only("port", "results", "timeout");
     return runNull(
       args.int("port", 9099),
       args.require("results"),
