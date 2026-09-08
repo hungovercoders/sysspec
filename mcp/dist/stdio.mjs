@@ -28868,6 +28868,48 @@ var EMPTY_COMPLETION_RESULT = {
   }
 };
 
+// package.json
+var package_default = {
+  name: "sysspec-mcp",
+  version: "1.0.3",
+  description: "Read-only MCP access to versioned system specs: AsyncAPI, OpenAPI, ODCS data contracts and Gherkin acceptance criteria.",
+  license: "MIT",
+  repository: {
+    type: "git",
+    url: "git+https://github.com/hungovercoders/sysspec.git",
+    directory: "mcp"
+  },
+  type: "module",
+  bin: {
+    "sysspec-mcp": "dist/stdio.mjs"
+  },
+  exports: {
+    ".": "./dist/index.mjs"
+  },
+  files: [
+    "dist"
+  ],
+  engines: {
+    node: ">=20"
+  },
+  scripts: {
+    build: "tsup",
+    test: "vitest run",
+    typecheck: "node scripts/bundle-specs.mjs && tsc --noEmit"
+  },
+  dependencies: {
+    "@modelcontextprotocol/sdk": "^1.21.1",
+    yaml: "^2.8.2",
+    zod: "^3.25.76"
+  },
+  devDependencies: {
+    "@types/node": "^26.4.1",
+    tsup: "^8.5.1",
+    typescript: "^5.9.3",
+    vitest: "^3.2.4"
+  }
+};
+
 // src/core.ts
 var import_yaml = __toESM(require_dist2(), 1);
 
@@ -29308,7 +29350,7 @@ async function run(fn) {
   }
 }
 function createServer(source) {
-  const server = new McpServer({ name: "sysspec", version: "1.0.0" });
+  const server = new McpServer({ name: "sysspec", version: package_default.version });
   server.registerTool(
     "list_services",
     {
