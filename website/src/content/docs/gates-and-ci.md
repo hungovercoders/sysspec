@@ -20,14 +20,18 @@ In a spec repo it composes, in order:
 | `lint:datacontracts` | datacontract-cli over the ODCS data contracts, plus Spectral for naming |
 | `lint:manifest` | manifests ⇄ contracts ⇄ spec graph consistency, semver versions, feature references resolve to real messages and channels |
 | `check:version` | any gated artifact change bumps its manifest version *and* the service's top-level version; artifact major ⇒ service major |
+| `check:compat` | breaking contract changes carry major bumps (artifact and service) |
+| `check:intent` | every schema element added to an OpenAPI/AsyncAPI contract is named in the service's feature files — no escape hatch (ODCS columns and enum values are covered by the version gate only) |
 | `docs:build` | the generated docs site builds `--strict` |
 | `docs:diagrams` | every mermaid diagram in the generated site parses |
-| `check:commits` | conventional commit messages |
-| `check:compat` | breaking contract changes carry major bumps (artifact and service) |
-| `check:intent` | every added schema element is named in the service's feature files — no escape hatch |
-| `mocks:*` | Microcks mocks load, contract-test, and smoke-test green |
+| `contract:test` / `mocks:test` | Microcks mocks load, contract-test, and smoke-test green (needs a running Docker daemon) |
 
 Scope most tasks to one service with `SERVICE=<name>`.
+
+The falsifiability gate (`sysspec null run`) belongs to the
+[implement/consume journeys](/implement-and-consume/) rather than a spec
+repo's `task ci`: an implementation's bound suite must fail entirely
+against a service that proves nothing before its green means anything.
 
 ## A red gate is information
 

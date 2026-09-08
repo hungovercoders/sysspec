@@ -12,7 +12,7 @@ const sysspecRepo = slug.startsWith('__') ? 'hungovercoders/sysspec' : slug;
 const flow = `flowchart TD
   tag["spec repo: merge to main cuts service/vX.Y.Z"]
   lock["contracts.lock pins the tag + its commit sha"]
-  fetch["task contracts:fetch - read-only .contracts/ (specs + mocks + kit)"]
+  fetch["task contracts:fetch - read-only .contracts/ (specs + mocks + cli)"]
   mocks["task -d .contracts mocks:load - pinned mocks up, fixtures included"]
   build["build: generate types from the fetched specs"]
   verify["verify: client flows, envelope handling, idempotence"]
@@ -104,7 +104,7 @@ task -d .contracts mocks:down`}</code></pre>
     </li>
     <li>
       <strong>Falsifiability</strong> — prove the suite can fail: run it
-      once against the kit's null service
+      once against the CLI's null service
       (<code>task -d .contracts null:run …</code>) or, minimally, with the
       mock stack down, and require zero passes. A check that stays green
       against a service answering <code>200 {'{}'}</code> to everything

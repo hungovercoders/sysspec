@@ -34,14 +34,18 @@ Exactly what CI runs. It composes, in order:
 | `lint:manifest` | manifests ⇄ contracts ⇄ spec graph consistency, semver versions, feature references resolve to real messages and channels |
 | `check:version` | any gated artifact change bumps its manifest version *and* the service's top-level version; artifact major ⇒ service major |
 | `check:plugin` | plugin surface changes (cli, mcp, skills, plugin manifests) bump the plugin version |
-| `check:cli` | changes under `cli/` bump the `sysspec` package version (`check:mcp` likewise for `mcp/`) |
+| `check:cli` / `check:mcp` | changes under `cli/` / `mcp/` bump that package's version |
+| `check:cli:dist` / `check:mcp:dist` | the committed bundles match the source (checked before the tests, which execute them) |
+| `test:cli` / `test:mcp` | each package typechecks and its vitest suite passes |
 | `docs:build` | the generated docs site builds `--strict` |
 | `docs:diagrams` | every mermaid diagram in the generated site parses (mermaid-cli, headless Chromium) |
 | `site:build` | the sysspec website (`website/`, the tool's own docs) builds |
 | `check:commits` | conventional commit messages |
 | `check:compat` | breaking contract changes carry major bumps (artifact and service) |
-| `check:intent` | every added schema element is named in the service's feature files — no escape hatch |
-| `mocks:*` | Microcks mocks load, contract-test, and smoke-test green |
+| `check:intent` | every schema element added to an OpenAPI/AsyncAPI contract is named in the service's feature files — no escape hatch (ODCS columns and enum values are covered by the version gate only) |
+| `check:init` | the init scaffold passes its own lint, version, and docs gates |
+| `check:null` | the falsifiability gate self-test: a hollow suite goes red, an honest all-failing one green |
+| `mocks:load` / `contract:test` / `mocks:test` | Microcks mocks load, contract-test, and smoke-test green |
 
 Scope most tasks to one service with `SERVICE=<name>`.
 

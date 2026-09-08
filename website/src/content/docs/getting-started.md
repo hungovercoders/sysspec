@@ -13,6 +13,10 @@ mise install
 task ci        # gates + mock cycle, green from the first commit
 ```
 
+`mise install` covers the toolchain; the mock cycle (`contract:test`,
+`mocks:test`) additionally needs a running Docker daemon. Without Docker,
+`task check` and `task lint` run every other gate.
+
 The scaffold owns only its specs. Everything substantive arrives by
 reference and stays current without you copying anything:
 
@@ -29,8 +33,9 @@ pin against.
 
 ## What you get
 
-- A `specs/` tree with an example service (manifest, AsyncAPI, OpenAPI, data
-  contract, feature file) that already passes every gate.
+- A `specs/` tree with a starter service (manifest, AsyncAPI contract and
+  feature file) that already passes every gate — swap it for your first
+  real service.
 - A generated docs site (Astro/Starlight) rendering your services, contracts
   and system graph — deployable to GitHub Pages out of the box.
 - The Microcks mock stack, loaded from your contracts, so consumers can build
