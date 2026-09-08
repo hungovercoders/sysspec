@@ -3,7 +3,7 @@ title: MCP server — sysspec-mcp
 description: Seven read-only tools over any spec tree — stdio locally, streamable HTTP behind a URL.
 ---
 
-import { DEMO_MCP_URL, DEMO_IS_LIVE } from '../../lib/links';
+import { DEMO_MCP_URL, DEMO_MCP_IS_LIVE } from '../../lib/links';
 
 The [`sysspec-mcp` package](https://www.npmjs.com/package/sysspec-mcp) gives
 agents read-only MCP access to a spec tree. One TypeScript implementation
@@ -69,7 +69,7 @@ Connect from anywhere that can't spawn a local process (remote sessions, CI):
 claude mcp add sysspec --scope project --transport http https://<your-deploy>/mcp
 ```
 
-{DEMO_IS_LIVE
+{DEMO_MCP_IS_LIVE
   ? <p>The example specs are served live — try the <a href={DEMO_MCP_URL}>demo MCP endpoint</a> with the wiring line above.</p>
   : <p>Hosting details, hardening notes and the demo deployment live in <a href={DEMO_MCP_URL}>the deploy guide</a>.</p>}
 

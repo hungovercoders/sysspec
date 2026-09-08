@@ -15,6 +15,6 @@ export const DEMO_SITE_URL =
 export const DEMO_MCP_URL =
   process.env.SYSSPEC_DEMO_MCP_URL || `${GITHUB_URL}/blob/main/deploy/README.md`;
 
-// True only when the real demo URLs were provided at build time; pages use
-// this to phrase the link honestly ("live demo" vs "specs on GitHub").
-export const DEMO_IS_LIVE = Boolean(process.env.SYSSPEC_DEMO_URL);
+// Pages use these to phrase each link honestly when only one live URL is set.
+export const DEMO_SITE_IS_LIVE = Boolean(process.env.SYSSPEC_DEMO_URL);
+export const DEMO_MCP_IS_LIVE = Boolean(process.env.SYSSPEC_DEMO_MCP_URL);

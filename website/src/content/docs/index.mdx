@@ -15,7 +15,7 @@ hero:
 ---
 
 import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
-import { DEMO_SITE_URL, DEMO_MCP_URL, DEMO_IS_LIVE, NPM_CLI_URL, NPM_MCP_URL } from '../../lib/links';
+import { DEMO_SITE_URL, DEMO_MCP_URL, DEMO_SITE_IS_LIVE, DEMO_MCP_IS_LIVE, NPM_CLI_URL, NPM_MCP_URL } from '../../lib/links';
 
 ## Specs that do double duty
 
@@ -57,10 +57,10 @@ never the other way round.
 ## See it running
 
 <CardGrid>
-  <LinkCard title={DEMO_IS_LIVE ? 'Live demo spec catalog' : 'The example spec suite'}
+  <LinkCard title={DEMO_SITE_IS_LIVE ? 'Live demo spec catalog' : 'The example spec suite'}
     href={DEMO_SITE_URL}
     description="The orders/payments spec suite rendered as a browsable catalog — contracts, events, data, acceptance criteria, and the system graph." />
-  <LinkCard title={DEMO_IS_LIVE ? 'Demo MCP endpoint' : 'Hosting the MCP server'}
+  <LinkCard title={DEMO_MCP_IS_LIVE ? 'Demo MCP endpoint' : 'Hosting the MCP server'}
     href={DEMO_MCP_URL}
     description="The same specs served over streamable HTTP MCP — connect a client and call list_services()." />
   <LinkCard title="sysspec on npm" href={NPM_CLI_URL}

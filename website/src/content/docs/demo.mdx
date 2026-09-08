@@ -3,7 +3,7 @@ title: The live demo
 description: The orders/payments example suite — spec catalog and MCP endpoint, deployed from every merge.
 ---
 
-import { DEMO_SITE_URL, DEMO_MCP_URL, DEMO_IS_LIVE } from '../../lib/links';
+import { DEMO_SITE_URL, DEMO_MCP_URL, DEMO_SITE_IS_LIVE, DEMO_MCP_IS_LIVE } from '../../lib/links';
 
 The sysspec repo carries a living example: the `orders`/`payments` spec
 suite, which doubles as the toolkit's regression suite — every toolkit
@@ -19,16 +19,15 @@ merge to main:
 Both are built from the same spec commit, and every pull request against
 the specs gets its own stable preview URL of the whole system.
 
-{DEMO_IS_LIVE ? (
-  <ul>
-    <li><strong>Spec catalog:</strong> <a href={DEMO_SITE_URL}>{DEMO_SITE_URL}</a></li>
-    <li><strong>MCP endpoint:</strong> <a href={DEMO_MCP_URL}>{DEMO_MCP_URL}</a></li>
-  </ul>
-) : (
-  <p>Browse <a href={DEMO_SITE_URL}>the example specs on GitHub</a> and
-  <a href={DEMO_MCP_URL}> the deploy guide</a> for how the demo Worker is
-  built and how to stand up your own.</p>
-)}
+<ul>
+  <li><strong>Spec catalog:</strong> <a href={DEMO_SITE_URL}>{DEMO_SITE_IS_LIVE ? DEMO_SITE_URL : 'the example specs on GitHub'}</a></li>
+  <li><strong>MCP endpoint:</strong> <a href={DEMO_MCP_URL}>{DEMO_MCP_IS_LIVE ? DEMO_MCP_URL : 'the deploy guide'}</a></li>
+</ul>
+
+{!DEMO_SITE_IS_LIVE || !DEMO_MCP_IS_LIVE ? (
+  <p>For links that are not live yet, see the deploy guide for how the demo
+  Worker is built and how to stand up your own.</p>
+) : null}
 
 Connect a client to the endpoint and start with `list_services()`:
 
