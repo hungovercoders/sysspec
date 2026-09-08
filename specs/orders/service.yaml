@@ -2,7 +2,7 @@ apiVersion: sysspec/v1
 kind: Service
 name: orders
 title: Orders
-version: 3.2.0
+version: 3.3.0
 domain: Commerce
 owner: team-commerce
 summary: >
@@ -18,13 +18,13 @@ artifacts:
 
   - kind: openapi
     path: openapi/orders.openapi.yaml
-    version: 3.1.0
+    version: 3.2.0
     gated: true
     summary: Synchronous order placement and lookup API.
 
   - kind: feature
     path: features/place-order.feature
-    version: 2.1.0
+    version: 2.2.0
     gated: true
     summary: Acceptance criteria for order placement and guaranteed event publication.
 

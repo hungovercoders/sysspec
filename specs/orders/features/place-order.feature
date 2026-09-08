@@ -25,16 +25,17 @@ Feature: Placing an order
     And no order ever exists without its "OrderPlaced" event
 
   Scenario: Replaying an idempotency key returns the original order
-    Given the customer placed an order with idempotency key "idem-99"
-    When the same request is retried with idempotency key "idem-99"
+    Given the customer placed an order with "Idempotency-Key" header "idem-99"
+    When the same request is retried with "Idempotency-Key" header "idem-99"
     Then the response status is 201
     And the same order_id is returned
     And no second "OrderPlaced" event is published
 
   Scenario: A conflicting body on a used idempotency key is rejected
-    Given the customer placed an order with idempotency key "idem-99"
-    When a different order body is sent with idempotency key "idem-99"
+    Given the customer placed an order with "Idempotency-Key" header "idem-99"
+    When a different order body is sent with "Idempotency-Key" header "idem-99"
     Then the response status is 409
+    And the problem body carries an error_code and message
 
   Scenario: Order events are CloudEvents envelopes
     When the customer places an order for 2 units of "SKU-RED" at 1250 pence
@@ -66,10 +67,12 @@ Feature: Placing an order
   Scenario: Fetching an unknown order returns 404
     When an unknown order_id is fetched via getOrder
     Then the response status is 404
+    And the problem body carries an error_code and message
 
   Scenario Outline: Orders must have at least one valid line
     When the customer places an order with <lines>
     Then the response status is 400
+    And the problem body carries an error_code and message
 
     Examples:
       | lines                       |
