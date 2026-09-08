@@ -19,6 +19,7 @@ const RENAMES: Record<string, string> = {
   "spectral.yaml": ".spectral.yaml",
   "mcp.json": ".mcp.json",
   github: ".github",
+  gitkeep: ".gitkeep",
 };
 
 const ORG_RE = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/;

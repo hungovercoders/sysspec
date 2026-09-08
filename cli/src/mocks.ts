@@ -167,12 +167,15 @@ export async function load(
   dc(compose, "restart", "async-minion");
   for (let i = 0; i < 30; i++) {
     try {
-      await http("GET", `${minionUrl}/health`, null, {}, 3);
-      console.log(`async-minion http up (after ${i + 1} checks)`);
-      return 0;
+      const [status] = await http("GET", `${minionUrl}/health`, null, {}, 3);
+      if (status === 200) {
+        console.log(`async-minion http up (after ${i + 1} checks)`);
+        return 0;
+      }
     } catch {
-      await sleep(2000);
+      // network error or timeout - keep waiting
     }
+    await sleep(2000);
   }
   throw new Exit("async-minion not responding after 60s");
 }

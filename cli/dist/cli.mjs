@@ -44,7 +44,7 @@ var SYSSPEC_MCP, ASYNCAPI_CLI, DATACONTRACT_CLI, SPECTRAL_CLI, GHERKIN_LINT, MER
 var init_pins = __esm({
   "src/pins.ts"() {
     "use strict";
-    SYSSPEC_MCP = "sysspec-mcp@1.0.1";
+    SYSSPEC_MCP = "sysspec-mcp@1.0.2";
     ASYNCAPI_CLI = "@asyncapi/cli@5.0.7";
     DATACONTRACT_CLI = "datacontract-cli==1.1.1";
     SPECTRAL_CLI = "@stoplight/spectral-cli@6.16.3";
@@ -20127,12 +20127,14 @@ async function load(only, specsDir, mocksDir, microcksUrl, minionUrl, compose) {
   dc(compose, "restart", "async-minion");
   for (let i = 0; i < 30; i++) {
     try {
-      await http("GET", `${minionUrl}/health`, null, {}, 3);
-      console.log(`async-minion http up (after ${i + 1} checks)`);
-      return 0;
+      const [status] = await http("GET", `${minionUrl}/health`, null, {}, 3);
+      if (status === 200) {
+        console.log(`async-minion http up (after ${i + 1} checks)`);
+        return 0;
+      }
     } catch {
-      await sleep(2e3);
     }
+    await sleep(2e3);
   }
   throw new Exit("async-minion not responding after 60s");
 }
@@ -20787,7 +20789,8 @@ var RENAMES = {
   "gherkin-lintrc": ".gherkin-lintrc",
   "spectral.yaml": ".spectral.yaml",
   "mcp.json": ".mcp.json",
-  github: ".github"
+  github: ".github",
+  gitkeep: ".gitkeep"
 };
 var ORG_RE = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/;
 var SKIP = /* @__PURE__ */ new Set([
