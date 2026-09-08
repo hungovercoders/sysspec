@@ -156,9 +156,12 @@ function escapeRe(s: string): string {
 }
 
 export function mentioned(token: string, corpus: string): boolean {
+  // Case-insensitive: oasdiff reports header parameters lowercased
+  // (HTTP header names are case-insensitive), so `idempotency-key` must
+  // match a scenario's canonical `Idempotency-Key`.
   const left = /^\w/.test(token) ? "\\b" : "";
   const right = /\w$/.test(token) ? "\\b" : "";
-  return new RegExp(left + escapeRe(token) + right).test(corpus);
+  return new RegExp(left + escapeRe(token) + right, "i").test(corpus);
 }
 
 export function runGate(base: string, only: string | null, specsDir: string): number {

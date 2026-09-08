@@ -56,6 +56,11 @@ describe("intent token extraction", () => {
     expect(mentioned("orders.placed.v2", 'publishes "orders.placed.v2" events')).toBe(true);
   });
 
+  test("mentioned is case-insensitive - oasdiff lowercases header names", () => {
+    expect(mentioned("idempotency-key", 'with "Idempotency-Key" header "idem-99"')).toBe(true);
+    expect(mentioned("Status", "the status field")).toBe(true);
+  });
+
   test("emptyBase keeps the info block so diffs gate only real additions", () => {
     const base = emptyBase("openapi", "openapi: 3.0.3\ninfo:\n  title: T\n  version: 1.0.0\npaths: {}\n");
     expect(base).toContain("title: T");

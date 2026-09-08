@@ -19990,7 +19990,7 @@ function escapeRe(s) {
 function mentioned(token, corpus) {
   const left = /^\w/.test(token) ? "\\b" : "";
   const right = /\w$/.test(token) ? "\\b" : "";
-  return new RegExp(left + escapeRe(token) + right).test(corpus);
+  return new RegExp(left + escapeRe(token) + right, "i").test(corpus);
 }
 function runGate3(base, only, specsDir) {
   const mb = mergeBase(base);
