@@ -4,7 +4,9 @@
 //
 // Build inputs (see ../../.github/workflows/cloudflare-deploy.yml):
 //   ../../site                        <- task docs:build with DOCS_SITE_BASE=/
-//   ../../mcp/dist/index.mjs          <- committed mcp build
+//   ../../mcp/src                     <- src/worker.ts imports the mcp source
+//                                        directly (the dist bundle cannot run
+//                                        on workerd)
 //   ../../mcp/src/generated/specs-bundle.json <- node mcp/scripts/bundle-specs.mjs
 {
   "$schema": "node_modules/wrangler/config-schema.json",
