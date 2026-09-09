@@ -6,10 +6,13 @@ import { marked } from 'marked';
 import AsyncApi from '../../../components/AsyncApi.astro';
 import ContractOfRecord from '../../../components/ContractOfRecord.astro';
 import GherkinSteps from '../../../components/GherkinSteps.astro';
+import Mermaid from '../../../components/Mermaid.astro';
 import OdcsContract from '../../../components/OdcsContract.astro';
 import OpenApi from '../../../components/OpenApi.astro';
+import ParamsTable from '../../../components/ParamsTable.astro';
+import SchemaTable from '../../../components/SchemaTable.astro';
 import SpecPanel from '../../../components/SpecPanel.astro';
-import { artifactUrl, services } from '../../../lib/specs';
+import { anchor, artifactUrl, serviceByName, services, slug, withBase } from '../../../lib/specs';
 import type { Artifact, Service } from '../../../lib/specs';
 
 export function getStaticPaths() {
@@ -45,7 +48,21 @@ const titles: Record<string, string> = {
   'data-contract': `${service.title} — ${artifact?.odcs?.name ?? artifact?.stem}`,
 };
 
-// Doc artifacts (ADRs, runbooks) carry their own h1; lift it into the page title.
+// Doc artifacts carry their own h1; lift it into the page title. Their
+// ```mermaid fences become renderable diagram blocks (the parse gate in
+// `docs diagrams` already covers them).
+const escapeHtml = (s: string) =>
+  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+marked.use({
+  renderer: {
+    code(token) {
+      if (token.lang === 'mermaid') {
+        return `<pre class="mermaid">${escapeHtml(token.text)}</pre>`;
+      }
+      return false;
+    },
+  },
+});
 let docTitle = artifact?.label ?? artifact?.stem ?? '';
 let docHtml = '';
 if (artifact?.kind === 'doc') {
@@ -59,8 +76,67 @@ const title = changelog
   : features
     ? `${service.title} — acceptance criteria`
     : titles[artifact!.kind] ?? docTitle;
+
+// Channels this AsyncAPI artifact publishes, rendered as site-owned
+// markup (searchable, linkable) above the embedded contract viewer.
+const artifactChannels =
+  artifact?.kind === 'asyncapi'
+    ? service.channels.filter((c) => c.artifact_path === artifact.path)
+    : [];
+
+// Same for the operations an OpenAPI artifact declares.
+const artifactOps =
+  artifact?.kind === 'openapi'
+    ? service.operations.filter((o) => o.artifact_path === artifact.path)
+    : [];
+
+const prettyJson = (payload: unknown): string => {
+  try {
+    return JSON.stringify(JSON.parse(String(payload)), null, 2);
+  } catch {
+    return String(payload);
+  }
+};
+
+// Build-time only: on Pages this is the spec repo's slug, so changelog
+// tags and shas can link to GitHub; locally they render as plain text.
+const repoSlug = process.env.DOCS_SITE_REPO ?? process.env.GITHUB_REPOSITORY ?? null;
+
+// "On this page" entries, mirroring the headings each branch renders.
+const headings = changelog
+  ? service.changelog.map((r) => ({ depth: 2, slug: slug(`v${r.version}`), text: `v${r.version}` }))
+  : features
+    ? features.flatMap((a) => [
+        { depth: 2, slug: slug(a.feature!.title), text: a.feature!.title },
+        ...a.feature!.scenarios.map((sc) => ({ depth: 3, slug: slug(sc.title), text: sc.title })),
+      ])
+    : artifact?.kind === 'openapi'
+      ? [
+          ...(artifactOps.length ? [{ depth: 2, slug: 'operations', text: 'Operations' }] : []),
+          ...artifactOps.map((o) => ({ depth: 3, slug: anchor(o.op_id), text: o.op_id })),
+          { depth: 2, slug: 'rendered-contract', text: 'Full rendered contract' },
+        ]
+      : artifact?.kind === 'asyncapi'
+        ? [
+            ...artifactChannels.flatMap((c) => [
+              { depth: 2, slug: anchor(c.address), text: c.address },
+              ...c.messages.map((m) => ({
+                depth: 3,
+                slug: anchor(`${c.address}-${m.name}`),
+                text: m.name,
+              })),
+            ]),
+            { depth: 2, slug: 'rendered-contract', text: 'Full rendered contract' },
+          ]
+        : [];
+
+const description = changelog
+  ? `Release history for ${service.title}.`
+  : features
+    ? `Acceptance criteria for ${service.title}.`
+    : artifact?.summary || service.summary;
 ---
-<StarlightPage frontmatter={{ title }}>
+<StarlightPage frontmatter={{ title, description }} headings={headings}>
   {changelog && (
     <>
       <p>
@@ -70,10 +146,35 @@ const title = changelog
       </p>
       {service.changelog.map((r) => (
         <>
-          <h2>
+          <h2 id={slug(`v${r.version}`)}>
             v{r.version}
             {r.unreleased ? ' — unreleased' : r.date ? ` — ${r.date}` : ''}
           </h2>
+          {(r.tag || r.sha) && (
+            <p>
+              {r.tag && (
+                repoSlug ? (
+                  <a href={`https://github.com/${repoSlug}/releases/tag/${encodeURIComponent(r.tag)}`}>
+                    <code>{r.tag}</code>
+                  </a>
+                ) : (
+                  <code>{r.tag}</code>
+                )
+              )}
+              {r.sha && (
+                <>
+                  {' '}·{' '}
+                  {repoSlug ? (
+                    <a href={`https://github.com/${repoSlug}/commit/${r.sha}`}>
+                      <code>{r.sha.slice(0, 10)}</code>
+                    </a>
+                  ) : (
+                    <code>{r.sha.slice(0, 10)}</code>
+                  )}
+                </>
+              )}
+            </p>
+          )}
           <ul>{r.commits.map((c) => <li>{c}</li>)}</ul>
         </>
       ))}
@@ -86,7 +187,7 @@ const title = changelog
       const count = f.scenarios.length;
       return (
         <>
-          <h2>{f.title}</h2>
+          <h2 id={slug(f.title)}>{f.title}</h2>
           <p>
             <strong>{count} scenario{count === 1 ? '' : 's'}</strong> — these
             are acceptance criteria for what the service must do, not a
@@ -101,7 +202,7 @@ const title = changelog
           )}
           {f.scenarios.map((sc) => (
             <>
-              <h3>{sc.title}</h3>
+              <h3 id={slug(sc.title)}>{sc.title}</h3>
               <div class="sc-scenario">
                 <GherkinSteps steps={sc.steps} />
               </div>
@@ -120,10 +221,123 @@ const title = changelog
     <ContractOfRecord service={service.name} artifact={artifact} />
   )}
 
+  {artifactOps.length > 0 && <h2 id="operations">Operations</h2>}
+  {artifactOps.map((o) => (
+    <>
+      <h3 id={anchor(o.op_id)}>
+        <code>{o.method} {o.path}</code> — {o.op_id}
+      </h3>
+      <p>
+        <strong>{o.kind === 'query' ? 'Query' : 'Command'}.</strong>{' '}
+        {o.summary && <>{o.summary}{o.summary.endsWith('.') ? '' : '.'}</>}
+      </p>
+      {o.description && <p>{o.description}</p>}
+      <ParamsTable params={o.parameters} />
+      {o.request_rows.length > 0 && (
+        <>
+          <h4>Request body</h4>
+          <SchemaTable rows={o.request_rows} />
+        </>
+      )}
+      <h4>Responses</h4>
+      <table>
+        <thead>
+          <tr><th>Status</th><th>Meaning</th></tr>
+        </thead>
+        <tbody>
+          {o.responses.map((r) => (
+            <tr>
+              <td><code>{r.status}</code></td>
+              <td>{r.description || '—'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {o.response_body && o.response_body.rows.length > 0 && (
+        <>
+          <h4><code>{o.response_body.status}</code> body</h4>
+          <SchemaTable rows={o.response_body.rows} />
+        </>
+      )}
+      {o.examples.length > 0 && (
+        <details>
+          <summary>Examples (Microcks fixtures)</summary>
+          {o.examples.map((e) => (
+            <>
+              <h5>{e.case}</h5>
+              {e.request && (
+                <>
+                  <p>Request</p>
+                  <Code code={prettyJson(e.request)} lang="json" />
+                </>
+              )}
+              <p>Response {e.status && <code>{e.status}</code>}</p>
+              {e.response && <Code code={prettyJson(e.response)} lang="json" />}
+            </>
+          ))}
+        </details>
+      )}
+    </>
+  ))}
+  {artifact?.kind === 'openapi' && <h2 id="rendered-contract">Full rendered contract</h2>}
   {artifact?.kind === 'openapi' && <OpenApi url={artifactUrl(service.name, artifact)} />}
+
+  {artifactChannels.map((c) => (
+    <>
+      <h2 id={anchor(c.address)}><code>{c.address}</code></h2>
+      {c.description && <p>{c.description}</p>}
+      <p>
+        Produced by <a href={withBase(`/services/${c.producer}/`)}>{c.producer_title}</a>
+        {c.consumers.length > 0 ? (
+          <>
+            {' '}— consumed by{' '}
+            {c.consumers.map((n, i) => (
+              <>
+                {i > 0 && ', '}
+                <a href={withBase(`/services/${n}/`)}>{serviceByName[n]?.title ?? n}</a>
+              </>
+            ))}.
+          </>
+        ) : (
+          <> — no consumer in the specs yet.</>
+        )}
+      </p>
+      <Mermaid chart={c.sequence_mermaid} />
+      {c.messages.map((m) => (
+        <>
+          <h3 id={anchor(`${c.address}-${m.name}`)}>{m.name}</h3>
+          {m.title && <p>{m.title}</p>}
+          {m.event_type && (
+            <p>Event type: <code>{m.event_type}</code></p>
+          )}
+          <h4>Payload (<code>data</code>)</h4>
+          <SchemaTable rows={m.data_rows} />
+          {m.envelope_rows.length > 0 && (
+            <details>
+              <summary>CloudEvents envelope</summary>
+              <SchemaTable rows={m.envelope_rows} />
+            </details>
+          )}
+        </>
+      ))}
+      {c.examples.length > 0 && (
+        <details>
+          <summary>Example events (Microcks fixtures)</summary>
+          {c.examples.map((e) => (
+            <>
+              <h5>{e.case}</h5>
+              <Code code={prettyJson(e.payload)} lang="json" />
+            </>
+          ))}
+        </details>
+      )}
+    </>
+  ))}
+  {artifact?.kind === 'asyncapi' && <h2 id="rendered-contract">Full rendered contract</h2>}
   {artifact?.kind === 'asyncapi' && <AsyncApi url={artifactUrl(service.name, artifact)} />}
   {artifact?.kind === 'data-contract' && (
     <OdcsContract odcs={artifact.odcs} erMermaid={artifact.er_mermaid} />
   )}
   {artifact?.kind === 'doc' && <Fragment set:html={docHtml} />}
+  {artifact?.kind === 'doc' && docHtml.includes('class="mermaid"') && <Mermaid />}
 </StarlightPage>

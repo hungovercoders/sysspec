@@ -7,6 +7,8 @@
 # (shared with the demo Worker's workflows).
 # Variables (optional): SYSSPEC_DEMO_URL, SYSSPEC_DEMO_MCP_URL — the live
 # demo links the site renders; unset, the pages fall back to GitHub links.
+# SYSSPEC_SITE_URL — this site's own deployed URL; set, the build emits a
+# sitemap and canonical/og:url tags.
 name: site-deploy
 
 on:
@@ -36,6 +38,7 @@ jobs:
         env:
           SYSSPEC_DEMO_URL: ${{ vars.SYSSPEC_DEMO_URL }}
           SYSSPEC_DEMO_MCP_URL: ${{ vars.SYSSPEC_DEMO_MCP_URL }}
+          SYSSPEC_SITE_URL: ${{ vars.SYSSPEC_SITE_URL }}
       - run: npx wrangler deploy
         working-directory: website
         env:

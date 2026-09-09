@@ -16,6 +16,11 @@ linters (`lint:specs`, `lint:datacontracts`, `lint:manifest`), not advisory.
   same in the AsyncAPI payload, the OpenAPI schema and the data contract, so
   no consumer translates between them. Spectral rules enforce this across
   the specs and the ODCS files.
+- **Header parameters are the one exception**: they keep canonical HTTP
+  casing (`Idempotency-Key`, not `idempotency_key`) — HTTP header names
+  are case-insensitive hyphenated identifiers, not payload attributes, and
+  the Spectral snake_case rule is deliberately scoped to path and query
+  parameters only.
 - Document-local identifiers keep their own conventions: message names
   `PascalCase` and past tense (`OrderPlaced`, `PaymentSettled`), channel and
   operation keys and OpenAPI `operationId`s `camelCase`, channel addresses
@@ -60,8 +65,9 @@ linters (`lint:specs`, `lint:datacontracts`, `lint:manifest`), not advisory.
 
 ## Intent
 
-Every schema element you add — message, payload property, endpoint,
-parameter — must be named in that service's feature files. The feature
-change is part of the contract change, not an afterthought; `check:intent`
-enforces this with no escape hatch. If it is not worth a scenario, it is not
-worth adding to the contract yet.
+Every schema element you add to an OpenAPI or AsyncAPI contract — message,
+payload property, endpoint, parameter — must be named in that service's
+feature files. The feature change is part of the contract change, not an
+afterthought; `check:intent` enforces this with no escape hatch there
+(ODCS columns and enum values are covered by the version gate only). If it
+is not worth a scenario, it is not worth adding to the contract yet.

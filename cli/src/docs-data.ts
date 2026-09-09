@@ -46,12 +46,19 @@ function unfence(lines: string[]): string {
 
 const stem = (p: string) => path.basename(p).replace(/\.[^.]*$/, "");
 
-/** JSON-schema properties as row dicts, one level deep - the data
- * twin of the site's schema tables. */
-export function flattenSchema(properties: Dict, required: string[], prefix = ""): Dict[] {
+/** JSON-schema properties as row dicts, nested two levels deep - the
+ * data twin of the site's schema tables. With `doc`, `$ref` properties
+ * resolve to their target schema instead of a bare "—" type. */
+export function flattenSchema(
+  properties: Dict,
+  required: string[],
+  prefix = "",
+  doc: Dict | null = null,
+  depth = 0,
+): Dict[] {
   const rows: Dict[] = [];
   for (const [prop, rawSchema] of Object.entries<Dict>(properties ?? {})) {
-    const schema: Dict = rawSchema ?? {};
+    const schema: Dict = doc ? deref(doc, rawSchema ?? {}) : (rawSchema ?? {});
     let type = schema.type ?? "—";
     if (schema.format) type = `${type} (${schema.format})`;
     const constraints: string[] = [];
@@ -67,15 +74,15 @@ export function flattenSchema(properties: Dict, required: string[], prefix = "")
       required: (required ?? []).includes(prop),
       constraints: constraints.join("; "),
     });
-    if (schema.type === "object" && !prefix) {
+    if (schema.type === "object" && depth < 2) {
       rows.push(
-        ...flattenSchema(schema.properties ?? {}, schema.required ?? [], `${prop}.`),
+        ...flattenSchema(schema.properties ?? {}, schema.required ?? [], `${prefix}${prop}.`, doc, depth + 1),
       );
-    } else if (schema.type === "array" && !prefix) {
-      const items: Dict = schema.items ?? {};
+    } else if (schema.type === "array" && depth < 2) {
+      const items: Dict = doc ? deref(doc, schema.items ?? {}) : (schema.items ?? {});
       if (items.type === "object") {
         rows.push(
-          ...flattenSchema(items.properties ?? {}, items.required ?? [], `${prop}[].`),
+          ...flattenSchema(items.properties ?? {}, items.required ?? [], `${prefix}${prop}[].`, doc, depth + 1),
         );
       }
     }
@@ -118,7 +125,7 @@ function httpOperations(m: Dict, specs: string, restExamples: Map<string, any[]>
             if (Object.keys(body).length) {
               responseBody = {
                 status: String(status),
-                rows: flattenSchema(body.properties ?? {}, body.required ?? []),
+                rows: flattenSchema(body.properties ?? {}, body.required ?? [], "", doc),
               };
               break;
             }
@@ -143,7 +150,7 @@ function httpOperations(m: Dict, specs: string, restExamples: Map<string, any[]>
           artifact_version: a.version ?? null,
           parameters,
           request_rows: Object.keys(request).length
-            ? flattenSchema(request.properties ?? {}, request.required ?? [])
+            ? flattenSchema(request.properties ?? {}, request.required ?? [], "", doc)
             : [],
           responses,
           response_body: responseBody,
@@ -164,20 +171,22 @@ function channelEntry(
   examples: Map<string, [string, any][]>,
 ): Dict {
   const consuming = consumers.get(address) ?? [];
+  const doc: Dict | null = info.doc ?? null;
   const messages: Dict[] = [];
-  for (const [msgName, message] of info.messages as [string, Dict][]) {
-    const payload: Dict = message.payload ?? {};
+  for (const [msgName, rawMessage] of info.messages as [string, Dict][]) {
+    const message: Dict = doc ? deref(doc, rawMessage ?? {}) : (rawMessage ?? {});
+    const payload: Dict = doc ? deref(doc, message.payload ?? {}) : (message.payload ?? {});
     const props: Dict = payload.properties ?? {};
-    const data: Dict = props.data ?? {};
+    const data: Dict = doc ? deref(doc, props.data ?? {}) : (props.data ?? {});
     const envelope = Object.fromEntries(
       Object.entries(props).filter(([k]) => k !== "data"),
     );
     messages.push({
       name: msgName,
       title: message.title ?? "",
-      event_type: (props.type ?? {}).const ?? null,
-      data_rows: flattenSchema(data.properties ?? {}, data.required ?? []),
-      envelope_rows: flattenSchema(envelope, payload.required ?? []),
+      event_type: ((doc ? deref(doc, props.type ?? {}) : props.type) ?? {}).const ?? null,
+      data_rows: flattenSchema(data.properties ?? {}, data.required ?? [], "", doc),
+      envelope_rows: flattenSchema(envelope, payload.required ?? [], "", doc),
     });
   }
   return {

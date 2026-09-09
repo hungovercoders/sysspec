@@ -14,7 +14,10 @@ const segments = (text: string) =>
       : { text: part },
   );
 ---
-<ul>
+<!-- Safari/VoiceOver deliberately drops list semantics from lists styled
+     with list-style: none (as .sc-scenario ul is); the explicit role
+     restores them there. Other engines treat it as a no-op. -->
+<ul role="list">
   {steps.map((step) => {
     if (step.table)
       return (

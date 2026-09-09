@@ -53,6 +53,9 @@ const nodeStyle = (kind: string, focused = false): React.CSSProperties => {
 function buildGraph(props: Props): { nodes: Node[]; edges: Edge[] } {
   const nodes: Node[] = [];
   const edges: Edge[] = [];
+  const animate =
+    typeof window === 'undefined' ||
+    !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   // With a focus, only that service's edges appear; neighbours stay as
   // plain nodes and the surface (ops, data products) is the focus's own.
@@ -125,7 +128,7 @@ function buildGraph(props: Props): { nodes: Node[]; edges: Edge[] } {
       source: e.from,
       target: e.to,
       label: e.channel,
-      animated: true,
+      animated: animate,
     });
   }
   for (const u of unconsumed) {
@@ -210,7 +213,7 @@ export default function SystemGraph(props: Props) {
   return (
     <div
       style={{
-        height: props.height ?? 520,
+        height: `min(${props.height ?? 520}px, 60vh)`,
         border: '1px solid var(--sl-color-gray-5, #ddd)',
         borderRadius: 8,
       }}

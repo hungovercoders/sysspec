@@ -613,6 +613,30 @@
                 "type": "integer",
                 "required": true,
                 "constraints": "\u2265 0"
+              },
+              {
+                "field": "shipping",
+                "type": "object",
+                "required": false,
+                "constraints": ""
+              },
+              {
+                "field": "shipping.address",
+                "type": "object",
+                "required": true,
+                "constraints": ""
+              },
+              {
+                "field": "shipping.address.line_1",
+                "type": "string",
+                "required": true,
+                "constraints": ""
+              },
+              {
+                "field": "shipping.address.postcode",
+                "type": "string",
+                "required": true,
+                "constraints": ""
               }
             ]
           },
@@ -679,6 +703,30 @@
                 "type": "integer",
                 "required": true,
                 "constraints": "\u2265 0"
+              },
+              {
+                "field": "shipping",
+                "type": "object",
+                "required": false,
+                "constraints": ""
+              },
+              {
+                "field": "shipping.address",
+                "type": "object",
+                "required": true,
+                "constraints": ""
+              },
+              {
+                "field": "shipping.address.line_1",
+                "type": "string",
+                "required": true,
+                "constraints": ""
+              },
+              {
+                "field": "shipping.address.postcode",
+                "type": "string",
+                "required": true,
+                "constraints": ""
               }
             ]
           },

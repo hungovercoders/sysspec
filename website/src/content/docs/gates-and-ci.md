@@ -7,7 +7,7 @@ Everything runs through [Task](https://taskfile.dev). If a command is not a
 `task`, it is not part of the workflow, and the checks are identical
 locally, in the git hooks, and in CI:
 
-```sh
+```bash
 task ci
 ```
 

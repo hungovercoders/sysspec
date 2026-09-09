@@ -117,6 +117,13 @@ export const unconsumed = data.unconsumed as { channel: string; producer: string
 /** Deterministic heading id for a channel address or stem (dots → dashes). */
 export const anchor = (address: string) => address.replaceAll('.', '-');
 
+/** Deterministic heading id from arbitrary text (titles, versions). */
+export const slug = (text: string) =>
+  text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
 /** address → producing service, across the whole spec suite. */
 export const channelProducers: Record<string, Service> = Object.fromEntries(
   services.flatMap((s) => s.channels.map((c) => [c.address, s])),
@@ -162,12 +169,13 @@ export const artifactPage = (service: string, artifact: Artifact) =>
     ? withBase(`/services/${service}/features/`)
     : withBase(`/services/${service}/${artifact.stem}/`);
 
-/** Link target for a channel: its producer's rendered AsyncAPI page. */
+/** Link target for a channel: its section on the producer's rendered
+ * AsyncAPI page. */
 export const channelHref = (address: string) => {
   const producer = channelProducers[address];
   if (!producer) return null;
   const channel = producer.channels.find((c) => c.address === address);
   const stem = channel?.artifact_path.split('/').pop()?.replace(/\.[^.]+$/, '');
   if (!stem) return withBase(`/services/${producer.name}/`);
-  return withBase(`/services/${producer.name}/${stem}/`);
+  return withBase(`/services/${producer.name}/${stem}/#${anchor(address)}`);
 };

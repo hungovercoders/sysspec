@@ -2,6 +2,7 @@
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
 import SystemGraph from '../../../components/SystemGraph';
 import {
+  anchor,
   artifactPage,
   artifactUrl,
   channelHref,
@@ -61,8 +62,25 @@ const graphServices = services.map((s) => ({
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 
 const pin = service.latest_release;
+
+// "On this page" entries, mirroring the conditional sections below.
+const headings = [
+  ...(hasSurface ? [{ depth: 2, slug: 'at-a-glance', text: 'At a glance' }] : []),
+  { depth: 2, slug: 'artifacts', text: 'Artifacts' },
+  { depth: 2, slug: 'drive-an-implementation', text: 'Drive an implementation' },
+  ...(commands.length ? [{ depth: 2, slug: 'commands', text: 'Commands' }] : []),
+  ...(queries.length ? [{ depth: 2, slug: 'queries', text: 'Queries' }] : []),
+  ...(service.produces.length ? [{ depth: 2, slug: 'produces', text: 'Produces' }] : []),
+  ...(service.consumes.length ? [{ depth: 2, slug: 'consumes', text: 'Consumes' }] : []),
+  ...(service.data_products.length
+    ? [{ depth: 2, slug: 'data-products', text: 'Data products' }]
+    : []),
+];
 ---
-<StarlightPage frontmatter={{ title: service.title }}>
+<StarlightPage
+  frontmatter={{ title: service.title, description: service.summary }}
+  headings={headings}
+>
   <p>
     <strong>v{service.version ?? '—'}</strong> ·
     {service.domain} · <code>{service.owner}</code>
@@ -88,7 +106,11 @@ const pin = service.latest_release;
 
   {hasSurface && (
     <>
-      <h2>At a glance</h2>
+      <h2 id="at-a-glance">At a glance</h2>
+      <p>
+        Click a node to trace its connections; double-click a service to open
+        it.
+      </p>
       <SystemGraph
         client:only="react"
         services={graphServices}
@@ -101,7 +123,7 @@ const pin = service.latest_release;
     </>
   )}
 
-  <h2>Artifacts</h2>
+  <h2 id="artifacts">Artifacts</h2>
   <div class="sc-artifacts">
     {sortedArtifacts(service).map((a) => (
       <div class={`sc-artifact-card sc-artifact-card--${a.kind}`}>
@@ -119,7 +141,7 @@ const pin = service.latest_release;
     ))}
   </div>
 
-  <h2>Drive an implementation</h2>
+  <h2 id="drive-an-implementation">Drive an implementation</h2>
   <p>
     These specs are packaged for consumption — an implementation proves it
     satisfies them; it never redefines them.
@@ -158,12 +180,12 @@ sha: ${pin.sha}`}</code></pre>
 
   {commands.length > 0 && (
     <>
-      <h2>Commands</h2>
+      <h2 id="commands">Commands</h2>
       <ul>
         {commands.map((o) => (
           <li>
             {openapiPage ? (
-              <a href={openapiPage}><code>{o.op_id}</code></a>
+              <a href={`${openapiPage}#${anchor(o.op_id)}`}><code>{o.op_id}</code></a>
             ) : (
               <code>{o.op_id}</code>
             )}{' '}
@@ -175,12 +197,12 @@ sha: ${pin.sha}`}</code></pre>
   )}
   {queries.length > 0 && (
     <>
-      <h2>Queries</h2>
+      <h2 id="queries">Queries</h2>
       <ul>
         {queries.map((o) => (
           <li>
             {openapiPage ? (
-              <a href={openapiPage}><code>{o.op_id}</code></a>
+              <a href={`${openapiPage}#${anchor(o.op_id)}`}><code>{o.op_id}</code></a>
             ) : (
               <code>{o.op_id}</code>
             )}{' '}
@@ -193,7 +215,7 @@ sha: ${pin.sha}`}</code></pre>
 
   {service.produces.length > 0 && (
     <>
-      <h2>Produces</h2>
+      <h2 id="produces">Produces</h2>
       <ul>
         {service.produces.map((address) => {
           const consuming = consumerLinks(address);
@@ -226,7 +248,7 @@ sha: ${pin.sha}`}</code></pre>
   )}
   {service.consumes.length > 0 && (
     <>
-      <h2>Consumes</h2>
+      <h2 id="consumes">Consumes</h2>
       <ul>
         {service.consumes.map((address) => {
           const producer = channelProducers[address];
@@ -252,7 +274,7 @@ sha: ${pin.sha}`}</code></pre>
 
   {service.data_products.length > 0 && (
     <>
-      <h2>Data products</h2>
+      <h2 id="data-products">Data products</h2>
       <ul>
         {service.data_products.map((d) => (
           <li>

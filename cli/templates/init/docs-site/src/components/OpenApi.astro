@@ -7,10 +7,26 @@ const { url } = Astro.props;
   import '@scalar/api-reference/style.css';
   import { createApiReference } from '@scalar/api-reference';
   const host = document.querySelector<HTMLElement>('.scalar-host')!;
-  createApiReference(host, {
+  const dark = () => document.documentElement.dataset.theme === 'dark';
+  const app = createApiReference(host, {
     url: host.dataset.url!,
     showSidebar: false,
     hideDarkModeToggle: true,
     hideClientButton: true,
+    darkMode: dark(),
+  });
+  // Follow Starlight's theme toggle. updateConfiguration is the
+  // supported route; the class swap covers versions without it.
+  new MutationObserver(() => {
+    try {
+      app?.updateConfiguration?.({ darkMode: dark() });
+    } catch {
+      /* fall through to the class swap */
+    }
+    host.classList.toggle('dark-mode', dark());
+    host.classList.toggle('light-mode', !dark());
+  }).observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['data-theme'],
   });
 </script>

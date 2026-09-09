@@ -25,9 +25,13 @@
   font-weight: 700;
   letter-spacing: 0.02em;
 }
-.sc-kw--given { color: #448aff; }
-.sc-kw--when { color: #ff9100; }
-.sc-kw--then { color: #00c853; }
+/* Phase colours meet 4.5:1 on both themes' page backgrounds. */
+.sc-kw--given { color: #1d4ed8; }
+.sc-kw--when { color: #9a3412; }
+.sc-kw--then { color: #15803d; }
+[data-theme='dark'] .sc-kw--given { color: #93c5fd; }
+[data-theme='dark'] .sc-kw--when { color: #fdba74; }
+[data-theme='dark'] .sc-kw--then { color: #86efac; }
 
 /* Scenario cards. */
 .sc-scenario {
@@ -44,6 +48,14 @@
 }
 .sc-scenario li {
   margin: 0.35rem 0;
+}
+
+/* The AsyncAPI viewer ships light-only CSS; in dark mode it renders as
+   a contained light panel rather than unreadable text on a dark page. */
+[data-theme='dark'] .asyncapi-host {
+  background: #ffffff;
+  border-radius: 0.4rem;
+  padding: 0.5rem 1rem;
 }
 
 /* Mermaid charts centre and scale. */
