@@ -48,7 +48,21 @@ const titles: Record<string, string> = {
   'data-contract': `${service.title} — ${artifact?.odcs?.name ?? artifact?.stem}`,
 };
 
-// Doc artifacts (ADRs, runbooks) carry their own h1; lift it into the page title.
+// Doc artifacts carry their own h1; lift it into the page title. Their
+// ```mermaid fences become renderable diagram blocks (the parse gate in
+// `docs diagrams` already covers them).
+const escapeHtml = (s: string) =>
+  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+marked.use({
+  renderer: {
+    code(token) {
+      if (token.lang === 'mermaid') {
+        return `<pre class="mermaid">${escapeHtml(token.text)}</pre>`;
+      }
+      return false;
+    },
+  },
+});
 let docTitle = artifact?.label ?? artifact?.stem ?? '';
 let docHtml = '';
 if (artifact?.kind === 'doc') {
@@ -325,4 +339,5 @@ const description = changelog
     <OdcsContract odcs={artifact.odcs} erMermaid={artifact.er_mermaid} />
   )}
   {artifact?.kind === 'doc' && <Fragment set:html={docHtml} />}
+  {artifact?.kind === 'doc' && docHtml.includes('class="mermaid"') && <Mermaid />}
 </StarlightPage>

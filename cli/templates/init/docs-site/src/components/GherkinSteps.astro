@@ -14,7 +14,8 @@ const segments = (text: string) =>
       : { text: part },
   );
 ---
-<ul>
+<!-- role restores list semantics stripped by .sc-scenario's list-style: none. -->
+<ul role="list">
   {steps.map((step) => {
     if (step.table)
       return (

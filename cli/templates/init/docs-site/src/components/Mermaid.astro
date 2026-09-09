@@ -1,7 +1,10 @@
 ---
+// With `chart`, renders one diagram. Without, contributes only the
+// hoisted script - include it once on pages whose HTML already carries
+// `<pre class="mermaid">` blocks (doc-artifact markdown).
 const { chart } = Astro.props;
 ---
-<pre class="mermaid">{chart}</pre>
+{chart && <pre class="mermaid">{chart}</pre>}
 
 <script>
   import mermaid from 'mermaid';

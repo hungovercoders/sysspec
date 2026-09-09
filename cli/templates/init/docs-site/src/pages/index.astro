@@ -1,6 +1,5 @@
 ---
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
-import { CardGrid, Card } from '@astrojs/starlight/components';
 import SystemGraph from '../components/SystemGraph';
 import { services, edges, unconsumed, withBase } from '../lib/specs';
 
@@ -69,24 +68,26 @@ const lastRelease = services
   </p>
 
   <h2>Services</h2>
-  <CardGrid>
+  <div class="sc-artifacts">
     {services.map((s) => (
-      <Card title={s.title} icon="open-book">
-        <p>
-          <a href={withBase(`/services/${s.name}/`)}><strong>{s.title}</strong></a>
+      <div class="sc-artifact-card">
+        <span class="sc-artifact-kind">{s.domain}</span>
+        <h3>
+          <a href={withBase(`/services/${s.name}/`)}>{s.title}</a>
           {s.ahead && (
             <>
               {' '}<span class="sc-chip sc-chip--gated">spec ahead of release</span>
             </>
           )}
-        </p>
+        </h3>
         <p>{s.summary}</p>
-        <p>
-          <code>v{s.version ?? '—'}</code> · {s.domain} · <code>{s.owner}</code>
-        </p>
-      </Card>
+        <span class="sc-artifact-meta">
+          <span>v{s.version ?? '—'}</span>
+          <code>{s.owner}</code>
+        </span>
+      </div>
     ))}
-  </CardGrid>
+  </div>
 
   <h2>Message flow</h2>
   <p>
