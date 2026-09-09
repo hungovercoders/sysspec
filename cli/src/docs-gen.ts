@@ -80,11 +80,16 @@ export function channelIndex(
       const channels: Dict = doc.channels ?? {};
       const messages: Dict = doc.components?.messages ?? {};
       for (const [opKey, op] of Object.entries<Dict>(doc.operations ?? {})) {
+        // Producer-keyed by design: `receive` operations are not indexed
+        // (a consumed channel renders via its producer; modeling
+        // external producers is a deliberate non-goal for now).
         if (op?.action !== "send") continue;
         const chanKey = String(op?.channel?.$ref ?? "").split("/").pop() ?? "";
         const channel: Dict = channels[chanKey] ?? {};
         const address = channel.address;
         if (!address) continue;
+        // `doc` rides along (never serialized) so consumers can deref
+        // $ref message payloads against the full document.
         index.set(address, {
           service: m.name,
           title: m.title,
@@ -92,6 +97,7 @@ export function channelIndex(
           artifact_version: a.version ?? null,
           op_name: opKey,
           description: clean(op.description ?? ""),
+          doc,
           messages: Object.keys(channel.messages ?? {}).map((name) => [
             name,
             messages[name] ?? {},

@@ -7474,10 +7474,10 @@ import path2 from "path";
 function unfence(lines) {
   return lines.slice(1, -1).join("\n");
 }
-function flattenSchema(properties, required, prefix = "") {
+function flattenSchema(properties, required, prefix = "", doc = null, depth = 0) {
   const rows = [];
   for (const [prop, rawSchema] of Object.entries(properties ?? {})) {
-    const schema = rawSchema ?? {};
+    const schema = doc ? deref(doc, rawSchema ?? {}) : rawSchema ?? {};
     let type = schema.type ?? "\u2014";
     if (schema.format) type = `${type} (${schema.format})`;
     const constraints = [];
@@ -7493,15 +7493,15 @@ function flattenSchema(properties, required, prefix = "") {
       required: (required ?? []).includes(prop),
       constraints: constraints.join("; ")
     });
-    if (schema.type === "object" && !prefix) {
+    if (schema.type === "object" && depth < 2) {
       rows.push(
-        ...flattenSchema(schema.properties ?? {}, schema.required ?? [], `${prop}.`)
+        ...flattenSchema(schema.properties ?? {}, schema.required ?? [], `${prefix}${prop}.`, doc, depth + 1)
       );
-    } else if (schema.type === "array" && !prefix) {
-      const items = schema.items ?? {};
+    } else if (schema.type === "array" && depth < 2) {
+      const items = doc ? deref(doc, schema.items ?? {}) : schema.items ?? {};
       if (items.type === "object") {
         rows.push(
-          ...flattenSchema(items.properties ?? {}, items.required ?? [], `${prop}[].`)
+          ...flattenSchema(items.properties ?? {}, items.required ?? [], `${prefix}${prop}[].`, doc, depth + 1)
         );
       }
     }
@@ -7541,7 +7541,7 @@ function httpOperations(m, specs2, restExamples) {
             if (Object.keys(body).length) {
               responseBody = {
                 status: String(status),
-                rows: flattenSchema(body.properties ?? {}, body.required ?? [])
+                rows: flattenSchema(body.properties ?? {}, body.required ?? [], "", doc)
               };
               break;
             }
@@ -7565,7 +7565,7 @@ function httpOperations(m, specs2, restExamples) {
           artifact_path: a.path,
           artifact_version: a.version ?? null,
           parameters,
-          request_rows: Object.keys(request).length ? flattenSchema(request.properties ?? {}, request.required ?? []) : [],
+          request_rows: Object.keys(request).length ? flattenSchema(request.properties ?? {}, request.required ?? [], "", doc) : [],
           responses,
           response_body: responseBody,
           examples
@@ -7577,20 +7577,22 @@ function httpOperations(m, specs2, restExamples) {
 }
 function channelEntry(address, info2, consumers, examples) {
   const consuming = consumers.get(address) ?? [];
+  const doc = info2.doc ?? null;
   const messages = [];
-  for (const [msgName, message] of info2.messages) {
-    const payload = message.payload ?? {};
+  for (const [msgName, rawMessage] of info2.messages) {
+    const message = doc ? deref(doc, rawMessage ?? {}) : rawMessage ?? {};
+    const payload = doc ? deref(doc, message.payload ?? {}) : message.payload ?? {};
     const props = payload.properties ?? {};
-    const data = props.data ?? {};
+    const data = doc ? deref(doc, props.data ?? {}) : props.data ?? {};
     const envelope = Object.fromEntries(
       Object.entries(props).filter(([k]) => k !== "data")
     );
     messages.push({
       name: msgName,
       title: message.title ?? "",
-      event_type: (props.type ?? {}).const ?? null,
-      data_rows: flattenSchema(data.properties ?? {}, data.required ?? []),
-      envelope_rows: flattenSchema(envelope, payload.required ?? [])
+      event_type: ((doc ? deref(doc, props.type ?? {}) : props.type) ?? {}).const ?? null,
+      data_rows: flattenSchema(data.properties ?? {}, data.required ?? [], "", doc),
+      envelope_rows: flattenSchema(envelope, payload.required ?? [], "", doc)
     });
   }
   return {
@@ -7921,6 +7923,7 @@ function channelIndex(manifests, specs2) {
           artifact_version: a.version ?? null,
           op_name: opKey,
           description: clean(op.description ?? ""),
+          doc,
           messages: Object.keys(channel.messages ?? {}).map((name) => [
             name,
             messages[name] ?? {}

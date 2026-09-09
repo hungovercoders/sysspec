@@ -91,3 +91,19 @@ components:
           type: string
           enum: [placed, paid, cancelled]
         total_pence: { type: integer, minimum: 0 }
+        # $ref property + two-level nesting: exercises the deref and
+        # depth handling in flattenSchema (golden-test coverage only).
+        shipping:
+          $ref: '#/components/schemas/Shipping'
+    Shipping:
+      type: object
+      required: [address]
+      additionalProperties: false
+      properties:
+        address:
+          type: object
+          required: [line_1, postcode]
+          additionalProperties: false
+          properties:
+            line_1: { type: string }
+            postcode: { type: string }

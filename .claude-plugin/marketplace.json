@@ -5,7 +5,7 @@
     {
       "name": "sysspec",
       "source": "./",
-      "description": "System specs served read-only over MCP, with authoring conventions and deterministic gates."
+      "description": "System specs served read-only over MCP, with authoring conventions, deterministic gates, and three skills driving the authoring, implement-service and consume-service journeys."
     }
   ]
 }
