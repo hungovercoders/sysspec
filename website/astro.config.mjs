@@ -37,20 +37,20 @@ export default defineConfig({
           ],
         },
         {
+          label: 'Journeys',
+          items: [
+            { label: 'Implement or consume a service', link: '/implement-and-consume/' },
+            { label: 'contracts.lock & .contracts/', link: '/contracts-lock/' },
+            { label: 'The live demo', link: '/demo/' },
+          ],
+        },
+        {
           label: 'Reference',
           items: [
             { label: 'CLI (sysspec)', link: '/cli/' },
             { label: 'MCP server (sysspec-mcp)', link: '/mcp/' },
             { label: 'Claude Code plugin & skills', link: '/plugin-and-skills/' },
             { label: 'Mock example files', link: '/mocks-examples/' },
-          ],
-        },
-        {
-          label: 'Journeys',
-          items: [
-            { label: 'Implement or consume a service', link: '/implement-and-consume/' },
-            { label: 'contracts.lock & .contracts/', link: '/contracts-lock/' },
-            { label: 'The live demo', link: '/demo/' },
           ],
         },
       ],
