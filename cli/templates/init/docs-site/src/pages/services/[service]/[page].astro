@@ -12,7 +12,7 @@ import OpenApi from '../../../components/OpenApi.astro';
 import ParamsTable from '../../../components/ParamsTable.astro';
 import SchemaTable from '../../../components/SchemaTable.astro';
 import SpecPanel from '../../../components/SpecPanel.astro';
-import { anchor, artifactUrl, serviceByName, services, withBase } from '../../../lib/specs';
+import { anchor, artifactUrl, serviceByName, services, slug, withBase } from '../../../lib/specs';
 import type { Artifact, Service } from '../../../lib/specs';
 
 export function getStaticPaths() {
@@ -83,8 +83,46 @@ const prettyJson = (payload: unknown): string => {
     return String(payload);
   }
 };
+
+// Build-time only: on Pages this is the spec repo's slug, so changelog
+// tags and shas can link to GitHub; locally they render as plain text.
+const repoSlug = process.env.DOCS_SITE_REPO ?? process.env.GITHUB_REPOSITORY ?? null;
+
+// "On this page" entries, mirroring the headings each branch renders.
+const headings = changelog
+  ? service.changelog.map((r) => ({ depth: 2, slug: slug(`v${r.version}`), text: `v${r.version}` }))
+  : features
+    ? features.flatMap((a) => [
+        { depth: 2, slug: slug(a.feature!.title), text: a.feature!.title },
+        ...a.feature!.scenarios.map((sc) => ({ depth: 3, slug: slug(sc.title), text: sc.title })),
+      ])
+    : artifact?.kind === 'openapi'
+      ? [
+          ...(artifactOps.length ? [{ depth: 2, slug: 'operations', text: 'Operations' }] : []),
+          ...artifactOps.map((o) => ({ depth: 3, slug: anchor(o.op_id), text: o.op_id })),
+          { depth: 2, slug: 'rendered-contract', text: 'Full rendered contract' },
+        ]
+      : artifact?.kind === 'asyncapi'
+        ? [
+            ...artifactChannels.flatMap((c) => [
+              { depth: 2, slug: anchor(c.address), text: c.address },
+              ...c.messages.map((m) => ({
+                depth: 3,
+                slug: anchor(`${c.address}-${m.name}`),
+                text: m.name,
+              })),
+            ]),
+            { depth: 2, slug: 'rendered-contract', text: 'Full rendered contract' },
+          ]
+        : [];
+
+const description = changelog
+  ? `Release history for ${service.title}.`
+  : features
+    ? `Acceptance criteria for ${service.title}.`
+    : artifact?.summary || service.summary;
 ---
-<StarlightPage frontmatter={{ title }}>
+<StarlightPage frontmatter={{ title, description }} headings={headings}>
   {changelog && (
     <>
       <p>
@@ -94,10 +132,35 @@ const prettyJson = (payload: unknown): string => {
       </p>
       {service.changelog.map((r) => (
         <>
-          <h2>
+          <h2 id={slug(`v${r.version}`)}>
             v{r.version}
             {r.unreleased ? ' — unreleased' : r.date ? ` — ${r.date}` : ''}
           </h2>
+          {(r.tag || r.sha) && (
+            <p>
+              {r.tag && (
+                repoSlug ? (
+                  <a href={`https://github.com/${repoSlug}/releases/tag/${encodeURIComponent(r.tag)}`}>
+                    <code>{r.tag}</code>
+                  </a>
+                ) : (
+                  <code>{r.tag}</code>
+                )
+              )}
+              {r.sha && (
+                <>
+                  {' '}·{' '}
+                  {repoSlug ? (
+                    <a href={`https://github.com/${repoSlug}/commit/${r.sha}`}>
+                      <code>{r.sha.slice(0, 10)}</code>
+                    </a>
+                  ) : (
+                    <code>{r.sha.slice(0, 10)}</code>
+                  )}
+                </>
+              )}
+            </p>
+          )}
           <ul>{r.commits.map((c) => <li>{c}</li>)}</ul>
         </>
       ))}
@@ -110,7 +173,7 @@ const prettyJson = (payload: unknown): string => {
       const count = f.scenarios.length;
       return (
         <>
-          <h2>{f.title}</h2>
+          <h2 id={slug(f.title)}>{f.title}</h2>
           <p>
             <strong>{count} scenario{count === 1 ? '' : 's'}</strong> — these
             are acceptance criteria for what the service must do, not a
@@ -125,7 +188,7 @@ const prettyJson = (payload: unknown): string => {
           )}
           {f.scenarios.map((sc) => (
             <>
-              <h3>{sc.title}</h3>
+              <h3 id={slug(sc.title)}>{sc.title}</h3>
               <div class="sc-scenario">
                 <GherkinSteps steps={sc.steps} />
               </div>
