@@ -3,7 +3,7 @@
  * datacontract-cli is the one Python tool, run via uvx - the reason uv
  * stays in the scaffolded mise.toml. */
 
-export const SYSSPEC_MCP = "sysspec-mcp@1.0.2";
+export const SYSSPEC_MCP = "sysspec-mcp@1.0.3";
 
 export const ASYNCAPI_CLI = "@asyncapi/cli@5.0.7";
 export const DATACONTRACT_CLI = "datacontract-cli==1.1.1";
