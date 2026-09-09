@@ -6,10 +6,12 @@ import { marked } from 'marked';
 import AsyncApi from '../../../components/AsyncApi.astro';
 import ContractOfRecord from '../../../components/ContractOfRecord.astro';
 import GherkinSteps from '../../../components/GherkinSteps.astro';
+import Mermaid from '../../../components/Mermaid.astro';
 import OdcsContract from '../../../components/OdcsContract.astro';
 import OpenApi from '../../../components/OpenApi.astro';
+import SchemaTable from '../../../components/SchemaTable.astro';
 import SpecPanel from '../../../components/SpecPanel.astro';
-import { artifactUrl, services } from '../../../lib/specs';
+import { anchor, artifactUrl, serviceByName, services, withBase } from '../../../lib/specs';
 import type { Artifact, Service } from '../../../lib/specs';
 
 export function getStaticPaths() {
@@ -59,6 +61,21 @@ const title = changelog
   : features
     ? `${service.title} — acceptance criteria`
     : titles[artifact!.kind] ?? docTitle;
+
+// Channels this AsyncAPI artifact publishes, rendered as site-owned
+// markup (searchable, linkable) above the embedded contract viewer.
+const artifactChannels =
+  artifact?.kind === 'asyncapi'
+    ? service.channels.filter((c) => c.artifact_path === artifact.path)
+    : [];
+
+const prettyJson = (payload: unknown): string => {
+  try {
+    return JSON.stringify(JSON.parse(String(payload)), null, 2);
+  } catch {
+    return String(payload);
+  }
+};
 ---
 <StarlightPage frontmatter={{ title }}>
   {changelog && (
@@ -121,6 +138,59 @@ const title = changelog
   )}
 
   {artifact?.kind === 'openapi' && <OpenApi url={artifactUrl(service.name, artifact)} />}
+
+  {artifactChannels.map((c) => (
+    <>
+      <h2 id={anchor(c.address)}><code>{c.address}</code></h2>
+      {c.description && <p>{c.description}</p>}
+      <p>
+        Produced by <a href={withBase(`/services/${c.producer}/`)}>{c.producer_title}</a>
+        {c.consumers.length > 0 ? (
+          <>
+            {' '}— consumed by{' '}
+            {c.consumers.map((n, i) => (
+              <>
+                {i > 0 && ', '}
+                <a href={withBase(`/services/${n}/`)}>{serviceByName[n]?.title ?? n}</a>
+              </>
+            ))}.
+          </>
+        ) : (
+          <> — no consumer in the specs yet.</>
+        )}
+      </p>
+      <Mermaid chart={c.sequence_mermaid} />
+      {c.messages.map((m) => (
+        <>
+          <h3 id={anchor(`${c.address}-${m.name}`)}>{m.name}</h3>
+          {m.title && <p>{m.title}</p>}
+          {m.event_type && (
+            <p>Event type: <code>{m.event_type}</code></p>
+          )}
+          <h4>Payload (<code>data</code>)</h4>
+          <SchemaTable rows={m.data_rows} />
+          {m.envelope_rows.length > 0 && (
+            <details>
+              <summary>CloudEvents envelope</summary>
+              <SchemaTable rows={m.envelope_rows} />
+            </details>
+          )}
+        </>
+      ))}
+      {c.examples.length > 0 && (
+        <details>
+          <summary>Example events (Microcks fixtures)</summary>
+          {c.examples.map((e) => (
+            <>
+              <h5>{e.case}</h5>
+              <Code code={prettyJson(e.payload)} lang="json" />
+            </>
+          ))}
+        </details>
+      )}
+    </>
+  ))}
+  {artifact?.kind === 'asyncapi' && <h2 id="rendered-contract">Full rendered contract</h2>}
   {artifact?.kind === 'asyncapi' && <AsyncApi url={artifactUrl(service.name, artifact)} />}
   {artifact?.kind === 'data-contract' && (
     <OdcsContract odcs={artifact.odcs} erMermaid={artifact.er_mermaid} />
