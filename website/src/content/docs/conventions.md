@@ -16,6 +16,11 @@ linters (`lint:specs`, `lint:datacontracts`, `lint:manifest`), not advisory.
   same in the AsyncAPI payload, the OpenAPI schema and the data contract, so
   no consumer translates between them. Spectral rules enforce this across
   the specs and the ODCS files.
+- **Header parameters are the one exception**: they keep canonical HTTP
+  casing (`Idempotency-Key`, not `idempotency_key`) — HTTP header names
+  are case-insensitive hyphenated identifiers, not payload attributes, and
+  the Spectral snake_case rule is deliberately scoped to path and query
+  parameters only.
 - Document-local identifiers keep their own conventions: message names
   `PascalCase` and past tense (`OrderPlaced`, `PaymentSettled`), channel and
   operation keys and OpenAPI `operationId`s `camelCase`, channel addresses

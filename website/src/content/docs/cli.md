@@ -37,6 +37,18 @@ All four compare the working tree against a base ref (`--base`, default
 - `check surface` — changes under given paths must bump a named version file
   (how the repo enforces its own package and plugin version bumps).
 
+| Flag | Applies to | Default |
+| --- | --- | --- |
+| `--base <ref>` | all four | `origin/main` |
+| `--specs-dir <dir>` | all four | `specs` |
+| `--service <name>` | `compat`, `intent` | all services |
+| `--version-file <file>` | `surface` | required |
+| `--json-key <key>` | `surface` | `version` (dotted path into the version file) |
+| `--paths <a/,b/>` | `surface` | required — comma-separated path prefixes |
+
+A typo'd or unknown flag is an error, never a silent fall-back to a
+default.
+
 ### `lint`
 
 - `lint specs` — Spectral over the OpenAPI/AsyncAPI contracts, house naming
@@ -47,16 +59,24 @@ All four compare the working tree against a base ref (`--base`, default
 - `lint manifest` — manifests ⇄ contracts ⇄ spec graph consistency, semver
   versions, feature references resolve to real messages and channels.
 
+All four take `--specs-dir` (default `specs`) and `--service <name>` to
+scope to one service.
+
 ### `docs`
 
 - `docs data` — emit the spec data the generated docs site renders from.
+  Flags: `--specs-dir`, `--site-dir` (default `docs-site`), `--mocks-dir`
+  (default `mocks`).
 - `docs diagrams` — every mermaid diagram in the generated site must parse.
+  Flags: `--specs-dir`, `--docs-dir` (default `docs`), `--site-dir`.
 
 ### `init`
 
 `sysspec init <dir> --org <reverse-dns>` scaffolds a complete spec repo:
-example service, Taskfile, mise toolchain, mock stack, docs site, GitHub
-workflows, Renovate wiring — green from the first commit. See
+starter service, Taskfile, mise toolchain, mock stack, docs site, GitHub
+workflows, Renovate wiring — green from the first commit. `--sysspec-repo
+<owner/repo>` (default `hungovercoders/sysspec`) points the scaffold's
+reusable-workflow references at a fork. See
 [Getting started](/getting-started/).
 
 ### `mocks` and `contract test`
@@ -65,11 +85,25 @@ workflows, Renovate wiring — green from the first commit. See
 your contracts; `contract test` holds a real implementation (or, with no
 endpoint overrides, the mocks themselves) to the contracts.
 
+| Flag | Applies to | Default |
+| --- | --- | --- |
+| `--compose-file <file>` | `mocks *` | `mocks/docker-compose.yml`, else the bundled stack |
+| `--service <name>` | `load`, `test`, `contract test` | all services |
+| `--specs-dir` / `--mocks-dir` | `load`, `test`, `contract test` | `specs` / `mocks` |
+| `--microcks-url <url>` | `load`, `test`, `contract test` | `http://localhost:8585` |
+| `--async-minion-url <url>` | `load`, `test`, `watch` | `http://localhost:8081` |
+| `--channel <Title/version/operation>` | `watch` | required |
+| `--rest-endpoint` / `--async-endpoint` | `contract test` | the mocks themselves |
+
 ### `null run` — the falsifiability gate
 
 Runs a bound feature suite against a *null service* that proves nothing; the
 gate is red unless zero scenarios pass. A suite that goes green against
 nothing is hollow, and this catches it.
+
+`null run --results <cucumber-json-file> [--port 9099] [--timeout 300] --
+<suite command>` — everything after `--` is the suite command, run with the
+null service listening on `--port`.
 
 ## Pinned external tools
 

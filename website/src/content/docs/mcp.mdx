@@ -17,20 +17,19 @@ with `SPECS_DIR`.
 
 ## The tools
 
-| Tool | Use |
-| --- | --- |
-| `list_services()` | Discovery. Start here. |
-| `get_service(name)` | Artifact index + produce/consume edges. No file contents. |
-| `get_message_schema(service, message)` | One event payload — the cheap call. |
-| `get_acceptance_criteria(service)` | Gherkin, labelled binding. |
-| `get_artifact(service, path)` | Any declared artifact, with its authority class. |
-| `trace_channel(address)` | Who produces and consumes it — i.e. who you break. |
-| `search_specs(query, kind)` | Matching lines, not whole files. |
+| Tool | Use | Narrowing parameters |
+| --- | --- | --- |
+| `list_services()` | Discovery. Start here. | — |
+| `get_service(name)` | Artifact index + produce/consume edges. No file contents. | — |
+| `get_message_schema(service, message)` | One event payload — the cheap call. | omit `message` to list message and schema names |
+| `get_acceptance_criteria(service)` | Gherkin, labelled binding. | `names_only` for the scenario index; `scenario` or `path` for one |
+| `get_artifact(service, path)` | Any declared artifact, with its authority class. | `section` (RFC 6901 pointer) for one part; `max_bytes` |
+| `trace_channel(address)` | Who produces and consumes it — i.e. who you break. | — |
+| `search_specs(query)` | Matching lines, not whole files. | `kind`, `service`, `limit` (≤ 100) |
 
-Responses are bounded and narrowly addressable: `get_artifact` takes an
-RFC 6901 `section` pointer for one part of a spec, `get_acceptance_criteria`
-filters to one scenario, and any response that had to cut content says so
-with a `truncated` flag.
+Responses are bounded and narrowly addressable: any response that had to
+cut content says so with a `truncated` flag — raise `limit`/`max_bytes`
+only then.
 
 ## Run it locally
 
@@ -41,6 +40,10 @@ SPECS_DIR=./specs npx -y sysspec-mcp
 # streamable HTTP on a port
 SPECS_DIR=./specs npx -y sysspec-mcp --transport http --host 0.0.0.0 --port 8080
 ```
+
+Every flag has a container-friendly env equivalent: `SYSSPEC_MCP_TRANSPORT`,
+`HOST`, `PORT`, `SYSSPEC_MCP_PATH` (the endpoint path, default `/mcp`) and
+`SYSSPEC_MCP_ALLOWED_HOSTS` (see [Hardening](#hardening)).
 
 Register it with a client:
 
@@ -61,7 +64,8 @@ with a small info document. Deployment is host-agnostic:
   example specs, or build from `mcp/Dockerfile` with your own.
 - **AWS** — App Runner or ECS pulling the image, port 8080.
 - **Cloudflare** — Containers can run the same image, or a free-tier Worker
-  adapter bundles the specs at deploy time.
+  adapter bundles the specs at deploy time:
+  `cd mcp && npx wrangler deploy --config adapters/cloudflare/wrangler.jsonc`.
 
 Connect from anywhere that can't spawn a local process (remote sessions, CI):
 
