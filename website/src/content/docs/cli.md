@@ -7,7 +7,7 @@ The [`sysspec` package](https://www.npmjs.com/package/sysspec) is the CLI
 behind every gate and task. In a scaffolded repo you rarely call it directly —
 every command is wrapped in a `task` — but the surface is:
 
-```
+```text
 usage: sysspec <command> ...
 
 commands:
@@ -31,8 +31,9 @@ All four compare the working tree against a base ref (`--base`, default
   *and* the service's top-level version; an artifact major forces a service
   major.
 - `check compat` — breaking contract changes must carry major bumps.
-- `check intent` — every added schema element must be named in the service's
-  feature files. No escape hatch.
+- `check intent` — every schema element added to an OpenAPI/AsyncAPI
+  contract must be named in the service's feature files. No escape hatch
+  there; ODCS columns and enum values are covered by the version gate only.
 - `check surface` — changes under given paths must bump a named version file
   (how the repo enforces its own package and plugin version bumps).
 

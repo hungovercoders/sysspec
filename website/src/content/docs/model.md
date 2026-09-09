@@ -6,7 +6,7 @@ description: The unit is the service; artifacts are gated or ungated; every chan
 A **service** is the unit. It owns artifacts and declares the channels it
 produces and consumes, so the spec suite is a graph rather than a folder:
 
-```
+```text
 specs/
 └── <service>/
     ├── service.yaml      manifest: version, artifacts, produces, consumes

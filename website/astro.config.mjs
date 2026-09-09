@@ -6,7 +6,12 @@ import starlight from '@astrojs/starlight';
 // the spec model). Distinct from docs-site/, which renders a spec suite.
 // Served at the root of its own Cloudflare Worker (sysspec-site), so no
 // base-path handling is needed.
+//
+// SYSSPEC_SITE_URL (a repository variable, like SYSSPEC_DEMO_URL) is the
+// deployed URL: with it set, builds emit a sitemap and canonical/og:url
+// tags; without it (local builds) Astro simply skips them.
 export default defineConfig({
+  site: process.env.SYSSPEC_SITE_URL || undefined,
   integrations: [
     starlight({
       title: 'sysspec',

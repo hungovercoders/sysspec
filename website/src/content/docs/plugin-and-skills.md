@@ -9,7 +9,7 @@ skills are the installed surface. Four ways in, in order of preference.
 **1. Install from the marketplace (no clone needed).** Inside any Claude
 Code session:
 
-```
+```text
 /plugin marketplace add hungovercoders/sysspec
 /plugin install sysspec@hungovercoders
 ```
