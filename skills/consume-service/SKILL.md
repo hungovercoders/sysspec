@@ -99,7 +99,7 @@ The suite must run headlessly against the mock stack (this is also the
 1. **Client flows against the REST mocks** — every call the consumer makes,
    exercised against Microcks, responses parsed through the generated types.
 2. **Event handling against real envelopes** — feed the handler from the WS
-   mock or directly from `mocks/<service>.events.examples.yaml`, and
+   mock or directly from `.contracts/mocks/<service>.events.examples.yaml`, and
    validate each consumed payload against the AsyncAPI schema before acting
    on it.
 3. **Idempotence** — replaying the same envelope `id` must not double-apply;
@@ -135,3 +135,16 @@ service name and specs owner/repo (`__SERVICE__`, `__SPECS_REPO__`). Define `con
 minors go green and auto-merge — new mocks, new fixtures, no human. A red
 run or a major bump means the surface moved under you, and only then does an
 agent wake to converge the consumer, with the failing suite as its scope.
+
+## Done when
+
+- [ ] `contracts.lock` pins the intended release tag and its commit sha
+- [ ] `task contracts:fetch` produces a read-only `.contracts/` (gitignored)
+- [ ] every call and handler runs against the pinned mocks, responses and
+      payloads validated through the generated types and schemas
+- [ ] replaying an envelope `id` does not double-apply
+- [ ] the suite is falsifiable — zero checks pass against the null service
+      (or with the mock stack down)
+- [ ] CI runs fetch → mocks up → the phase 3 suite → mocks down on every push
+- [ ] `renovate.json` + `contract-converge.yml` installed with the
+      placeholders substituted

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Orders API
-  version: 3.1.0
+  version: 3.2.0
   description: Synchronous order placement and lookup.
   contact:
     name: team-commerce
@@ -20,6 +20,15 @@ paths:
         order is persisted and an OrderPlaced event is guaranteed to be
         published - never one without the other.
       tags: [orders]
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: false
+          schema: { type: string }
+          description: >
+            Client-chosen key making placement idempotent. Replaying the
+            same key with the same body returns the original order (201,
+            no second event); reusing it with a different body is a 409.
       requestBody:
         required: true
         content:
@@ -37,8 +46,16 @@ paths:
           description: >
             Invalid order - no lines, a line quantity below 1, a negative
             unit_price_pence, or a line missing its sku.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
         '409':
-          description: Idempotency key already used with a different body.
+          description: Idempotency-Key already used with a different body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
 
   /orders/{order_id}:
     get:
@@ -60,6 +77,10 @@ paths:
                 $ref: '#/components/schemas/Order'
         '404':
           description: No such order.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
 
 components:
   schemas:
@@ -80,6 +101,17 @@ components:
               sku: { type: string }
               quantity: { type: integer, minimum: 1 }
               unit_price_pence: { type: integer, minimum: 0 }
+    Problem:
+      type: object
+      required: [error_code, message]
+      additionalProperties: false
+      properties:
+        error_code:
+          type: string
+          description: Machine-readable reason, lower_snake_case (e.g. invalid_order, idempotency_conflict, order_not_found).
+        message:
+          type: string
+          description: Human-readable explanation of the failure.
     Order:
       type: object
       required: [order_id, customer_id, status, total_pence]

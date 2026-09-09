@@ -47,6 +47,10 @@ mise install
 task ci        # gates + mock cycle, green from the first commit
 ```
 
+`mise install` covers the toolchain; the `mocks:*` and `contract:test`
+stages additionally need a running Docker daemon (they run the Microcks
+stack). Without Docker, `task check` runs every other gate.
+
 The scaffold owns only its specs. Everything substantive arrives by
 reference and stays current without you copying anything:
 
@@ -110,10 +114,11 @@ test pass — so they get the same protection as a schema.
 
 Every event is a CloudEvents 1.0 structured envelope with a
 `com.<org>.<service>.<event>.v<major>` type; the gates enforce that
-breaking changes take majors (`check:compat`) and that every added schema
-element is named in the service's features (`check:intent`, no escape
-hatch). `task ci` is the definition of green — identical locally, in the
-pre-commit hook, and in CI.
+breaking changes take majors (`check:compat`) and that every schema
+element added to an OpenAPI or AsyncAPI contract is named in the service's
+features (`check:intent`, no escape hatch there; ODCS columns and enum
+values are covered by the version gate only). `task ci` is the definition
+of green — identical locally, in the pre-commit hook, and in CI.
 
 ## Layout
 
@@ -127,6 +132,7 @@ sysspec/
 ├── .claude-plugin/           plugin + marketplace manifests
 ├── .mcp.json                 plugin root, wires server + specs
 ├── mocks/                    Microcks stack + per-service example files
+├── deploy/                   the demo Worker (docs site + MCP), Cloudflare
 ├── website/                  the sysspec website (tool docs), Cloudflare
 └── specs/                    the example: orders, payments
     └── <service>/

@@ -2,7 +2,7 @@ apiVersion: sysspec/v1
 kind: Service
 name: payments
 title: Payments
-version: 3.0.1
+version: 3.1.0
 domain: Commerce
 owner: team-payments
 summary: >
@@ -18,7 +18,7 @@ artifacts:
 
   - kind: data-contract
     path: data-contracts/payments-daily.odcs.yaml
-    version: 1.0.0
+    version: 1.0.1
     gated: true
     summary: Daily settled-payments table for finance reconciliation.
 
@@ -30,7 +30,7 @@ artifacts:
 
   - kind: feature
     path: features/settle-payment.feature
-    version: 2.0.0
+    version: 2.1.0
     gated: true
     summary: Acceptance criteria for settlement and reversal handling.
 

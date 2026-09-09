@@ -26,7 +26,14 @@ const TOOL_NAMES = [
   "search_specs",
 ];
 
-describe.skipIf(!existsSync(distEntry))("dist/stdio.mjs end to end", () => {
+describe("dist/stdio.mjs end to end", () => {
+  test("the committed dist bundle exists", () => {
+    expect(
+      existsSync(distEntry),
+      "mcp/dist/stdio.mjs is missing - run 'npm run build' in mcp/ and commit the bundle",
+    ).toBe(true);
+  });
+
   test("stdio: lists the seven tools and answers a call", async () => {
     const client = new Client({ name: "e2e", version: "0.0.0" });
     const transport = new StdioClientTransport({

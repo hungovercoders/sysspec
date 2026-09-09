@@ -5,7 +5,7 @@ description: Use when working against any service in the specs — implementing 
 
 # Working against the system specs
 
-The specs is reached only through the `sysspec` MCP tools. Do not search
+The specs are reached only through the `sysspec` MCP tools. Do not search
 the filesystem for specs or feature files — the copies you would find are
 not the record.
 
@@ -18,7 +18,7 @@ failing test or handler pass. If a gated artifact genuinely looks wrong,
 say so and stop: changing it is a deliberate, versioned act in the specs
 repo, gated in CI.
 
-**Ungated** — ADRs, runbooks, domain notes. Context and rationale. Read
+**Ungated** — `doc` artifacts: domain notes, context and rationale. Read
 them for the *why*, but they bind nothing and you may propose edits freely.
 
 Every `get_artifact` response tells you which class it is. Believe it.
@@ -37,7 +37,7 @@ Every `get_artifact` response tells you which class it is. Believe it.
      need. Omit all filters only when implementing the whole service.
    - `get_artifact(service, path, section="/components/schemas/Order")`
      for one section of a YAML spec (RFC 6901 pointer; `~1` escapes `/`
-     in OpenAPI paths); omit `section` only for a whole spec, ADR, or
+     in OpenAPI paths); omit `section` only for a whole spec, doc, or
      data contract
 4. `trace_channel(address)` before changing any published shape — the
    consumers it lists are what you will break. Empty `produced_by` and
@@ -84,7 +84,7 @@ and the scenario wins on behaviour. Raise the conflict either way.
   (`application/cloudevents+json`): `specversion` `"1.0"`, `id` (uuid),
   `source` (`/<service>`), `type`
   (`com.<org>.<service>.<event>.v<major>` — reverse-DNS org, matching the
-  channel major; these specs uses `com.hungovercoders`), `subject` (the aggregate id), `time`, `datacontenttype`, and the
+  channel major; these specs use `com.hungovercoders`), `subject` (the aggregate id), `time`, `datacontenttype`, and the
   domain payload under `data`. Envelope and `data` both set
   `additionalProperties: false` and an explicit `required`.
 - Money is an integer in minor units, suffixed `_pence`. Never a float.

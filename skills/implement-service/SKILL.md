@@ -102,7 +102,8 @@ commit sha the lock wants):
 
 ```sh
 git ls-remote https://github.com/hungovercoders/sysspec "refs/tags/orders/v*"
-# 6c4e1fc2e735f2491fe67c7f31390ced024d5d2a  refs/tags/orders/v3.1.0   <- highest
+# 6c4e1fc2e735f2491fe67c7f31390ced024d5d2a  refs/tags/orders/v3.1.0
+# (illustrative output - pin the highest version listed for your service)
 ```
 
 **Write `contracts.lock`** at the repo root from that line:
@@ -143,6 +144,7 @@ tasks:
       - task -d .contracts contract:test SERVICE={{.SERVICE}} REST_ENDPOINT={{.REST_ENDPOINT}} ASYNC_ENDPOINT={{.ASYNC_ENDPOINT}}
       - BASE_URL={{.BASE_URL}} npx cucumber-js .contracts/specs/{{.SERVICE}}/features --require steps/
       - BASE_URL=http://localhost:9099 task -d .contracts null:run RESULTS={{.ROOT_DIR}}/.null-results.json -- npx cucumber-js {{.ROOT_DIR}}/.contracts/specs/{{.SERVICE}}/features --require {{.ROOT_DIR}}/steps/ --format json:{{.ROOT_DIR}}/.null-results.json
+      # only for services with an openapi/ surface - drop this line for event-only services
       - uvx schemathesis run .contracts/specs/{{.SERVICE}}/openapi/*.yaml --url {{.BASE_URL}}
 ```
 
@@ -234,8 +236,8 @@ WebSocket endpoint the CLI appends `/<operation>` for each send
 operation's test (`.../events/publishOrderPlaced`, ...), so each operation
 is validated on its own path — serve each channel at a path naming its
 operation or channel address, or ignore the path and send everything. Keep
-a path on the base URL itself (`/events` above): pins older than toolchain
-0.22.0 use the endpoint verbatim, and Microcks' WS consumer rejects a bare
+a path on the base URL itself (`/events` above): older pins (from before
+the TypeScript CLI rewrite) use the endpoint verbatim, and Microcks' WS consumer rejects a bare
 `ws://host:port` with the opaque "found no suitable MessageConsumptionTask
 implementation for endpoint". Broker endpoints (`kafka://`, `mqtt://`,
 `amqp://`) are used verbatim — the topic in the endpoint is the

@@ -1,5 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
+import pkg from "../package.json" with { type: "json" };
 import {
   DEFAULT_MAX_BYTES,
   getAcceptanceCriteria,
@@ -38,7 +39,7 @@ async function run(fn: () => Promise<unknown>): Promise<ToolResult> {
  * descriptions and error messages are the served contract — see core.ts.
  */
 export function createServer(source: SpecSource): McpServer {
-  const server = new McpServer({ name: "sysspec", version: "1.0.0" });
+  const server = new McpServer({ name: "sysspec", version: pkg.version });
 
   server.registerTool(
     "list_services",

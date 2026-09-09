@@ -2,7 +2,7 @@ apiVersion: mocks.microcks.io/v1alpha1
 kind: APIExamples
 metadata:
   name: Orders API
-  version: 3.1.0
+  version: 3.2.0
 operations:
   'POST /orders':
     placed:
@@ -40,4 +40,16 @@ operations:
             "customer_id": "22222222-2222-2222-2222-222222222222",
             "status": "placed",
             "total_pence": 2500
+          }
+    not_found:
+      request:
+        parameters:
+          order_id: 99999999-9999-9999-9999-999999999999
+      response:
+        status: "404"
+        mediaType: application/json
+        body: |-
+          {
+            "error_code": "order_not_found",
+            "message": "No order 99999999-9999-9999-9999-999999999999"
           }

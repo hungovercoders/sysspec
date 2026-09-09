@@ -21,7 +21,8 @@ server behind `httpServerHandler`).
   `CLOUDFLARE_ACCOUNT_ID`.
 
 Local run: `task docs:build` with `DOCS_SITE_BASE=/`, then
-`npm run dev` in `deploy/cloudflare/`.
+`npm ci --prefix mcp && node mcp/scripts/bundle-specs.mjs` (the Worker
+imports the baked specs bundle), then `npm run dev` in `deploy/cloudflare/`.
 
 ## The sysspec website (second Worker)
 

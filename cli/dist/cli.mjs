@@ -39,20 +39,6 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   mod
 ));
 
-// src/pins.ts
-var SYSSPEC_MCP, ASYNCAPI_CLI, DATACONTRACT_CLI, SPECTRAL_CLI, GHERKIN_LINT, MERMAID_CLI;
-var init_pins = __esm({
-  "src/pins.ts"() {
-    "use strict";
-    SYSSPEC_MCP = "sysspec-mcp@1.0.1";
-    ASYNCAPI_CLI = "@asyncapi/cli@5.0.7";
-    DATACONTRACT_CLI = "datacontract-cli==1.1.1";
-    SPECTRAL_CLI = "@stoplight/spectral-cli@6.16.3";
-    GHERKIN_LINT = "gherkin-lint@4.2.4";
-    MERMAID_CLI = "@mermaid-js/mermaid-cli@11.16.0";
-  }
-});
-
 // src/util.ts
 import { spawnSync } from "child_process";
 function run(cmd, opts = {}) {
@@ -128,6 +114,20 @@ var init_util = __esm({
         super(message);
       }
     };
+  }
+});
+
+// src/pins.ts
+var SYSSPEC_MCP, ASYNCAPI_CLI, DATACONTRACT_CLI, SPECTRAL_CLI, GHERKIN_LINT, MERMAID_CLI;
+var init_pins = __esm({
+  "src/pins.ts"() {
+    "use strict";
+    SYSSPEC_MCP = "sysspec-mcp@1.0.2";
+    ASYNCAPI_CLI = "@asyncapi/cli@5.0.7";
+    DATACONTRACT_CLI = "datacontract-cli==1.1.1";
+    SPECTRAL_CLI = "@stoplight/spectral-cli@6.16.3";
+    GHERKIN_LINT = "gherkin-lint@4.2.4";
+    MERMAID_CLI = "@mermaid-js/mermaid-cli@11.16.0";
   }
 });
 
@@ -19582,6 +19582,56 @@ var require__ = __commonJS({
   }
 });
 
+// src/args.ts
+init_util();
+var Args = class {
+  constructor(argv, usage) {
+    this.usage = usage;
+    for (let i = 0; i < argv.length; i++) {
+      const arg = argv[i];
+      if (arg.startsWith("--")) {
+        const eq = arg.indexOf("=");
+        if (eq !== -1) {
+          this.flags.set(arg.slice(2, eq), arg.slice(eq + 1));
+        } else if (i + 1 < argv.length && !argv[i + 1].startsWith("--")) {
+          this.flags.set(arg.slice(2), argv[++i]);
+        } else {
+          this.flags.set(arg.slice(2), true);
+        }
+      } else {
+        this.positional.push(arg);
+      }
+    }
+  }
+  usage;
+  flags = /* @__PURE__ */ new Map();
+  positional = [];
+  get(name, fallback = null) {
+    const v = this.flags.get(name);
+    if (v === void 0) return fallback;
+    if (v === true) throw new Exit(`${this.usage}: --${name} needs a value`);
+    return v;
+  }
+  require(name) {
+    const v = this.get(name);
+    if (v === null) throw new Exit(`${this.usage}: --${name} is required`);
+    return v;
+  }
+  int(name, fallback) {
+    const v = this.get(name);
+    if (v === null) return fallback;
+    const n = parseInt(v, 10);
+    if (Number.isNaN(n)) throw new Exit(`${this.usage}: --${name} needs an integer, got '${v}'`);
+    return n;
+  }
+  /** A typo'd flag must not silently fall back to a default. */
+  only(...names) {
+    for (const name of this.flags.keys()) {
+      if (!names.includes(name)) throw new Exit(`${this.usage}: unknown flag --${name}`);
+    }
+  }
+};
+
 // src/compat.ts
 init_pins();
 init_util();
@@ -19940,7 +19990,7 @@ function escapeRe(s) {
 function mentioned(token, corpus) {
   const left = /^\w/.test(token) ? "\\b" : "";
   const right = /\w$/.test(token) ? "\\b" : "";
-  return new RegExp(left + escapeRe(token) + right).test(corpus);
+  return new RegExp(left + escapeRe(token) + right, "i").test(corpus);
 }
 function runGate3(base, only, specsDir) {
   const mb = mergeBase(base);
@@ -20092,7 +20142,10 @@ function specDocs(serviceDir, kind) {
 }
 function info(doc) {
   const i = doc.info ?? {};
-  return [i.title, String(i.version)];
+  if (!i.title || !i.version) {
+    throw new Exit("spec is missing info.title or info.version - Microcks needs both");
+  }
+  return [String(i.title), String(i.version)];
 }
 function sendOperations(doc) {
   return Object.entries(doc.operations ?? {}).filter(([, op]) => op?.action === "send").map(([name]) => name);
@@ -20127,14 +20180,14 @@ async function load(only, specsDir, mocksDir, microcksUrl, minionUrl, compose) {
   dc(compose, "restart", "async-minion");
   for (let i = 0; i < 30; i++) {
     try {
-      await http("GET", `${minionUrl}/health`, null, {}, 3);
-      console.log(`async-minion http up (after ${i + 1} checks)`);
+      const [status] = await http("GET", `${minionUrl}/health`, null, {}, 3);
+      console.log(`async-minion http up (after ${i + 1} checks, /health -> ${status})`);
       return 0;
     } catch {
       await sleep(2e3);
     }
   }
-  throw new Exit("async-minion not responding after 60s");
+  throw new Exit("async-minion not responding after 60s (no HTTP response from /health)");
 }
 async function runTest(microcksUrl, serviceId, runner, endpoint, timeoutMs, operation) {
   const label = `[${runner}${operation ? ` / ${operation}` : ""}]`;
@@ -20787,7 +20840,8 @@ var RENAMES = {
   "gherkin-lintrc": ".gherkin-lintrc",
   "spectral.yaml": ".spectral.yaml",
   "mcp.json": ".mcp.json",
-  github: ".github"
+  github: ".github",
+  gitkeep: ".gitkeep"
 };
 var ORG_RE = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/;
 var SKIP = /* @__PURE__ */ new Set([
@@ -21564,44 +21618,6 @@ ${versionFile} version is ${dotted(now)} (base ${dotted(before)}) - bump it semv
 
 // src/cli.ts
 init_util();
-var Args = class {
-  constructor(argv, usage) {
-    this.usage = usage;
-    for (let i = 0; i < argv.length; i++) {
-      const arg = argv[i];
-      if (arg.startsWith("--")) {
-        const eq = arg.indexOf("=");
-        if (eq !== -1) {
-          this.flags.set(arg.slice(2, eq), arg.slice(eq + 1));
-        } else if (i + 1 < argv.length && !argv[i + 1].startsWith("--")) {
-          this.flags.set(arg.slice(2), argv[++i]);
-        } else {
-          this.flags.set(arg.slice(2), true);
-        }
-      } else {
-        this.positional.push(arg);
-      }
-    }
-  }
-  usage;
-  flags = /* @__PURE__ */ new Map();
-  positional = [];
-  get(name, fallback = null) {
-    const v = this.flags.get(name);
-    if (v === void 0) return fallback;
-    if (v === true) throw new Exit(`${this.usage}: --${name} needs a value`);
-    return v;
-  }
-  require(name) {
-    const v = this.get(name);
-    if (v === null) throw new Exit(`${this.usage}: --${name} is required`);
-    return v;
-  }
-  int(name, fallback) {
-    const v = this.get(name);
-    return v === null ? fallback : parseInt(v, 10);
-  }
-};
 var USAGE = `usage: sysspec <command> ...
 
 commands:
@@ -21624,10 +21640,20 @@ async function main(argv = process.argv.slice(2)) {
   if (command === "check") {
     const base = args.get("base", "origin/main");
     const specsDir = args.get("specs-dir", "specs");
-    if (sub === "version") return runGate(base, specsDir);
-    if (sub === "compat") return runGate2(base, args.get("service"), specsDir);
-    if (sub === "intent") return runGate3(base, args.get("service"), specsDir);
+    if (sub === "version") {
+      args.only("base", "specs-dir");
+      return runGate(base, specsDir);
+    }
+    if (sub === "compat") {
+      args.only("base", "specs-dir", "service");
+      return runGate2(base, args.get("service"), specsDir);
+    }
+    if (sub === "intent") {
+      args.only("base", "specs-dir", "service");
+      return runGate3(base, args.get("service"), specsDir);
+    }
     if (sub === "surface") {
+      args.only("base", "specs-dir", "version-file", "json-key", "paths");
       return runGate4(
         base,
         args.require("version-file"),
@@ -21637,6 +21663,7 @@ async function main(argv = process.argv.slice(2)) {
     }
   }
   if (command === "lint") {
+    args.only("specs-dir", "service");
     const specsDir = args.get("specs-dir", "specs");
     const service = args.get("service");
     if (sub === "manifest") return runLint(service, specsDir);
@@ -21645,6 +21672,7 @@ async function main(argv = process.argv.slice(2)) {
     if (sub === "datacontracts") return datacontracts(service, specsDir);
   }
   if (command === "init") {
+    args.only("org", "sysspec-repo");
     const dir = sub;
     if (!dir) throw new Exit("sysspec init: a target directory is required");
     return runInit(
@@ -21656,19 +21684,24 @@ async function main(argv = process.argv.slice(2)) {
   if (command === "docs") {
     const specsDir = args.get("specs-dir", "specs");
     if (sub === "data") {
+      args.only("specs-dir", "site-dir", "mocks-dir");
       return runData(specsDir, args.get("site-dir", "docs-site"), args.get("mocks-dir", "mocks"));
     }
     if (sub === "diagrams") {
+      args.only("specs-dir", "docs-dir", "site-dir");
       return checkDiagrams(specsDir, args.get("docs-dir", "docs"), args.get("site-dir", "docs-site"));
     }
   }
   if (command === "mocks") {
     if (sub === "watch") {
+      args.only("channel", "async-minion-url");
       return watch(
         args.require("channel"),
         args.get("async-minion-url", "http://localhost:8081")
       );
     }
+    if (sub === "up" || sub === "down") args.only("compose-file");
+    else args.only("compose-file", "service", "specs-dir", "mocks-dir", "microcks-url", "async-minion-url");
     const compose = composeFile(args.get("compose-file"));
     if (sub === "up") return up(compose);
     if (sub === "down") return down(compose);
@@ -21685,6 +21718,7 @@ async function main(argv = process.argv.slice(2)) {
     }
   }
   if (command === "contract" && sub === "test") {
+    args.only("service", "specs-dir", "microcks-url", "rest-endpoint", "async-endpoint");
     return contract(
       args.get("service"),
       args.get("specs-dir", "specs"),
@@ -21694,6 +21728,7 @@ async function main(argv = process.argv.slice(2)) {
     );
   }
   if (command === "null" && sub === "run") {
+    args.only("port", "results", "timeout");
     return runNull(
       args.int("port", 9099),
       args.require("results"),

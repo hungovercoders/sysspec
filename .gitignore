@@ -10,4 +10,5 @@ cli/templates/init/docs-site/src/data/specs.json
 cli/templates/init/docs-site/public/specs/
 website/dist/
 website/.astro/
-website/.wrangler/
+.wrangler/
+.sysspec/

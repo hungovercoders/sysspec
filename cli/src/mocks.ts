@@ -113,9 +113,12 @@ function specDocs(serviceDir: string, kind: string): [string, Dict][] {
   return files.map((f) => [f, (parse(readFileSync(f, "utf-8")) ?? {}) as Dict]);
 }
 
-function info(doc: Dict): [string, string] {
+export function info(doc: Dict): [string, string] {
   const i: Dict = doc.info ?? {};
-  return [i.title, String(i.version)];
+  if (!i.title || !i.version) {
+    throw new Exit("spec is missing info.title or info.version - Microcks needs both");
+  }
+  return [String(i.title), String(i.version)];
 }
 
 function sendOperations(doc: Dict): string[] {
@@ -167,14 +170,18 @@ export async function load(
   dc(compose, "restart", "async-minion");
   for (let i = 0; i < 30; i++) {
     try {
-      await http("GET", `${minionUrl}/health`, null, {}, 3);
-      console.log(`async-minion http up (after ${i + 1} checks)`);
+      // A liveness gate, not a health assertion: any HTTP response proves
+      // the minion's server is back up after the restart (the uber image
+      // answers /health with a non-200), so only network errors and
+      // timeouts keep the loop waiting.
+      const [status] = await http("GET", `${minionUrl}/health`, null, {}, 3);
+      console.log(`async-minion http up (after ${i + 1} checks, /health -> ${status})`);
       return 0;
     } catch {
       await sleep(2000);
     }
   }
-  throw new Exit("async-minion not responding after 60s");
+  throw new Exit("async-minion not responding after 60s (no HTTP response from /health)");
 }
 
 async function runTest(
