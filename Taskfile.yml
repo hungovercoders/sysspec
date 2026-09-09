@@ -54,6 +54,7 @@ tasks:
     desc: The committed CLI bundle must match the source (Taskfile and plugin run it directly)
     dir: cli
     cmds:
+      - if [ -n "$CI" ]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi
       - npm run build --silent
       - git diff --exit-code -- dist || { echo "cli/dist is stale - run 'npm run build' in cli/ and commit"; exit 1; }
 
@@ -77,6 +78,7 @@ tasks:
     desc: The committed dist bundle must match the source (plugin runs it directly)
     dir: mcp
     cmds:
+      - if [ -n "$CI" ]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi
       - npm run build --silent
       - git diff --exit-code -- dist || { echo "mcp/dist is stale - run 'npm run build' in mcp/ and commit"; exit 1; }
 
