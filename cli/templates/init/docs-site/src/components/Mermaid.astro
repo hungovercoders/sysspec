@@ -5,12 +5,26 @@ const { chart } = Astro.props;
 
 <script>
   import mermaid from 'mermaid';
-  const dark = document.documentElement.dataset.theme === 'dark';
-  // securityLevel loose keeps the graphs' click lines as real links.
-  mermaid.initialize({
-    startOnLoad: false,
-    securityLevel: 'loose',
-    theme: dark ? 'dark' : 'neutral',
+
+  const theme = () =>
+    document.documentElement.dataset.theme === 'dark' ? 'dark' : 'neutral';
+
+  const render = async () => {
+    // securityLevel loose keeps the graphs' click lines as real links.
+    mermaid.initialize({ startOnLoad: false, securityLevel: 'loose', theme: theme() });
+    for (const el of document.querySelectorAll<HTMLElement>('.mermaid')) {
+      // Keep the source so a theme change can re-render from scratch
+      // (mermaid.run replaces the element's content with the SVG).
+      if (el.dataset.chart === undefined) el.dataset.chart = el.textContent ?? '';
+      el.textContent = el.dataset.chart;
+      el.removeAttribute('data-processed');
+    }
+    await mermaid.run({ querySelector: '.mermaid' });
+  };
+
+  render();
+  new MutationObserver(render).observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['data-theme'],
   });
-  mermaid.run({ querySelector: '.mermaid' });
 </script>

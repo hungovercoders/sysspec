@@ -46,6 +46,14 @@
   margin: 0.35rem 0;
 }
 
+/* The AsyncAPI viewer ships light-only CSS; in dark mode it renders as
+   a contained light panel rather than unreadable text on a dark page. */
+[data-theme='dark'] .asyncapi-host {
+  background: #ffffff;
+  border-radius: 0.4rem;
+  padding: 0.5rem 1rem;
+}
+
 /* Mermaid charts centre and scale. */
 .mermaid {
   background: none;
