@@ -168,6 +168,7 @@ export async function load(
     }
   }
   dc(compose, "restart", "async-minion");
+  let lastSeen = "no response (network error or timeout)";
   for (let i = 0; i < 30; i++) {
     try {
       const [status] = await http("GET", `${minionUrl}/health`, null, {}, 3);
@@ -175,12 +176,13 @@ export async function load(
         console.log(`async-minion http up (after ${i + 1} checks)`);
         return 0;
       }
+      lastSeen = `HTTP ${status}`;
     } catch {
-      // network error or timeout - keep waiting
+      lastSeen = "no response (network error or timeout)";
     }
     await sleep(2000);
   }
-  throw new Exit("async-minion not responding after 60s");
+  throw new Exit(`async-minion not healthy after 60s - last /health check: ${lastSeen}`);
 }
 
 async function runTest(
