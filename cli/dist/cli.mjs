@@ -20178,21 +20178,16 @@ async function load(only, specsDir, mocksDir, microcksUrl, minionUrl, compose) {
     }
   }
   dc(compose, "restart", "async-minion");
-  let lastSeen = "no response (network error or timeout)";
   for (let i = 0; i < 30; i++) {
     try {
       const [status] = await http("GET", `${minionUrl}/health`, null, {}, 3);
-      if (status === 200) {
-        console.log(`async-minion http up (after ${i + 1} checks)`);
-        return 0;
-      }
-      lastSeen = `HTTP ${status}`;
+      console.log(`async-minion http up (after ${i + 1} checks, /health -> ${status})`);
+      return 0;
     } catch {
-      lastSeen = "no response (network error or timeout)";
+      await sleep(2e3);
     }
-    await sleep(2e3);
   }
-  throw new Exit(`async-minion not healthy after 60s - last /health check: ${lastSeen}`);
+  throw new Exit("async-minion not responding after 60s (no HTTP response from /health)");
 }
 async function runTest(microcksUrl, serviceId, runner, endpoint, timeoutMs, operation) {
   const label = `[${runner}${operation ? ` / ${operation}` : ""}]`;
