@@ -49,7 +49,7 @@ task ci        # gates + mock cycle, green from the first commit
 
 `mise install` covers the toolchain; the `mocks:*` and `contract:test`
 stages additionally need a running Docker daemon (they run the Microcks
-stack). Without Docker, `task check` runs every other gate.
+stack). Without Docker, `task check` and `task lint` run every other gate.
 
 The scaffold owns only its specs. Everything substantive arrives by
 reference and stays current without you copying anything:
