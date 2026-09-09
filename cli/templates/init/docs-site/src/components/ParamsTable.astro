@@ -1,0 +1,25 @@
+---
+import type { Operation } from '../lib/specs';
+
+interface Props {
+  params: Operation['parameters'];
+}
+const { params } = Astro.props;
+---
+{params.length > 0 && (
+  <table>
+    <thead>
+      <tr><th>Parameter</th><th>In</th><th>Type</th><th>Required</th></tr>
+    </thead>
+    <tbody>
+      {params.map((p) => (
+        <tr>
+          <td><code>{p.name}</code></td>
+          <td>{p.in}</td>
+          <td>{p.type}</td>
+          <td>{p.required ? 'yes' : 'no'}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+)}

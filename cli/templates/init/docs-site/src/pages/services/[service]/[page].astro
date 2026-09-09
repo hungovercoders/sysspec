@@ -9,6 +9,7 @@ import GherkinSteps from '../../../components/GherkinSteps.astro';
 import Mermaid from '../../../components/Mermaid.astro';
 import OdcsContract from '../../../components/OdcsContract.astro';
 import OpenApi from '../../../components/OpenApi.astro';
+import ParamsTable from '../../../components/ParamsTable.astro';
 import SchemaTable from '../../../components/SchemaTable.astro';
 import SpecPanel from '../../../components/SpecPanel.astro';
 import { anchor, artifactUrl, serviceByName, services, withBase } from '../../../lib/specs';
@@ -67,6 +68,12 @@ const title = changelog
 const artifactChannels =
   artifact?.kind === 'asyncapi'
     ? service.channels.filter((c) => c.artifact_path === artifact.path)
+    : [];
+
+// Same for the operations an OpenAPI artifact declares.
+const artifactOps =
+  artifact?.kind === 'openapi'
+    ? service.operations.filter((o) => o.artifact_path === artifact.path)
     : [];
 
 const prettyJson = (payload: unknown): string => {
@@ -137,6 +144,65 @@ const prettyJson = (payload: unknown): string => {
     <ContractOfRecord service={service.name} artifact={artifact} />
   )}
 
+  {artifactOps.length > 0 && <h2 id="operations">Operations</h2>}
+  {artifactOps.map((o) => (
+    <>
+      <h3 id={anchor(o.op_id)}>
+        <code>{o.method} {o.path}</code> — {o.op_id}
+      </h3>
+      <p>
+        <strong>{o.kind === 'query' ? 'Query' : 'Command'}.</strong>{' '}
+        {o.summary && <>{o.summary}{o.summary.endsWith('.') ? '' : '.'}</>}
+      </p>
+      {o.description && <p>{o.description}</p>}
+      <ParamsTable params={o.parameters} />
+      {o.request_rows.length > 0 && (
+        <>
+          <h4>Request body</h4>
+          <SchemaTable rows={o.request_rows} />
+        </>
+      )}
+      <h4>Responses</h4>
+      <table>
+        <thead>
+          <tr><th>Status</th><th>Meaning</th></tr>
+        </thead>
+        <tbody>
+          {o.responses.map((r) => (
+            <tr>
+              <td><code>{r.status}</code></td>
+              <td>{r.description || '—'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {o.response_body && o.response_body.rows.length > 0 && (
+        <>
+          <h4><code>{o.response_body.status}</code> body</h4>
+          <SchemaTable rows={o.response_body.rows} />
+        </>
+      )}
+      {o.examples.length > 0 && (
+        <details>
+          <summary>Examples (Microcks fixtures)</summary>
+          {o.examples.map((e) => (
+            <>
+              <h5>{e.case}</h5>
+              {e.request && (
+                <>
+                  <p>Request</p>
+                  <Code code={prettyJson(e.request)} lang="json" />
+                </>
+              )}
+              <p>Response {e.status && <code>{e.status}</code>}</p>
+              {e.response && <Code code={prettyJson(e.response)} lang="json" />}
+            </>
+          ))}
+        </details>
+      )}
+    </>
+  ))}
+  {artifact?.kind === 'openapi' && <h2 id="rendered-contract">Full rendered contract</h2>}
   {artifact?.kind === 'openapi' && <OpenApi url={artifactUrl(service.name, artifact)} />}
 
   {artifactChannels.map((c) => (

@@ -2,6 +2,7 @@
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
 import SystemGraph from '../../../components/SystemGraph';
 import {
+  anchor,
   artifactPage,
   artifactUrl,
   channelHref,
@@ -163,7 +164,7 @@ sha: ${pin.sha}`}</code></pre>
         {commands.map((o) => (
           <li>
             {openapiPage ? (
-              <a href={openapiPage}><code>{o.op_id}</code></a>
+              <a href={`${openapiPage}#${anchor(o.op_id)}`}><code>{o.op_id}</code></a>
             ) : (
               <code>{o.op_id}</code>
             )}{' '}
@@ -180,7 +181,7 @@ sha: ${pin.sha}`}</code></pre>
         {queries.map((o) => (
           <li>
             {openapiPage ? (
-              <a href={openapiPage}><code>{o.op_id}</code></a>
+              <a href={`${openapiPage}#${anchor(o.op_id)}`}><code>{o.op_id}</code></a>
             ) : (
               <code>{o.op_id}</code>
             )}{' '}
