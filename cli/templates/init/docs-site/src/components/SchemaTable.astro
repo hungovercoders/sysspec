@@ -7,7 +7,7 @@ interface Props {
 const { rows } = Astro.props;
 ---
 {rows.length > 0 && (
-  <table class="sc-table">
+  <div class="sc-table-wrap"><table class="sc-table">
     <thead>
       <tr><th>Field</th><th>Type</th><th>Required</th><th>Constraints</th></tr>
     </thead>
@@ -21,5 +21,5 @@ const { rows } = Astro.props;
         </tr>
       ))}
     </tbody>
-  </table>
+  </table></div>
 )}

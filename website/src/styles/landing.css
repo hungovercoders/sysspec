@@ -68,8 +68,8 @@
   padding-bottom: 0.5rem; margin-bottom: 0.5rem; border-bottom: 1px solid var(--ss-hairline);
 }
 .ss-panel ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.35rem; }
-.ss-panel li { margin: 0; display: grid; grid-template-columns: auto 1fr auto auto; align-items: center; gap: 0.6rem; color: var(--ss-text); }
-.ss-gates li { grid-template-columns: auto auto 1fr; }
+.ss-panel li { margin: 0; display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 0.6rem; color: var(--ss-text); }
+.ss-gates li { grid-template-columns: auto auto minmax(0, 1fr); }
 .ss-tools li { grid-template-columns: 1fr; }
 .ss-mono { font-family: var(--ss-font-mono); font-size: 0.78rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ss-muted { color: var(--ss-text-3); font-size: 0.75rem; white-space: nowrap; }
@@ -144,6 +144,11 @@
 .ss-cta p { color: var(--ss-text-2); margin: 0 0 0.75rem; }
 .ss-cta .ss-actions { justify-content: center; }
 
+@media (max-width: 40rem) {
+  .ss-muted, .ss-mono { white-space: normal; }
+  .ss-gates li { grid-template-columns: auto minmax(0, 1fr); }
+  .ss-gates .ss-muted { grid-column: 2; }
+}
 @media (max-width: 64rem) {
   .ss-hero { grid-template-columns: 1fr; padding-top: 2rem; }
   .ss-duo, .ss-steps, .ss-grid, .ss-links { grid-template-columns: 1fr; }

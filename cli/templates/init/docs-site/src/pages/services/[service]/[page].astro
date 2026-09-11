@@ -241,7 +241,7 @@ const description = changelog
         </>
       )}
       <h4>Responses</h4>
-      <table class="sc-table">
+      <div class="sc-table-wrap"><table class="sc-table">
         <thead>
           <tr><th>Status</th><th>Meaning</th></tr>
         </thead>
@@ -253,7 +253,7 @@ const description = changelog
             </tr>
           ))}
         </tbody>
-      </table>
+      </table></div>
       {o.response_body && o.response_body.rows.length > 0 && (
         <>
           <h4><code>{o.response_body.status}</code> body</h4>

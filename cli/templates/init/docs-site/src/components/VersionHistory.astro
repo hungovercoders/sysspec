@@ -12,7 +12,7 @@ const unreleased =
 {(artifact.history.length > 0 || unreleased) && (
   <details>
     <summary>Version history</summary>
-    <table class="sc-table">
+    <div class="sc-table-wrap"><table class="sc-table">
       <thead>
         <tr><th>Version</th><th>First released</th><th>Service version</th></tr>
       </thead>
@@ -32,6 +32,6 @@ const unreleased =
           </tr>
         ))}
       </tbody>
-    </table>
+    </table></div>
   </details>
 )}

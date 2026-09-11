@@ -89,12 +89,16 @@
 .sc-rows .sc-row-note a { font-weight: 500; color: var(--ss-text-2); }
 
 /* ---------- Tables -------------------------------------------------- */
+.sc-table-wrap {
+  overflow-x: auto; border: 1px solid var(--ss-hairline); border-radius: var(--ss-radius);
+  margin: 0.75rem 0 1.25rem; background: var(--ss-surface);
+}
 .sl-markdown-content table.sc-table, .sc-table {
-  width: 100%; font-size: 0.8125rem; border: 1px solid var(--ss-hairline); border-radius: var(--ss-radius); overflow: hidden;
-  border-collapse: separate; border-spacing: 0; margin: 0.75rem 0 1.25rem;
+  width: 100%; font-size: 0.8125rem; border: none; border-radius: 0; margin: 0;
+  border-collapse: separate; border-spacing: 0;
 }
 .sc-table th, .sc-table td { padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--ss-hairline); text-align: left; vertical-align: top; }
-.sc-table thead th { font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ss-text-3); font-weight: 600; background: var(--ss-surface-2); }
+.sc-table thead th { font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ss-text-2); font-weight: 600; background: var(--ss-surface-2); }
 .sc-table tbody tr:last-child td { border-bottom: none; }
 .sc-table tbody tr:hover td { background: color-mix(in srgb, var(--ss-surface-2) 55%, transparent); }
 .sc-table td code { font-size: 0.78rem; background: transparent; border: none; padding: 0; color: var(--ss-text); }
@@ -170,7 +174,9 @@
    grids, rows and meta strips lay out their own children. */
 .sl-markdown-content :is(.sc-loop, .sc-artifacts, .sc-stats, .sc-rows, .sc-page-meta, .sc-artifact-meta, .sc-release-meta) > * + * { margin-top: 0; }
 .sl-markdown-content .sc-artifact-card > * + * { margin-top: 0; }
-/* Starlight renders tables as scrollable blocks; framed tables span the frame. */
+/* Starlight renders tables as scrollable blocks; inside .sc-table-wrap the
+   wrapper scrolls and the table spans the frame. */
 .sl-markdown-content table.sc-table { display: table; table-layout: auto; }
+.sl-markdown-content .sc-table-wrap > * + * { margin-top: 0; }
 .sl-markdown-content .sc-table thead th { background: var(--ss-surface-2); }
 .sc-op-id { font-family: var(--ss-font-mono); font-size: 0.8125rem; color: var(--ss-text-3); font-weight: 500; }

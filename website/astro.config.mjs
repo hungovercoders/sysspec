@@ -25,7 +25,7 @@ export default defineConfig({
         styleOverrides: { borderRadius: '10px', codeFontFamily: 'var(--ss-font-mono)', codeFontSize: '0.8125rem' },
       },
       head: [
-        { tag: 'meta', attrs: { property: 'og:image', content: '/og.png' } },
+        { tag: 'meta', attrs: { property: 'og:image', content: `${(process.env.SYSSPEC_SITE_URL || '').replace(/\/$/, '')}/og.png` } },
         { tag: 'meta', attrs: { name: 'twitter:card', content: 'summary_large_image' } },
         { tag: 'meta', attrs: { name: 'theme-color', content: '#2456e6' } },
       ],
