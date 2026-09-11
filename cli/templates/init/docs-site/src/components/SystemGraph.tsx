@@ -33,16 +33,18 @@ const nodeStyle = (kind: string, focused = false): React.CSSProperties => {
   const common: React.CSSProperties = {
     width: NODE.width,
     fontSize: 13,
-    borderRadius: 6,
+    fontFamily: 'var(--ss-font-sans, inherit)',
+    borderRadius: 8,
+    boxShadow: 'var(--ss-shadow-sm)',
     padding: '8px 10px',
-    border: '1.5px solid var(--sl-color-gray-4, #888)',
-    background: 'var(--sl-color-bg, #fff)',
-    color: 'var(--sl-color-text, #222)',
+    border: '1px solid var(--ss-hairline-strong, #888)',
+    background: 'var(--ss-surface, #fff)',
+    color: 'var(--ss-text, #222)',
   };
   if (kind === 'service')
     return {
       ...common,
-      borderColor: 'var(--sl-color-accent, #4c5cd6)',
+      borderColor: 'var(--ss-accent, #2456e6)',
       borderWidth: focused ? 3 : 2,
     };
   if (kind === 'data') return { ...common, borderRadius: 18, opacity: 0.9 };
@@ -214,8 +216,8 @@ export default function SystemGraph(props: Props) {
     <div
       style={{
         height: `min(${props.height ?? 520}px, 60vh)`,
-        border: '1px solid var(--sl-color-gray-5, #ddd)',
-        borderRadius: 8,
+        border: 'none',
+        borderRadius: 0,
       }}
     >
       <ReactFlow

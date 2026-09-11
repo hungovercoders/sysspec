@@ -36,7 +36,7 @@ const typeOf = (p: Record<string, any>) =>
       <strong><code>{table.physicalName ?? table.name}</code></strong>
       {table.description && <> — {table.description}</>}
     </p>
-    <table>
+    <div class="sc-table-wrap"><table class="sc-table">
       <thead>
         <tr><th>Field</th><th>Type</th><th>Required</th><th>Key</th><th>Constraints</th></tr>
       </thead>
@@ -45,12 +45,12 @@ const typeOf = (p: Record<string, any>) =>
           <tr>
             <td><code>{p.name}</code></td>
             <td>{typeOf(p)}</td>
-            <td>{p.required ? 'yes' : 'no'}</td>
+            <td>{p.required ? <span class="sc-req">required</span> : <span class="sc-opt">optional</span>}</td>
             <td>{keyFlags(p) || '—'}</td>
             <td>{qualityRules(p) || '—'}</td>
           </tr>
         ))}
       </tbody>
-    </table>
+    </table></div>
   </>
 ))}

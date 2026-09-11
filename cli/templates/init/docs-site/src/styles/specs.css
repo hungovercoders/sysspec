@@ -1,179 +1,187 @@
-/* Gated/context chips on artifact tables. */
+/* Catalog components. Tokens come from theme.css (shared with the sysspec
+ * website); this file only composes them into the catalog's UI. */
+
+/* ---------- Chips & labels ------------------------------------------ */
 .sc-chip {
-  display: inline-block;
-  border-radius: 0.8em;
-  padding: 0.05em 0.6em;
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  background: var(--sl-color-gray-6);
-  color: var(--sl-color-gray-2);
-  white-space: nowrap;
-  vertical-align: middle;
+  display: inline-flex; align-items: center; gap: 0.35em;
+  padding: 0.12em 0.6em; border-radius: 999px;
+  font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.02em; white-space: nowrap;
+  background: var(--ss-surface-2); color: var(--ss-text-2); border: 1px solid var(--ss-hairline);
+  vertical-align: middle; font-family: var(--ss-font-sans);
 }
-.sc-chip--gated {
-  background: var(--sl-color-accent-low);
-  color: var(--sl-color-accent-high);
+.sc-chip--gated { background: var(--ss-accent-soft); color: var(--ss-accent-high); border-color: transparent; }
+.sc-chip--ok { background: color-mix(in srgb, var(--ss-ok) 14%, transparent); color: var(--ss-ok); border-color: transparent; }
+.sc-chip--warn { background: color-mix(in srgb, var(--ss-warn) 14%, transparent); color: var(--ss-warn); border-color: transparent; }
+.sc-kind-label {
+  font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  display: inline-flex; align-items: center; gap: 0.4em; color: var(--ss-text-3);
+}
+.sc-kind-label::before { content: ''; width: 7px; height: 7px; border-radius: 2px; background: currentColor; }
+.sc-kind-label--openapi { color: var(--ss-kind-openapi); }
+.sc-kind-label--asyncapi { color: var(--ss-kind-asyncapi); }
+.sc-kind-label--data-contract { color: var(--ss-kind-data); }
+.sc-kind-label--feature { color: var(--ss-kind-feature); }
+.sc-kind-label--doc { color: var(--ss-kind-doc); }
+.sc-method {
+  display: inline-block; min-width: 3.6rem; text-align: center; padding: 0.15em 0.5em; border-radius: 5px;
+  font-family: var(--ss-font-mono); font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.04em;
+  background: var(--ss-kind-openapi-soft); color: var(--ss-kind-openapi); vertical-align: middle; margin-right: 0.35rem;
+}
+.sc-method--get { background: var(--ss-kind-data-soft); color: var(--ss-kind-data); }
+.sc-method--delete { background: color-mix(in srgb, var(--ss-danger) 14%, transparent); color: var(--ss-danger); }
+
+/* ---------- Page header block --------------------------------------- */
+.sc-page-meta {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.9rem;
+  color: var(--ss-text-2); font-size: 0.875rem; margin: 0 0 0.75rem;
+}
+.sc-page-meta .sc-version { font-family: var(--ss-font-mono); font-weight: 600; color: var(--ss-text); }
+.sc-page-meta .sc-sep { color: var(--ss-hairline-strong); }
+.sc-summary { font-size: 1.0625rem; line-height: 1.6; color: var(--ss-text-2); max-width: 60ch; margin: 0 0 1.5rem; }
+.sl-markdown-content .sc-notice {
+  padding: 0.75rem 1rem; border-radius: var(--ss-radius); line-height: 1.6;
+  background: var(--ss-accent-soft); color: var(--ss-accent-high); font-size: 0.875rem; margin: 0 0 1.5rem;
 }
 
-/* Gherkin keyword chips, coloured by phase. */
-.sc-kw {
-  display: inline-block;
-  min-width: 3.6rem;
-  text-align: right;
-  margin-right: 0.5rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-}
-/* Phase colours meet 4.5:1 on both themes' page backgrounds. */
-.sc-kw--given { color: #1d4ed8; }
-.sc-kw--when { color: #9a3412; }
-.sc-kw--then { color: #15803d; }
-[data-theme='dark'] .sc-kw--given { color: #93c5fd; }
-[data-theme='dark'] .sc-kw--when { color: #fdba74; }
-[data-theme='dark'] .sc-kw--then { color: #86efac; }
-
-/* Scenario cards. */
-.sc-scenario {
-  border: 1px solid var(--sl-color-gray-5);
-  border-left: 4px solid var(--sl-color-accent);
-  border-radius: 0.2rem;
-  padding: 0.6rem 1rem;
-  margin: 0.8rem 0 1.6rem;
-}
-.sc-scenario ul {
-  list-style: none;
-  margin-left: 0;
-  padding-left: 0;
-}
-.sc-scenario li {
-  margin: 0.35rem 0;
-}
-
-/* The AsyncAPI viewer ships light-only CSS; in dark mode it renders as
-   a contained light panel rather than unreadable text on a dark page. */
-[data-theme='dark'] .asyncapi-host {
-  background: #ffffff;
-  border-radius: 0.4rem;
-  padding: 0.5rem 1rem;
-}
-
-/* Mermaid charts centre and scale. */
-.mermaid {
-  background: none;
-  border: none;
-  display: flex;
-  justify-content: center;
-}
-.mermaid svg {
-  max-width: 100%;
-  height: auto;
-}
-
-/* The operating loop on the index. */
-.sc-loop {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
-  gap: 1rem;
-  margin: 1.5rem 0;
-}
-.sc-loop-step {
-  border: 1px solid var(--sl-color-gray-5);
-  border-top: 3px solid var(--sl-color-accent);
-  border-radius: 0.4rem;
-  padding: 0.9rem 1rem;
-}
-.sc-loop-step p {
-  margin: 0.4rem 0 0;
-  font-size: 0.85rem;
-  color: var(--sl-color-gray-2);
-}
-.sc-loop-n {
-  display: inline-block;
-  width: 1.5rem;
-  height: 1.5rem;
-  line-height: 1.5rem;
-  text-align: center;
-  border-radius: 50%;
-  background: var(--sl-color-accent);
-  color: var(--sl-color-white);
-  font-weight: 700;
-  font-size: 0.8rem;
-  margin-right: 0.5rem;
-}
+/* ---------- KPI tiles ----------------------------------------------- */
 .sc-stats {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1.5rem;
-  color: var(--sl-color-gray-2);
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: 1px;
+  background: var(--ss-hairline); border: 1px solid var(--ss-hairline); border-radius: var(--ss-radius);
+  overflow: hidden; margin: 1.5rem 0 2rem; font-size: 0.8125rem; color: var(--ss-text-3);
 }
+.sc-stats > span { display: grid; gap: 0.15rem; padding: 0.9rem 1rem; background: var(--ss-surface); }
+.sc-stats strong { font-size: 1.5rem; font-weight: 650; letter-spacing: -0.03em; color: var(--ss-text); line-height: 1.1; }
 
-/* Artifact cards on service overviews, accent-coloured by kind. */
-.sc-artifacts {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
-  gap: 1rem;
-  margin: 1.5rem 0;
-}
+/* ---------- The operating loop -------------------------------------- */
+.sc-loop { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: 0.85rem; margin: 1.5rem 0; }
+.sc-loop-step { border: 1px solid var(--ss-hairline); border-radius: var(--ss-radius); padding: 1rem 1.1rem; background: var(--ss-surface); }
+.sc-loop-step strong { display: block; margin-top: 0.5rem; font-size: 0.9375rem; letter-spacing: -0.01em; }
+.sc-loop-step p { margin: 0.35rem 0 0; font-size: 0.85rem; line-height: 1.55; color: var(--ss-text-2); }
+.sc-loop-n { font-family: var(--ss-font-mono); font-size: 0.7rem; font-weight: 600; letter-spacing: 0.08em; color: var(--ss-accent); }
+
+/* ---------- Cards --------------------------------------------------- */
+.sc-artifacts { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: 0.85rem; margin: 1.25rem 0 2rem; }
 .sc-artifact-card {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  border: 1px solid var(--sl-color-gray-5);
-  border-top: 3px solid var(--sl-color-accent);
-  border-radius: 0.4rem;
-  padding: 0.9rem 1rem;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  display: flex; flex-direction: column; gap: 0.4rem; position: relative;
+  border: 1px solid var(--ss-hairline); border-radius: var(--ss-radius); background: var(--ss-surface);
+  padding: 1rem 1.1rem 0.9rem; box-shadow: var(--ss-shadow-sm);
+  transition: border-color var(--ss-dur) var(--ss-ease), box-shadow var(--ss-dur) var(--ss-ease), transform var(--ss-dur) var(--ss-ease);
 }
-.sc-artifact-card:hover {
-  border-color: var(--sl-color-gray-4);
-  box-shadow: var(--sl-shadow-sm);
+.sc-artifact-card:hover { border-color: var(--ss-hairline-strong); box-shadow: var(--ss-shadow-md); transform: translateY(-1px); }
+@media (prefers-reduced-motion: reduce) {
+  .sc-artifact-card { transition: none; }
+  .sc-artifact-card:hover { transform: none; }
 }
-.sc-artifact-card--openapi { border-top-color: #448aff; }
-.sc-artifact-card--asyncapi { border-top-color: #ff9100; }
-.sc-artifact-card--data-contract { border-top-color: #00c853; }
-.sc-artifact-card--feature { border-top-color: var(--sl-color-accent); }
-.sc-artifact-card--doc { border-top-color: var(--sl-color-gray-4); }
-.sc-artifact-kind {
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--sl-color-gray-3);
-}
-.sc-artifact-card h3 {
-  margin: 0;
-  font-size: 1rem;
-  line-height: 1.3;
-}
-.sc-artifact-card p {
-  margin: 0;
-  font-size: 0.85rem;
-  color: var(--sl-color-gray-2);
-  flex-grow: 1;
-}
-.sc-artifact-meta {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  font-size: 0.8rem;
-  color: var(--sl-color-gray-3);
-}
-.sc-artifact-meta .sc-raw {
-  margin-left: auto;
-}
+.sc-artifact-card h3 { margin: 0; font-size: 1rem; line-height: 1.3; letter-spacing: -0.01em; }
+.sc-artifact-card h3 a { color: var(--ss-text); text-decoration: none; }
+.sc-artifact-card h3 a::after { content: ''; position: absolute; inset: 0; }
+.sc-artifact-card p { margin: 0; font-size: 0.85rem; line-height: 1.5; color: var(--ss-text-2); flex-grow: 1; }
+.sc-artifact-meta { display: flex; align-items: center; gap: 0.6rem; font-size: 0.75rem; color: var(--ss-text-3); margin-top: 0.35rem; }
+.sc-artifact-meta > span:first-child { font-family: var(--ss-font-mono); }
+.sc-artifact-meta .sc-raw { margin-left: auto; position: relative; z-index: 1; color: var(--ss-text-3); text-decoration: none; border-bottom: 1px solid var(--ss-hairline-strong); }
+.sc-artifact-meta .sc-raw:hover { color: var(--ss-text); }
+.sc-artifact-card code { font-size: 0.75rem; }
 
-/* Binding-spec panel on gated artifact pages. */
+/* ---------- Surface rows (commands, channels, data products) --------- */
+.sc-rows { list-style: none; margin: 0.75rem 0 1.5rem; padding: 0; border: 1px solid var(--ss-hairline); border-radius: var(--ss-radius); overflow: hidden; background: var(--ss-surface); }
+.sc-rows li { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem 0.75rem; padding: 0.6rem 0.9rem; font-size: 0.875rem; margin: 0 !important; }
+.sc-rows li + li { border-top: 1px solid var(--ss-hairline); }
+.sc-rows a { color: var(--ss-text); text-decoration: none; font-weight: 600; }
+.sc-rows a:hover { color: var(--ss-accent); }
+.sc-rows code { font-size: 0.8125rem; }
+.sc-rows .sc-row-note { color: var(--ss-text-3); font-size: 0.8125rem; margin-left: auto; }
+.sc-rows .sc-row-note a { font-weight: 500; color: var(--ss-text-2); }
+
+/* ---------- Tables -------------------------------------------------- */
+.sc-table-wrap {
+  overflow-x: auto; border: 1px solid var(--ss-hairline); border-radius: var(--ss-radius);
+  margin: 0.75rem 0 1.25rem; background: var(--ss-surface);
+}
+.sl-markdown-content table.sc-table, .sc-table {
+  width: 100%; font-size: 0.8125rem; border: none; border-radius: 0; margin: 0;
+  border-collapse: separate; border-spacing: 0;
+}
+.sc-table th, .sc-table td { padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--ss-hairline); text-align: left; vertical-align: top; }
+.sc-table thead th { font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ss-text-2); font-weight: 600; background: var(--ss-surface-2); }
+.sc-table tbody tr:last-child td { border-bottom: none; }
+.sc-table tbody tr:hover td { background: color-mix(in srgb, var(--ss-surface-2) 55%, transparent); }
+.sc-table td code { font-size: 0.78rem; background: transparent; border: none; padding: 0; color: var(--ss-text); }
+.sc-table .sc-req { color: var(--ss-ok); font-weight: 600; }
+.sc-table .sc-opt { color: var(--ss-text-3); }
+.sc-table .sc-status { font-family: var(--ss-font-mono); font-weight: 600; }
+.sc-table .sc-status--1 { color: var(--ss-text-3); }
+.sc-table .sc-status--2 { color: var(--ss-ok); }
+.sc-table .sc-status--3 { color: var(--ss-accent); }
+.sc-table .sc-status--4 { color: var(--ss-warn); }
+.sc-table .sc-status--5 { color: var(--ss-danger); }
+
+/* ---------- Operation & channel blocks ------------------------------ */
+.sc-op, .sc-channel {
+  border: 1px solid var(--ss-hairline); border-radius: var(--ss-radius-lg); background: var(--ss-surface);
+  padding: 1.1rem 1.25rem 0.9rem; margin: 1.25rem 0 1.5rem; box-shadow: var(--ss-shadow-sm);
+}
+.sc-op > h3, .sc-channel > h2 { margin-top: 0 !important; }
+.sc-op > h3 code, .sc-channel > h2 code { font-size: 0.85em; background: transparent; border: none; padding: 0; }
+.sc-op-kind { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ss-text-3); font-weight: 600; }
+.sc-op h4, .sc-channel h4 { font-size: 0.75rem !important; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ss-text-3); margin: 1.25rem 0 0.4rem !important; }
+.sc-channel-links { color: var(--ss-text-2); font-size: 0.875rem; }
+.sc-channel-links a { font-weight: 600; }
+.sc-message { border-top: 1px solid var(--ss-hairline); padding-top: 0.75rem; margin-top: 1rem; }
+.sc-message > h3 { margin-top: 0 !important; }
+.sc-event-type { font-size: 0.8125rem; color: var(--ss-text-3); }
+.sc-event-type code { font-size: 0.78rem; }
+
+/* ---------- Gherkin ------------------------------------------------- */
+.sc-scenario {
+  border: 1px solid var(--ss-hairline); border-radius: var(--ss-radius); background: var(--ss-surface);
+  padding: 0.6rem 1rem; margin: 0.75rem 0 1.5rem; box-shadow: var(--ss-shadow-sm);
+}
+.sc-scenario ul { list-style: none; margin: 0; padding: 0; }
+.sc-scenario li { margin: 0.4rem 0 !important; font-size: 0.9rem; color: var(--ss-text); }
+.sc-kw {
+  display: inline-block; min-width: 3.6rem; text-align: right; margin-right: 0.6rem;
+  font-family: var(--ss-font-mono); font-size: 0.75rem; font-weight: 600; letter-spacing: 0.02em;
+}
+.sc-kw--given { color: var(--ss-kind-openapi); }
+.sc-kw--when { color: var(--ss-kind-asyncapi); }
+.sc-kw--then { color: var(--ss-kind-data); }
+.sc-scenario code { font-size: 0.8em; }
+.sc-scenario-count { font-size: 0.875rem; color: var(--ss-text-2); }
+
+/* ---------- Binding-spec panel -------------------------------------- */
 .sc-spec-panel {
-  border: 1px solid var(--sl-color-gray-5);
-  border-left: 4px solid var(--sl-color-accent);
-  border-radius: 0.3rem;
-  padding: 0.75rem 1rem;
-  margin: 1rem 0 1.5rem;
+  border: 1px solid var(--ss-hairline); border-radius: var(--ss-radius); background: var(--ss-surface-2);
+  padding: 0.8rem 1rem; margin: 1rem 0 1.5rem; font-size: 0.875rem;
 }
-.sc-spec-panel > p {
-  margin-top: 0;
-}
-.sc-spec-panel details {
-  margin: 0.4rem 0;
-}
+.sc-spec-panel > p { margin: 0 0 0.5rem; line-height: 1.8; color: var(--ss-text-2); }
+.sc-spec-panel > p .sc-chip { vertical-align: 0.15em; margin-right: 0.2rem; }
+.sc-spec-panel > p code { font-size: 0.78rem; }
+.sc-spec-panel details { margin: 0.35rem 0; background: var(--ss-surface); }
+.sc-spec-panel details > summary { font-size: 0.8125rem; }
+.sc-spec-panel ul { margin: 0.25rem 0 0.25rem 1rem; font-size: 0.8125rem; color: var(--ss-text-2); }
+
+/* ---------- Mermaid, embeds ----------------------------------------- */
+.mermaid { background: var(--ss-surface); border: 1px solid var(--ss-hairline); border-radius: var(--ss-radius); padding: 0.75rem; display: flex; justify-content: center; margin: 1rem 0; }
+.mermaid svg { max-width: 100%; height: auto; }
+.mermaid:not([data-processed]) { font-family: var(--ss-font-mono); font-size: 0.75rem; color: var(--ss-text-3); white-space: pre; overflow: auto; }
+.scalar-host, .asyncapi-host { border: 1px solid var(--ss-hairline); border-radius: var(--ss-radius); overflow: hidden; margin-top: 1rem; }
+[data-theme='dark'] .asyncapi-host { background: #ffffff; padding: 0.5rem 1rem; }
+.sc-graph { border: 1px solid var(--ss-hairline); border-radius: var(--ss-radius-lg); overflow: hidden; background: var(--ss-surface); box-shadow: var(--ss-shadow-sm); }
+.sc-graph-hint { font-size: 0.8125rem; color: var(--ss-text-3); margin: 0.5rem 0 0.75rem; }
+
+/* ---------- Changelog ----------------------------------------------- */
+.sc-release-meta { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; font-size: 0.8125rem; color: var(--ss-text-3); margin: -0.25rem 0 0.75rem; }
+.sc-release-meta a { color: var(--ss-text-2); }
+.sc-release-meta code { font-size: 0.78rem; }
+
+/* ---------- Starlight prose-rule overrides ------------------------- */
+/* Starlight adds margin-top to every sibling inside markdown content;
+   grids, rows and meta strips lay out their own children. */
+.sl-markdown-content :is(.sc-loop, .sc-artifacts, .sc-stats, .sc-rows, .sc-page-meta, .sc-artifact-meta, .sc-release-meta) > * + * { margin-top: 0; }
+.sl-markdown-content .sc-artifact-card > * + * { margin-top: 0; }
+/* Starlight renders tables as scrollable blocks; inside .sc-table-wrap the
+   wrapper scrolls and the table spans the frame. */
+.sl-markdown-content table.sc-table { display: table; table-layout: auto; }
+.sl-markdown-content .sc-table-wrap > * + * { margin-top: 0; }
+.sl-markdown-content .sc-table thead th { background: var(--ss-surface-2); }
+.sc-op-id { font-family: var(--ss-font-mono); font-size: 0.8125rem; color: var(--ss-text-3); font-weight: 500; }

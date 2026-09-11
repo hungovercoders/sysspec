@@ -8,9 +8,13 @@ interface Props {
 const { odcs, erMermaid } = Astro.props;
 const description = odcs.description ?? {};
 ---
-<p>
-  <strong>Status:</strong> {odcs.status} · <strong>Domain:</strong> {odcs.domain} ·
-  <strong>Data product:</strong> {odcs.dataProduct}
+<p class="sc-page-meta">
+  <span class={`sc-chip ${odcs.status === 'active' ? 'sc-chip--ok' : ''}`}>{odcs.status}</span>
+  <span class="sc-sep">·</span>
+  <span>{odcs.domain}</span>
+  <span class="sc-sep">·</span>
+  <span>data product <code>{odcs.dataProduct}</code></span>
+  {odcs.tenant && <><span class="sc-sep">·</span><span>tenant <code>{odcs.tenant}</code></span></>}
 </p>
 
 {description.purpose && <><h2>Purpose</h2><p>{description.purpose}</p></>}

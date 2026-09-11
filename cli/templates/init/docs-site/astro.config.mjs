@@ -51,7 +51,15 @@ export default defineConfig({
     starlight({
       title: 'System specs',
       pagefind: true,
-      customCss: ['./src/styles/specs.css'],
+      customCss: ['./src/styles/fonts.css', './src/styles/theme.css', './src/styles/specs.css'],
+      components: {
+        SiteTitle: './src/components/SiteTitle.astro',
+        Footer: './src/components/Footer.astro',
+      },
+      expressiveCode: {
+        themes: ['github-dark-default', 'github-light'],
+        styleOverrides: { borderRadius: '10px', codeFontFamily: 'var(--ss-font-mono)', codeFontSize: '0.8125rem' },
+      },
       sidebar: [
         { label: 'Overview', link: '/' },
         { label: 'Drive an implementation', link: '/implementing/' },

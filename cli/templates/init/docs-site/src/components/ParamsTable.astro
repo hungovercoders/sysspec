@@ -7,7 +7,7 @@ interface Props {
 const { params } = Astro.props;
 ---
 {params.length > 0 && (
-  <table>
+  <div class="sc-table-wrap"><table class="sc-table">
     <thead>
       <tr><th>Parameter</th><th>In</th><th>Type</th><th>Required</th></tr>
     </thead>
@@ -17,9 +17,9 @@ const { params } = Astro.props;
           <td><code>{p.name}</code></td>
           <td>{p.in}</td>
           <td>{p.type}</td>
-          <td>{p.required ? 'yes' : 'no'}</td>
+          <td>{p.required ? <span class="sc-req">required</span> : <span class="sc-opt">optional</span>}</td>
         </tr>
       ))}
     </tbody>
-  </table>
+  </table></div>
 )}

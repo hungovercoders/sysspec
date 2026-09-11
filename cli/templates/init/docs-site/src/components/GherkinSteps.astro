@@ -22,7 +22,7 @@ const segments = (text: string) =>
     if (step.table)
       return (
         <li>
-          <table>
+          <div class="sc-table-wrap"><table class="sc-table">
             <thead>
               <tr>{step.table[0].map((c) => <th>{c}</th>)}</tr>
             </thead>
@@ -31,7 +31,7 @@ const segments = (text: string) =>
                 <tr>{row.map((c) => <td>{c}</td>)}</tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         </li>
       );
     if (step.heading) return <li><strong>{step.heading}</strong></li>;

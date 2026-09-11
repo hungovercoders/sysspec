@@ -1,0 +1,183 @@
+---
+// The marketing landing page. A bespoke page inside Starlight's chrome
+// (header, theme, search) rather than the stock splash template.
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import { Code } from 'astro:components';
+import Mark from '../components/Mark.astro';
+import '../styles/landing.css';
+import { DEMO_SITE_URL, DEMO_SITE_IS_LIVE, GITHUB_URL, NPM_CLI_URL } from '../lib/links';
+
+const artifacts = [
+  { kind: 'openapi', label: 'OpenAPI', file: 'orders.openapi.yaml', v: '3.2.0' },
+  { kind: 'asyncapi', label: 'AsyncAPI', file: 'orders.asyncapi.yaml', v: '3.0.0' },
+  { kind: 'data', label: 'ODCS', file: 'orders-events.odcs.yaml', v: '1.2.0' },
+  { kind: 'feature', label: 'Gherkin', file: 'place-order.feature', v: '2.2.0' },
+];
+const gates = [
+  ['check:version', 'artifact + service bumped'],
+  ['check:compat', 'breaking ⇒ major'],
+  ['check:intent', 'every added element named in a scenario'],
+  ['contract:test', '14 exchanges validated'],
+];
+const tools = ['get_service("orders")', 'get_message_schema("orders", "OrderPlaced")', 'trace_channel("orders.placed.v2")'];
+
+const features = [
+  { title: 'Versioned by gate, not by habit', body: 'Any change to a contract must bump its artifact and service version; breaking changes must take a major. CI refuses everything else — there is no escape hatch.', icon: 'gate' },
+  { title: 'Intent stated before shape', body: 'Every schema element added to an OpenAPI or AsyncAPI contract must be named in an acceptance scenario. If it is not worth a scenario, it is not worth adding.', icon: 'intent' },
+  { title: 'Mocks straight from the contracts', body: 'Microcks stands up REST and event mocks from your specs, so consumers and UIs build before any implementation exists.', icon: 'mock' },
+  { title: 'Contract testing that cannot be gamed', body: 'Implementations pin a released tag, fetch it read-only, and prove conformance — including a negative control that must fail against a service that proves nothing.', icon: 'test' },
+  { title: 'Read-only MCP for agents', body: 'Seven narrow tools serve exactly the artifact, message or scenario needed. Agents build from the record, never from a remembered copy.', icon: 'mcp' },
+  { title: 'A catalog you would ship', body: 'Every spec suite publishes a searchable catalog — rendered contracts, acceptance criteria, data products, an interactive system graph, release history.', icon: 'catalog' },
+];
+const icons: Record<string, string> = {
+  gate: 'M4 12h16M4 6h16M4 18h16',
+  intent: 'M12 3v18M3 12h18',
+  mock: 'M4 5h16v14H4zM4 10h16',
+  test: 'M5 12l4 4L19 6',
+  mcp: 'M6 6h12v12H6zM9 9h6v6H9z',
+  catalog: 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z',
+};
+---
+<StarlightPage frontmatter={{ title: 'sysspec', description: 'System specs first — AsyncAPI, OpenAPI, ODCS data contracts and Gherkin as enforceable system intent, with deterministic gates.', template: 'splash', tableOfContents: false }}>
+<div class="not-content ss-landing">
+  <section class="ss-hero">
+    <div class="ss-hero-copy">
+      <p class="ss-eyebrow"><span class="ss-dot"></span>Open source · MIT · <code>npx -y sysspec init</code></p>
+      <h1>System specs first.</h1>
+      <p class="ss-lede">
+        Write down what the system is intended to do. Make that the contract both
+        engineers and AI agents build from — versioned deliberately, reached only
+        through tools, enforced mechanically in CI.
+      </p>
+      <div class="ss-actions">
+        <a class="ss-btn ss-btn--primary" href="/getting-started/">Get started</a>
+        <a class="ss-btn ss-btn--secondary" href={DEMO_SITE_URL}>{DEMO_SITE_IS_LIVE ? 'See the live catalog' : 'See the example suite'}</a>
+      </div>
+      <div class="ss-install" role="group" aria-label="Install command">
+        <span class="ss-install-prompt">$</span>
+        <code>npx -y sysspec init my-specs --org com.acme</code>
+      </div>
+    </div>
+
+    <div class="ss-hero-visual" aria-label="How sysspec works: specs, gates, agents">
+      <div class="ss-panel ss-panel--specs">
+        <div class="ss-panel-head"><span>specs/orders</span><span class="ss-chip ss-chip--ok">v3.3.0 · released</span></div>
+        <ul class="ss-artifacts">
+          {artifacts.map((a) => (
+            <li>
+              <span class={`ss-kind ss-kind--${a.kind}`}>{a.label}</span>
+              <span class="ss-mono">{a.file}</span>
+              <span class="ss-muted">v{a.v}</span>
+              <span class="ss-chip ss-chip--gated">gated</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div class="ss-flow-arrow" aria-hidden="true"></div>
+      <div class="ss-panel ss-panel--gates">
+        <div class="ss-panel-head"><span>task ci</span><span class="ss-chip ss-chip--ok">green</span></div>
+        <ul class="ss-gates">
+          {gates.map(([name, note]) => (
+            <li><span class="ss-tick" aria-hidden="true"></span><span class="ss-mono">{name}</span><span class="ss-muted">{note}</span></li>
+          ))}
+        </ul>
+      </div>
+      <div class="ss-flow-arrow" aria-hidden="true"></div>
+      <div class="ss-panel ss-panel--agents">
+        <div class="ss-panel-head"><span>sysspec-mcp</span><span class="ss-chip">read-only</span></div>
+        <ul class="ss-tools">
+          {tools.map((t) => <li><span class="ss-mono">{t}</span></li>)}
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="ss-standards" aria-label="Standards sysspec builds on">
+    <span>Built on open standards</span>
+    <ul>
+      <li>AsyncAPI 3</li><li>OpenAPI 3.1</li><li>ODCS</li><li>Gherkin</li><li>CloudEvents</li><li>MCP</li><li>Microcks</li>
+    </ul>
+  </section>
+
+  <section class="ss-section">
+    <div class="ss-section-head">
+      <p class="ss-kicker">Why it holds</p>
+      <h2>Specs that do double duty</h2>
+      <p class="ss-sub">Documentation drifts toward whatever the code happens to do. sysspec inverts that: the implementation conforms to the spec, never the other way round.</p>
+    </div>
+    <div class="ss-duo">
+      <article class="ss-duo-card">
+        <h3>Context to build from</h3>
+        <p>Engineers and agents read the specs over MCP at implementation time instead of guessing from code — the exact message, scenario or section they need, with its authority class attached.</p>
+        <Code lang="text" code={`> get_acceptance_criteria("orders", names_only=true)
+  Replaying an idempotency key returns the original order
+  A conflicting body on a used idempotency key is rejected
+  A settled payment marks the order paid`} />
+      </article>
+      <article class="ss-duo-card">
+        <h3>Deterministic gates</h3>
+        <p>The same specs are packaged and consumed by implementations for local and CI testing. They cannot be quietly amended to make failing code pass — they live and version separately from every implementation.</p>
+        <Code lang="text" code={`$ task check:intent
+Schema additions with no stated behaviour:
+  orders: new schema element 'idempotency-key'
+  is not mentioned in specs/orders/features/*.feature`} />
+      </article>
+    </div>
+  </section>
+
+  <section class="ss-section">
+    <div class="ss-section-head">
+      <p class="ss-kicker">The loop</p>
+      <h2>How it works</h2>
+    </div>
+    <ol class="ss-steps">
+      <li><span class="ss-step-n">01</span><h3>Specify intent</h3><p>Author contracts and acceptance criteria in a spec repo of their own. Every change is a deliberate, versioned act; merges publish <code>&lt;service&gt;/v&lt;version&gt;</code> tags.</p></li>
+      <li><span class="ss-step-n">02</span><h3>Build with context</h3><p>Agents and engineers read the record over MCP. The plugin's skills drive the authoring, implementing and consuming journeys end to end.</p></li>
+      <li><span class="ss-step-n">03</span><h3>Converge on gates</h3><p>Implementations pin a release in <code>contracts.lock</code>, fetch it read-only and prove conformance: contract tests, strict-bound scenarios, the negative control, schema fuzz.</p></li>
+    </ol>
+  </section>
+
+  <section class="ss-section">
+    <div class="ss-section-head">
+      <p class="ss-kicker">Capabilities</p>
+      <h2>Everything a spec suite needs, by reference</h2>
+      <p class="ss-sub">The scaffold owns only its specs. Gates, mocks, docs, the MCP server and CI arrive as pinned references and stay current through Renovate.</p>
+    </div>
+    <div class="ss-grid">
+      {features.map((f) => (
+        <article class="ss-feature">
+          <svg class="ss-feature-icon" viewBox="0 0 24 24" aria-hidden="true"><path d={icons[f.icon]} fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <h3>{f.title}</h3>
+          <p>{f.body}</p>
+        </article>
+      ))}
+    </div>
+  </section>
+
+  <section class="ss-section">
+    <div class="ss-section-head">
+      <p class="ss-kicker">Go deeper</p>
+      <h2>The pieces</h2>
+    </div>
+    <div class="ss-links">
+      <a href="/model/"><strong>The model</strong><span>Services, gated artifacts, versioned change.</span></a>
+      <a href="/conventions/"><strong>Conventions</strong><span>The house rules the linters enforce.</span></a>
+      <a href="/cli/"><strong>CLI — sysspec</strong><span>Gates, lint, docs, mocks, contract testing, init.</span></a>
+      <a href="/mcp/"><strong>MCP server — sysspec-mcp</strong><span>Seven read-only tools, stdio or a URL.</span></a>
+      <a href="/plugin-and-skills/"><strong>Plugin &amp; skills</strong><span>Tools plus three journey-driving skills.</span></a>
+      <a href="/gates-and-ci/"><strong>Gates and CI</strong><span><code>task ci</code> is the definition of green.</span></a>
+    </div>
+  </section>
+
+  <section class="ss-cta">
+    <Mark size={40} />
+    <h2>Start a spec suite in one command.</h2>
+    <p>Green from the first commit. Your first real service replaces the starter.</p>
+    <div class="ss-actions">
+      <a class="ss-btn ss-btn--primary" href="/getting-started/">Getting started</a>
+      <a class="ss-btn ss-btn--secondary" href={GITHUB_URL}>GitHub</a>
+      <a class="ss-btn ss-btn--ghost" href={NPM_CLI_URL}>npm</a>
+    </div>
+  </section>
+</div>
+</StarlightPage>

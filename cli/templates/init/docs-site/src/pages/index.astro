@@ -60,18 +60,18 @@ const lastRelease = services
     </div>
   </div>
 
-  <p class="sc-stats">
+  <div class="sc-stats">
     <span><strong>{services.length}</strong> service{services.length === 1 ? '' : 's'}</span>
     <span><strong>{gatedCount}</strong> binding specs</span>
     <span><strong>{channelCount}</strong> channels</span>
-    {lastRelease && <span>last release <strong>{lastRelease}</strong></span>}
-  </p>
+    {lastRelease && <span><strong>{lastRelease}</strong> last release</span>}
+  </div>
 
   <h2>Services</h2>
   <div class="sc-artifacts">
     {services.map((s) => (
       <div class="sc-artifact-card">
-        <span class="sc-artifact-kind">{s.domain}</span>
+        <span class="sc-kind-label">{s.domain}</span>
         <h3>
           <a href={withBase(`/services/${s.name}/`)}>{s.title}</a>
           {s.ahead && (
@@ -90,14 +90,14 @@ const lastRelease = services
   </div>
 
   <h2>Message flow</h2>
-  <p>
+  <p class="sc-graph-hint">
     Click a node to trace its connections; double-click a service to open it.
   </p>
-  <SystemGraph
+  <div class="sc-graph"><SystemGraph
     client:only="react"
     services={graphServices}
     edges={edges}
     unconsumed={unconsumed}
     base={base}
-  />
+  /></div>
 </StarlightPage>
