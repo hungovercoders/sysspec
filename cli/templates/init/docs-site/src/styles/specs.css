@@ -101,7 +101,9 @@
 .sc-table .sc-req { color: var(--ss-ok); font-weight: 600; }
 .sc-table .sc-opt { color: var(--ss-text-3); }
 .sc-table .sc-status { font-family: var(--ss-font-mono); font-weight: 600; }
+.sc-table .sc-status--1 { color: var(--ss-text-3); }
 .sc-table .sc-status--2 { color: var(--ss-ok); }
+.sc-table .sc-status--3 { color: var(--ss-accent); }
 .sc-table .sc-status--4 { color: var(--ss-warn); }
 .sc-table .sc-status--5 { color: var(--ss-danger); }
 

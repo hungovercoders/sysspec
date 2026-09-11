@@ -150,4 +150,5 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .ss-btn, .ss-links a, .ss-feature { transition: none; }
+  .ss-btn:hover, .ss-links a:hover { transform: none; }
 }

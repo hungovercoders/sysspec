@@ -3,7 +3,7 @@
 // keeping Starlight's pagination on docs pages.
 import Pagination from '@astrojs/starlight/components/Pagination.astro';
 import Mark from './Mark.astro';
-import { GITHUB_URL, NPM_CLI_URL, NPM_MCP_URL, DEMO_SITE_URL } from '../lib/links';
+import { GITHUB_URL, NPM_CLI_URL, NPM_MCP_URL, DEMO_SITE_URL, DEMO_SITE_IS_LIVE } from '../lib/links';
 
 const isSplash = Astro.locals.starlightRoute.entry.data.template === 'splash';
 const groups = [
@@ -21,7 +21,8 @@ const groups = [
   ]},
   { title: 'Project', links: [
     ['GitHub', GITHUB_URL], ['sysspec on npm', NPM_CLI_URL],
-    ['sysspec-mcp on npm', NPM_MCP_URL], ['Example catalog', DEMO_SITE_URL],
+    ['sysspec-mcp on npm', NPM_MCP_URL],
+    [DEMO_SITE_IS_LIVE ? 'Example catalog' : 'Example spec suite', DEMO_SITE_URL],
   ]},
 ];
 ---
