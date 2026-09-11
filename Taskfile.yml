@@ -14,6 +14,7 @@ tasks:
       - task: lint
       - task: check:version
       - task: check:plugin
+      - task: check:notices
       # dist checks run before the tests: the test suites execute the
       # committed bundles, so a stale dist must fail fast, not pass tests.
       - task: check:cli
@@ -33,6 +34,13 @@ tasks:
         git fetch -q origin main 2>/dev/null || true
         node {{.ROOT_DIR}}/cli/dist/cli.mjs check surface --base "origin/${GITHUB_BASE_REF:-main}" \
           --version-file .claude-plugin/plugin.json --paths cli/,mcp/,skills/,.claude-plugin/,.mcp.json
+
+  check:notices:
+    desc: The scaffold's copy of the third-party notices generator must match the canonical one
+    cmds:
+      - |
+        diff -q scripts/third-party-notices.mjs cli/templates/init/docs-site/scripts/third-party-notices.mjs \
+          || { echo "check:notices: cli/templates/init/docs-site/scripts/third-party-notices.mjs differs from scripts/third-party-notices.mjs - copy the canonical one over"; exit 1; }
 
   check:cli:
     desc: Changes under cli/ must bump the sysspec package version

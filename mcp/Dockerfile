@@ -12,13 +12,18 @@
 FROM node:24-slim AS build
 WORKDIR /build
 COPY mcp/package.json mcp/package-lock.json mcp/tsconfig.json mcp/tsup.config.ts ./
+COPY scripts/third-party-notices.mjs /scripts/third-party-notices.mjs
 RUN npm ci --no-audit --no-fund
 COPY mcp/src ./src
-RUN npx tsup
+RUN npm run build
 
 FROM node:24-slim
 WORKDIR /app
 COPY --from=build /build/dist/stdio.mjs ./sysspec-mcp.mjs
+# The bundle inlines its dependencies; their notices and this project's
+# license travel with it.
+COPY --from=build /build/dist/THIRD_PARTY_NOTICES.txt ./THIRD_PARTY_NOTICES.txt
+COPY LICENSE ./LICENSE
 COPY specs ./specs
 
 # Host-allowlist hardening for a public hostname is opt-in:
