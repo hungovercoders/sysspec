@@ -12,6 +12,7 @@ on:
   pull_request:
     paths:
       - "website/**"
+      - "scripts/third-party-notices.mjs"
       - ".github/workflows/site-preview.yml"
 
 permissions:
