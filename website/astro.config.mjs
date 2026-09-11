@@ -10,8 +10,10 @@ import starlight from '@astrojs/starlight';
 // SYSSPEC_SITE_URL (a repository variable, like SYSSPEC_DEMO_URL) is the
 // deployed URL: with it set, builds emit a sitemap and canonical/og:url
 // tags; without it (local builds) Astro simply skips them.
+const siteUrl = (process.env.SYSSPEC_SITE_URL || '').replace(/\/$/, '');
+
 export default defineConfig({
-  site: process.env.SYSSPEC_SITE_URL || undefined,
+  site: siteUrl || undefined,
   integrations: [
     starlight({
       title: 'sysspec',
@@ -25,8 +27,14 @@ export default defineConfig({
         styleOverrides: { borderRadius: '10px', codeFontFamily: 'var(--ss-font-mono)', codeFontSize: '0.8125rem' },
       },
       head: [
-        { tag: 'meta', attrs: { property: 'og:image', content: `${(process.env.SYSSPEC_SITE_URL || '').replace(/\/$/, '')}/og.png` } },
-        { tag: 'meta', attrs: { name: 'twitter:card', content: 'summary_large_image' } },
+        // og:image must be absolute, so the social card is only advertised
+        // when the deployed origin is known (local/preview builds omit it).
+        ...(siteUrl
+          ? [
+              { tag: 'meta', attrs: { property: 'og:image', content: `${siteUrl}/og.png` } },
+              { tag: 'meta', attrs: { name: 'twitter:card', content: 'summary_large_image' } },
+            ]
+          : []),
         { tag: 'meta', attrs: { name: 'theme-color', content: '#2456e6' } },
       ],
       description:
