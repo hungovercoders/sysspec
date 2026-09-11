@@ -16,13 +16,17 @@ COPY scripts/third-party-notices.mjs /scripts/third-party-notices.mjs
 RUN npm ci --no-audit --no-fund
 COPY mcp/src ./src
 RUN npm run build
+# The image ships stdio.mjs alone, so its notices are generated for that
+# bundle (npm's dist/THIRD_PARTY_NOTICES.txt covers both entrypoints).
+RUN node /scripts/third-party-notices.mjs --title "the sysspec-mcp container image (sysspec-mcp.mjs)" \
+      --bundle dist/stdio.mjs --out dist/THIRD_PARTY_NOTICES.image.txt
 
 FROM node:24-slim
 WORKDIR /app
 COPY --from=build /build/dist/stdio.mjs ./sysspec-mcp.mjs
 # The bundle inlines its dependencies; their notices and this project's
 # license travel with it.
-COPY --from=build /build/dist/THIRD_PARTY_NOTICES.txt ./THIRD_PARTY_NOTICES.txt
+COPY --from=build /build/dist/THIRD_PARTY_NOTICES.image.txt ./THIRD_PARTY_NOTICES.txt
 COPY LICENSE ./LICENSE
 COPY specs ./specs
 
