@@ -280,6 +280,10 @@ site-search button[data-open-modal] { border-radius: var(--ss-radius); border: 1
 .card .title { font-size: 1rem; }
 .sl-link-card { border: 1px solid var(--ss-hairline); border-radius: var(--ss-radius); background: var(--ss-surface); box-shadow: var(--ss-shadow-sm); transition: border-color var(--ss-dur) var(--ss-ease), box-shadow var(--ss-dur) var(--ss-ease), transform var(--ss-dur) var(--ss-ease); }
 .sl-link-card:hover { border-color: var(--ss-hairline-strong); box-shadow: var(--ss-shadow-md); transform: translateY(-1px); background: var(--ss-surface); }
+@media (prefers-reduced-motion: reduce) {
+  .sl-link-button, .sl-link-card { transition: none; }
+  .sl-link-button.primary:hover, .sl-link-card:hover { transform: none; }
+}
 .sl-link-card .title { font-weight: 600; }
 .sl-link-card .description { color: var(--ss-text-2); font-size: 0.875rem; }
 .starlight-aside { border-radius: var(--ss-radius); border-inline-start-width: 3px; }

@@ -19,8 +19,11 @@ const { chart } = Astro.props;
     mermaid.initialize({
       startOnLoad: false,
       securityLevel: 'loose',
-      theme: theme() === 'dark' ? 'dark' : 'base',
+      // Only the base theme is documented to honour themeVariables; darkMode
+      // switches its derived colours (borders, label backgrounds) per theme.
+      theme: 'base',
       themeVariables: {
+        darkMode: theme() === 'dark',
         fontFamily: v('--ss-font-sans') || 'sans-serif',
         fontSize: '13px',
         primaryColor: v('--ss-surface-2'),
