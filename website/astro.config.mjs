@@ -15,6 +15,20 @@ export default defineConfig({
   integrations: [
     starlight({
       title: 'sysspec',
+      customCss: ['./src/styles/fonts.css', './src/styles/theme.css'],
+      components: {
+        SiteTitle: './src/components/SiteTitle.astro',
+        Footer: './src/components/Footer.astro',
+      },
+      expressiveCode: {
+        themes: ['github-dark-default', 'github-light'],
+        styleOverrides: { borderRadius: '10px', codeFontFamily: 'var(--ss-font-mono)', codeFontSize: '0.8125rem' },
+      },
+      head: [
+        { tag: 'meta', attrs: { property: 'og:image', content: '/og.png' } },
+        { tag: 'meta', attrs: { name: 'twitter:card', content: 'summary_large_image' } },
+        { tag: 'meta', attrs: { name: 'theme-color', content: '#2456e6' } },
+      ],
       description:
         'System specs first: AsyncAPI, OpenAPI, ODCS data contracts and Gherkin as enforceable system intent, with deterministic gates.',
       pagefind: true,

@@ -1,0 +1,66 @@
+---
+// Starlight `Footer` override: a product footer with grouped links,
+// keeping Starlight's pagination on docs pages.
+import Pagination from '@astrojs/starlight/components/Pagination.astro';
+import Mark from './Mark.astro';
+import { GITHUB_URL, NPM_CLI_URL, NPM_MCP_URL, DEMO_SITE_URL } from '../lib/links';
+
+const isSplash = Astro.locals.starlightRoute.entry.data.template === 'splash';
+const groups = [
+  { title: 'Product', links: [
+    ['Getting started', '/getting-started/'], ['The model', '/model/'],
+    ['Conventions', '/conventions/'], ['Gates and CI', '/gates-and-ci/'],
+  ]},
+  { title: 'Reference', links: [
+    ['CLI', '/cli/'], ['MCP server', '/mcp/'],
+    ['Plugin & skills', '/plugin-and-skills/'], ['Mock example files', '/mocks-examples/'],
+  ]},
+  { title: 'Journeys', links: [
+    ['Implement or consume', '/implement-and-consume/'], ['contracts.lock', '/contracts-lock/'],
+    ['Live demo', '/demo/'],
+  ]},
+  { title: 'Project', links: [
+    ['GitHub', GITHUB_URL], ['sysspec on npm', NPM_CLI_URL],
+    ['sysspec-mcp on npm', NPM_MCP_URL], ['Example catalog', DEMO_SITE_URL],
+  ]},
+];
+---
+{!isSplash && <div class="ss-pagination"><Pagination /></div>}
+<footer class="ss-footer">
+  <div class="ss-footer-inner">
+    <div class="ss-footer-brand">
+      <a href="/" class="ss-footer-logo"><Mark size={24} /><span>sysspec</span></a>
+      <p>System specs first. Intent authored once, versioned deliberately, enforced mechanically.</p>
+      <p class="ss-footer-fine">MIT licensed · Hungovercoders</p>
+    </div>
+    {groups.map((g) => (
+      <div class="ss-footer-group">
+        <h3>{g.title}</h3>
+        <ul>{g.links.map(([label, href]) => <li><a href={href}>{label}</a></li>)}</ul>
+      </div>
+    ))}
+  </div>
+</footer>
+
+<style>
+  .ss-pagination { margin-top: 2rem; }
+  .ss-footer {
+    margin-top: 4rem;
+    border-top: 1px solid var(--ss-hairline);
+    background: var(--ss-canvas);
+    color: var(--ss-text-2);
+    font-size: 0.875rem;
+  }
+  .ss-footer-inner {
+    max-width: 72rem; margin: 0 auto; padding: 3rem 1.5rem 2.5rem;
+    display: grid; grid-template-columns: 1.6fr repeat(4, 1fr); gap: 2rem;
+  }
+  .ss-footer-logo { display: inline-flex; align-items: center; gap: 0.55rem; color: var(--ss-text); font-weight: 650; letter-spacing: -0.03em; text-decoration: none; font-size: 1.05rem; }
+  .ss-footer-brand p { margin: 0.75rem 0 0; max-width: 26ch; line-height: 1.5; }
+  .ss-footer-fine { color: var(--ss-text-3); font-size: 0.8125rem; }
+  .ss-footer-group h3 { margin: 0 0 0.75rem; font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ss-text-3); font-weight: 600; }
+  .ss-footer-group ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.45rem; }
+  .ss-footer-group a { color: var(--ss-text-2); text-decoration: none; }
+  .ss-footer-group a:hover { color: var(--ss-text); }
+  @media (max-width: 60rem) { .ss-footer-inner { grid-template-columns: 1fr 1fr; } .ss-footer-brand { grid-column: 1 / -1; } }
+</style>
