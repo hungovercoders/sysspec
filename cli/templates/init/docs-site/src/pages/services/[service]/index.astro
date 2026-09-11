@@ -81,25 +81,27 @@ const headings = [
   frontmatter={{ title: service.title, description: service.summary }}
   headings={headings}
 >
-  <p>
-    <strong>v{service.version ?? '—'}</strong> ·
-    {service.domain} · <code>{service.owner}</code>
+  <p class="sc-page-meta">
+    <span class="sc-version">v{service.version ?? '—'}</span>
+    <span class="sc-sep">·</span>
+    <span>{service.domain}</span>
+    <span class="sc-sep">·</span>
+    <code>{service.owner}</code>
+    {pin && !service.ahead && <span class="sc-chip sc-chip--ok">released {pin.tag}</span>}
+    {service.ahead && <span class="sc-chip sc-chip--warn">spec ahead of release</span>}
     {service.implementation_repo && (
       <>
-        {' '}·{' '}
-        <a href={`https://github.com/${service.implementation_repo}`}>
-          {service.implementation_repo}
-        </a>
+        <span class="sc-sep">·</span>
+        <a href={`https://github.com/${service.implementation_repo}`}>{service.implementation_repo}</a>
       </>
     )}
   </p>
-  <p>{service.summary}</p>
+  <p class="sc-summary">{service.summary}</p>
 
   {service.ahead && (
-    <p>
-      <span class="sc-chip sc-chip--gated">spec ahead of release</span>{' '}
-      This spec is at <strong>v{service.version}</strong>, ahead of the last
-      release{pin && <> (<code>{pin.tag}</code>)</>} — it is the surface the
+    <p class="sc-notice">
+      This spec is at <strong>&nbsp;v{service.version}&nbsp;</strong>, ahead of the last
+      release{pin && <>&nbsp;(<code>{pin.tag}</code>)</>} — it is the surface the
       next implementation change converges on.
     </p>
   )}
@@ -107,11 +109,11 @@ const headings = [
   {hasSurface && (
     <>
       <h2 id="at-a-glance">At a glance</h2>
-      <p>
+      <p class="sc-graph-hint">
         Click a node to trace its connections; double-click a service to open
         it.
       </p>
-      <SystemGraph
+      <div class="sc-graph"><SystemGraph
         client:only="react"
         services={graphServices}
         edges={edges}
@@ -119,7 +121,7 @@ const headings = [
         base={base}
         focus={service.name}
         height={380}
-      />
+      /></div>
     </>
   )}
 
@@ -127,7 +129,7 @@ const headings = [
   <div class="sc-artifacts">
     {sortedArtifacts(service).map((a) => (
       <div class={`sc-artifact-card sc-artifact-card--${a.kind}`}>
-        <span class="sc-artifact-kind">{FORMATS[a.kind]}</span>
+        <span class={`sc-kind-label sc-kind-label--${a.kind}`}>{FORMATS[a.kind]}</span>
         <h3><a href={artifactPage(service.name, a)}>{cardTitle(a)}</a></h3>
         <p>{a.summary}</p>
         <span class="sc-artifact-meta">
@@ -181,15 +183,16 @@ sha: ${pin.sha}`}</code></pre>
   {commands.length > 0 && (
     <>
       <h2 id="commands">Commands</h2>
-      <ul>
+      <ul class="sc-rows">
         {commands.map((o) => (
           <li>
+            <span class={`sc-method sc-method--${o.method.toLowerCase()}`}>{o.method}</span>
             {openapiPage ? (
-              <a href={`${openapiPage}#${anchor(o.op_id)}`}><code>{o.op_id}</code></a>
+              <a href={`${openapiPage}#${anchor(o.op_id)}`}>{o.op_id}</a>
             ) : (
-              <code>{o.op_id}</code>
-            )}{' '}
-            — <code>{o.method} {o.path}</code>
+              <strong>{o.op_id}</strong>
+            )}
+            <span class="sc-row-note"><code>{o.path}</code></span>
           </li>
         ))}
       </ul>
@@ -198,15 +201,16 @@ sha: ${pin.sha}`}</code></pre>
   {queries.length > 0 && (
     <>
       <h2 id="queries">Queries</h2>
-      <ul>
+      <ul class="sc-rows">
         {queries.map((o) => (
           <li>
+            <span class={`sc-method sc-method--${o.method.toLowerCase()}`}>{o.method}</span>
             {openapiPage ? (
-              <a href={`${openapiPage}#${anchor(o.op_id)}`}><code>{o.op_id}</code></a>
+              <a href={`${openapiPage}#${anchor(o.op_id)}`}>{o.op_id}</a>
             ) : (
-              <code>{o.op_id}</code>
-            )}{' '}
-            — <code>{o.method} {o.path}</code>
+              <strong>{o.op_id}</strong>
+            )}
+            <span class="sc-row-note"><code>{o.path}</code></span>
           </li>
         ))}
       </ul>
@@ -216,7 +220,7 @@ sha: ${pin.sha}`}</code></pre>
   {service.produces.length > 0 && (
     <>
       <h2 id="produces">Produces</h2>
-      <ul>
+      <ul class="sc-rows">
         {service.produces.map((address) => {
           const consuming = consumerLinks(address);
           const href = channelHref(address);
@@ -228,17 +232,17 @@ sha: ${pin.sha}`}</code></pre>
                 <code>{address}</code>
               )}
               {consuming.length > 0 ? (
-                <>
-                  {' '}— consumed by{' '}
+                <span class="sc-row-note">
+                  consumed by{' '}
                   {consuming.map((c, i) => (
                     <>
                       {i > 0 && ', '}
                       <a href={withBase(`/services/${c.name}/`)}>{c.title}</a>
                     </>
                   ))}
-                </>
+                </span>
               ) : (
-                <> — no consumer in the specs</>
+                <span class="sc-row-note">no consumer in the specs</span>
               )}
             </li>
           );
@@ -249,7 +253,7 @@ sha: ${pin.sha}`}</code></pre>
   {service.consumes.length > 0 && (
     <>
       <h2 id="consumes">Consumes</h2>
-      <ul>
+      <ul class="sc-rows">
         {service.consumes.map((address) => {
           const producer = channelProducers[address];
           return (
@@ -258,9 +262,9 @@ sha: ${pin.sha}`}</code></pre>
                 <>
                   <a href={channelHref(address)}>
                     <code>{address}</code>
-                  </a>{' '}
-                  — produced by{' '}
-                  <a href={withBase(`/services/${producer.name}/`)}>{producer.title}</a>
+                  </a>
+                  <span class="sc-row-note">produced by{' '}
+                  <a href={withBase(`/services/${producer.name}/`)}>{producer.title}</a></span>
                 </>
               ) : (
                 <code>{address}</code>
@@ -275,7 +279,7 @@ sha: ${pin.sha}`}</code></pre>
   {service.data_products.length > 0 && (
     <>
       <h2 id="data-products">Data products</h2>
-      <ul>
+      <ul class="sc-rows">
         {service.data_products.map((d) => (
           <li>
             <a href={withBase(`/services/${service.name}/${d.stem}/`)}>{d.title}</a>

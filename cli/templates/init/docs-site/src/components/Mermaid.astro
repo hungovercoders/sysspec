@@ -13,8 +13,35 @@ const { chart } = Astro.props;
     document.documentElement.dataset.theme === 'dark' ? 'dark' : 'neutral';
 
   const render = async () => {
+    const css = getComputedStyle(document.documentElement);
+    const v = (name: string) => css.getPropertyValue(name).trim();
     // securityLevel loose keeps the graphs' click lines as real links.
-    mermaid.initialize({ startOnLoad: false, securityLevel: 'loose', theme: theme() });
+    mermaid.initialize({
+      startOnLoad: false,
+      securityLevel: 'loose',
+      theme: theme() === 'dark' ? 'dark' : 'base',
+      themeVariables: {
+        fontFamily: v('--ss-font-sans') || 'sans-serif',
+        fontSize: '13px',
+        primaryColor: v('--ss-surface-2'),
+        primaryTextColor: v('--ss-text'),
+        primaryBorderColor: v('--ss-hairline-strong'),
+        lineColor: v('--ss-text-3'),
+        secondaryColor: v('--ss-accent-soft'),
+        tertiaryColor: v('--ss-surface'),
+        noteBkgColor: v('--ss-accent-soft'),
+        noteTextColor: v('--ss-text'),
+        noteBorderColor: v('--ss-hairline-strong'),
+        actorBkg: v('--ss-surface-2'),
+        actorBorder: v('--ss-hairline-strong'),
+        actorTextColor: v('--ss-text'),
+        signalColor: v('--ss-text-2'),
+        signalTextColor: v('--ss-text'),
+        labelBoxBkgColor: v('--ss-surface'),
+        labelTextColor: v('--ss-text'),
+        background: v('--ss-surface'),
+      },
+    });
     for (const el of document.querySelectorAll<HTMLElement>('.mermaid')) {
       // Keep the source so a theme change can re-render from scratch
       // (mermaid.run replaces the element's content with the SVG).

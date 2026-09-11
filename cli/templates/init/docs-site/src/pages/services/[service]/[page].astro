@@ -151,7 +151,7 @@ const description = changelog
             {r.unreleased ? ' — unreleased' : r.date ? ` — ${r.date}` : ''}
           </h2>
           {(r.tag || r.sha) && (
-            <p>
+            <p class="sc-release-meta">
               {r.tag && (
                 repoSlug ? (
                   <a href={`https://github.com/${repoSlug}/releases/tag/${encodeURIComponent(r.tag)}`}>
@@ -188,7 +188,7 @@ const description = changelog
       return (
         <>
           <h2 id={slug(f.title)}>{f.title}</h2>
-          <p>
+          <p class="sc-scenario-count">
             <strong>{count} scenario{count === 1 ? '' : 's'}</strong> — these
             are acceptance criteria for what the service must do, not a
             description of what it does.
@@ -223,13 +223,14 @@ const description = changelog
 
   {artifactOps.length > 0 && <h2 id="operations">Operations</h2>}
   {artifactOps.map((o) => (
-    <>
+    <section class="sc-op">
       <h3 id={anchor(o.op_id)}>
-        <code>{o.method} {o.path}</code> — {o.op_id}
+        <span class={`sc-method sc-method--${o.method.toLowerCase()}`}>{o.method}</span>
+        <code>{o.path}</code> <span class="sc-op-id">· {o.op_id}</span>
       </h3>
       <p>
-        <strong>{o.kind === 'query' ? 'Query' : 'Command'}.</strong>{' '}
-        {o.summary && <>{o.summary}{o.summary.endsWith('.') ? '' : '.'}</>}
+        <span class="sc-op-kind">{o.kind === 'query' ? 'Query' : 'Command'}</span>{' '}
+        {o.summary && <>— {o.summary}{o.summary.endsWith('.') ? '' : '.'}</>}
       </p>
       {o.description && <p>{o.description}</p>}
       <ParamsTable params={o.parameters} />
@@ -240,14 +241,14 @@ const description = changelog
         </>
       )}
       <h4>Responses</h4>
-      <table>
+      <table class="sc-table">
         <thead>
           <tr><th>Status</th><th>Meaning</th></tr>
         </thead>
         <tbody>
           {o.responses.map((r) => (
             <tr>
-              <td><code>{r.status}</code></td>
+              <td><span class={`sc-status sc-status--${r.status[0]}`}>{r.status}</span></td>
               <td>{r.description || '—'}</td>
             </tr>
           ))}
@@ -277,16 +278,16 @@ const description = changelog
           ))}
         </details>
       )}
-    </>
+    </section>
   ))}
   {artifact?.kind === 'openapi' && <h2 id="rendered-contract">Full rendered contract</h2>}
   {artifact?.kind === 'openapi' && <OpenApi url={artifactUrl(service.name, artifact)} />}
 
   {artifactChannels.map((c) => (
-    <>
+    <section class="sc-channel">
       <h2 id={anchor(c.address)}><code>{c.address}</code></h2>
       {c.description && <p>{c.description}</p>}
-      <p>
+      <p class="sc-channel-links">
         Produced by <a href={withBase(`/services/${c.producer}/`)}>{c.producer_title}</a>
         {c.consumers.length > 0 ? (
           <>
@@ -304,11 +305,11 @@ const description = changelog
       </p>
       <Mermaid chart={c.sequence_mermaid} />
       {c.messages.map((m) => (
-        <>
+        <div class="sc-message">
           <h3 id={anchor(`${c.address}-${m.name}`)}>{m.name}</h3>
           {m.title && <p>{m.title}</p>}
           {m.event_type && (
-            <p>Event type: <code>{m.event_type}</code></p>
+            <p class="sc-event-type">Event type <code>{m.event_type}</code></p>
           )}
           <h4>Payload (<code>data</code>)</h4>
           <SchemaTable rows={m.data_rows} />
@@ -318,7 +319,7 @@ const description = changelog
               <SchemaTable rows={m.envelope_rows} />
             </details>
           )}
-        </>
+        </div>
       ))}
       {c.examples.length > 0 && (
         <details>
@@ -331,7 +332,7 @@ const description = changelog
           ))}
         </details>
       )}
-    </>
+    </section>
   ))}
   {artifact?.kind === 'asyncapi' && <h2 id="rendered-contract">Full rendered contract</h2>}
   {artifact?.kind === 'asyncapi' && <AsyncApi url={artifactUrl(service.name, artifact)} />}

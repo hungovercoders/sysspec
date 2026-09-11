@@ -7,7 +7,7 @@ interface Props {
 const { rows } = Astro.props;
 ---
 {rows.length > 0 && (
-  <table>
+  <table class="sc-table">
     <thead>
       <tr><th>Field</th><th>Type</th><th>Required</th><th>Constraints</th></tr>
     </thead>
@@ -16,7 +16,7 @@ const { rows } = Astro.props;
         <tr>
           <td><code>{r.field}</code></td>
           <td>{r.type}</td>
-          <td>{r.required ? 'yes' : 'no'}</td>
+          <td>{r.required ? <span class="sc-req">required</span> : <span class="sc-opt">optional</span>}</td>
           <td>{r.constraints || '—'}</td>
         </tr>
       ))}

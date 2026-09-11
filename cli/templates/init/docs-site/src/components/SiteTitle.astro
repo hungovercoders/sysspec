@@ -1,0 +1,14 @@
+---
+// Starlight `SiteTitle` override: the catalog mark plus the configured
+// site title, both following the theme tokens.
+import Mark from './Mark.astro';
+const { siteTitle, siteTitleHref } = Astro.locals.starlightRoute;
+---
+<a href={siteTitleHref} class="ss-site-title" translate="no">
+  <Mark size={26} />
+  <span class="ss-wordmark">{siteTitle}</span>
+</a>
+<style>
+  .ss-site-title { display: inline-flex; align-items: center; gap: 0.6rem; text-decoration: none; color: var(--ss-text); }
+  .ss-wordmark { font-weight: 650; font-size: 1.0625rem; letter-spacing: -0.03em; line-height: 1; }
+</style>
