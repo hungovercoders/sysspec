@@ -220,6 +220,11 @@ tasks:
         $sysspec check version
         $sysspec docs data
         $sysspec docs diagrams
+        # The scaffolded catalog must build and carry its third-party notices
+        # where the footer links them (the site's compliance boundary).
+        (cd docs-site && npm ci --no-audit --no-fund && npm run build)
+        test -s site/third-party-notices.txt || { echo "check:init: the scaffolded catalog wrote no third-party-notices.txt"; exit 1; }
+        grep -q 'third-party-notices.txt' site/index.html || { echo "check:init: the scaffolded catalog's footer does not link the notices"; exit 1; }
         cd / && rm -rf "$tmp"
 
   check:null:

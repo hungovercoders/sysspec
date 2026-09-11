@@ -141,6 +141,9 @@ describe("bundledPackagesPlugin + generateNotices on a fixture site", () => {
     expect(text).toContain("Copyright (c) Bob");
     expect(text).toContain("Version 2.0, January 2004");
     expect(text).toContain("END OF TERMS AND CONDITIONS");
+    // ...and nobody else's copyright: the appendix keeps its placeholders
+    expect(text).toContain("Copyright [yyyy] [name of copyright owner]");
+    expect(text).not.toMatch(/Copyright \d{4}/);
     // the allowed one carries the pointer
     expect(text).toMatch(/odd@1\.0\.0\nLicense: WTFPL[\s\S]*ships no license file/);
   });
