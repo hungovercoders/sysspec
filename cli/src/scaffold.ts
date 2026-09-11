@@ -7,7 +7,7 @@
  * leading dot so packaging tools cannot drop them.
  */
 
-import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { SYSSPEC_MCP } from "./pins.js";
@@ -19,6 +19,7 @@ const RENAMES: Record<string, string> = {
   "spectral.yaml": ".spectral.yaml",
   "mcp.json": ".mcp.json",
   github: ".github",
+  githooks: ".githooks",
   gitkeep: ".gitkeep",
 };
 
@@ -61,6 +62,9 @@ function copy(node: string, target: string, subs: Record<string, string>, rel = 
       }
       mkdirSync(path.dirname(out), { recursive: true });
       writeFileSync(out, text);
+      // Keep the mode: a git hook that loses its execute bit is silently
+      // ignored, and read/write drops it.
+      chmodSync(out, statSync(source).mode & 0o777);
       written.push(out);
     }
   }
@@ -100,7 +104,7 @@ export function runInit(targetDir: string, org: string, sysspecRepo: string): nu
       `(sysspec ${version}, org ${org})\n\n` +
       "Next steps:\n" +
       "  git init && git add -A && git commit -m 'chore: scaffold specs'\n" +
-      "  mise install                # pinned toolchain\n" +
+      "  mise install && task setup  # pinned toolchain + the pre-commit hook\n" +
       "  task ci                     # gates + mock cycle, green from the start\n" +
       "  Replace the greeter starter service with your first real one.\n" +
       "  Enable Renovate and GitHub Pages on the repository.",

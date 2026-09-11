@@ -9,8 +9,8 @@ Start a spec suite of your own:
 npx -y sysspec init my-specs --org com.acme
 cd my-specs
 git init && git add -A && git commit -m "chore: scaffold specs"
-mise install
-task ci        # gates + mock cycle, green from the first commit
+mise install && task setup   # pinned toolchain + the pre-commit hook
+task ci                      # gates + mock cycle, green from the first commit
 ```
 
 `mise install` covers the toolchain; the mock cycle (`contract:test`,

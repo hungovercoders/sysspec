@@ -5,9 +5,9 @@ data contracts and Gherkin acceptance criteria — system intent, versioned
 and gated. Built on [sysspec](https://github.com/__SYSSPEC_REPO_SLUG__).
 
 - `task ci` is the definition of green - the same gates run locally, in the
-  pre-commit hook and in CI. `mise install` covers the toolchain; the mock
-  cycle (`contract:test`, `mocks:test`) additionally needs a running
-  Docker daemon.
+  pre-commit hook and in CI. `task setup` installs the pinned toolchain
+  (mise) and the hook; the mock cycle (`contract:test`, `mocks:test`)
+  additionally needs a running Docker daemon.
 - Gated artifacts are never edited to make an implementation pass. Bump the
   artifact and service versions in `service.yaml` with every change; merges
   to main publish each changed service as a `<service>/v<version>` git tag

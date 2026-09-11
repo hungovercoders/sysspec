@@ -8,7 +8,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { asyncapiBad } from "../src/compat.js";
+import { asyncapiBad, parseAsyncapiDiff } from "../src/compat.js";
 import { asyncapiTokens, emptyBase, mentioned, openapiTokens, pathNames } from "../src/intent.js";
 import { runGate as surfaceGate, versionOf } from "../src/surface.js";
 import { manifestVersions, runGate as versionGate, serviceVersion } from "../src/versioning.js";
@@ -65,6 +65,20 @@ describe("intent token extraction", () => {
     const base = emptyBase("openapi", "openapi: 3.0.3\ninfo:\n  title: T\n  version: 1.0.0\npaths: {}\n");
     expect(base).toContain("title: T");
     expect(base).toContain("paths: {}");
+  });
+});
+
+describe("asyncapi diff output", () => {
+  test("parseAsyncapiDiff skips the CLI's telemetry prose ahead of the JSON", () => {
+    const stdout = [
+      "Skipping submitting anonymous metrics due to the following error: Error: Failed to send metrics to New Relic Metrics API: 403 Forbidden",
+      "",
+      '{ "changes": [ { "action": "add", "path": "/channels/x" } ] }',
+      "",
+    ].join("\n");
+    expect(parseAsyncapiDiff(stdout)).toEqual([{ action: "add", path: "/channels/x" }]);
+    expect(parseAsyncapiDiff('{"changes":[]}')).toEqual([]);
+    expect(() => parseAsyncapiDiff("only prose")).toThrow("produced no JSON");
   });
 });
 

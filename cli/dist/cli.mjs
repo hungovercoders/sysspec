@@ -19772,22 +19772,26 @@ function asyncapiBad(changes) {
     (c) => (c.action === "remove" || c.action === "edit") && !c.path.includes("x-parser") && !c.path.startsWith("/info/") && !PROSE_PATH.test(c.path)
   ).map((c) => `${c.action} ${c.path}`);
 }
-function asyncapiBreaking(baseFile, current) {
-  const res = run([
-    "npx",
-    "-y",
-    ASYNCAPI_CLI,
-    "diff",
-    baseFile,
-    current,
-    "--format",
-    "json",
-    "--no-error"
-  ]);
+function parseAsyncapiDiff(stdout) {
+  const lines = stdout.split(/\r?\n/);
+  const start = lines.findIndex((l) => /^\s*[{[]/.test(l));
+  if (start === -1) {
+    throw new Error(`asyncapi diff produced no JSON: ${stdout.trim()}`);
+  }
+  return JSON.parse(lines.slice(start).join("\n")).changes ?? [];
+}
+function asyncapiChanges(baseFile, current) {
+  const res = run(
+    ["npx", "-y", ASYNCAPI_CLI, "diff", baseFile, current, "--format", "json", "--no-error"],
+    { env: { ...process.env, CI: "true" } }
+  );
   if (res.status !== 0) {
     throw new Error(`asyncapi diff failed: ${res.stderr.trim()}`);
   }
-  const bad = asyncapiBad(JSON.parse(res.stdout).changes ?? []);
+  return parseAsyncapiDiff(res.stdout);
+}
+function asyncapiBreaking(baseFile, current) {
+  const bad = asyncapiBad(asyncapiChanges(baseFile, current));
   return [bad.length > 0, bad.join("\n")];
 }
 var CLASSIFIERS = {
@@ -19880,7 +19884,6 @@ init_docs_data();
 var import_yaml4 = __toESM(require_dist(), 1);
 import { readdirSync as readdirSync2, readFileSync as readFileSync5 } from "fs";
 import path4 from "path";
-init_pins();
 init_util();
 var BACKTICK = /`([^`]+)`/g;
 var PROSE_SUFFIX = /\/(description|summary|title|examples)$/;
@@ -19968,20 +19971,8 @@ function asyncapiTokens(changes, channels) {
   return tokens;
 }
 function asyncapiAdded(baseFile, current) {
-  const res = run([
-    "npx",
-    "-y",
-    ASYNCAPI_CLI,
-    "diff",
-    baseFile,
-    current,
-    "--format",
-    "json",
-    "--no-error"
-  ]);
-  if (res.status !== 0) throw new Error(`asyncapi diff failed: ${res.stderr.trim()}`);
   const channels = ((0, import_yaml4.parse)(readFileSync5(current, "utf-8")) ?? {}).channels ?? {};
-  return asyncapiTokens(JSON.parse(res.stdout).changes ?? [], channels);
+  return asyncapiTokens(asyncapiChanges(baseFile, current), channels);
 }
 var ADDED = {
   openapi: openapiAdded,
@@ -20835,7 +20826,7 @@ async function runNull(port, results, timeout, cmd) {
 // src/scaffold.ts
 init_pins();
 init_util();
-import { mkdirSync as mkdirSync3, readdirSync as readdirSync6, readFileSync as readFileSync9, writeFileSync as writeFileSync4 } from "fs";
+import { chmodSync, mkdirSync as mkdirSync3, readdirSync as readdirSync6, readFileSync as readFileSync9, statSync as statSync5, writeFileSync as writeFileSync4 } from "fs";
 import path8 from "path";
 import { fileURLToPath as fileURLToPath3 } from "url";
 var RENAMES = {
@@ -20844,6 +20835,7 @@ var RENAMES = {
   "spectral.yaml": ".spectral.yaml",
   "mcp.json": ".mcp.json",
   github: ".github",
+  githooks: ".githooks",
   gitkeep: ".gitkeep"
 };
 var ORG_RE = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/;
@@ -20877,6 +20869,7 @@ function copy(node, target, subs, rel = "") {
       }
       mkdirSync3(path8.dirname(out), { recursive: true });
       writeFileSync4(out, text);
+      chmodSync(out, statSync5(source).mode & 511);
       written.push(out);
     }
   }
@@ -20915,7 +20908,7 @@ scaffolded ${written.length} file(s) into ${target} (sysspec ${version}, org ${o
 
 Next steps:
   git init && git add -A && git commit -m 'chore: scaffold specs'
-  mise install                # pinned toolchain
+  mise install && task setup  # pinned toolchain + the pre-commit hook
   task ci                     # gates + mock cycle, green from the start
   Replace the greeter starter service with your first real one.
   Enable Renovate and GitHub Pages on the repository.`
