@@ -341,7 +341,10 @@ export function collectPackages(dirs) {
       noticeText: noticeFiles.map((f) => readFileSync(f, 'utf8').trim()).filter(Boolean),
     });
   }
-  return [...seen.values()].sort((a, b) => a.name.localeCompare(b.name) || a.version.localeCompare(b.version));
+  // Code-point order, not localeCompare(): the output is committed and byte-compared
+  // by the dist gates, so it must not depend on the ICU data of whichever Node built it.
+  const cmp = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
+  return [...seen.values()].sort((a, b) => cmp(a.name, b.name) || cmp(a.version, b.version));
 }
 
 const RULE = '-'.repeat(72);
