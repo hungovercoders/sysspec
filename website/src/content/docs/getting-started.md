@@ -8,8 +8,9 @@ Start a spec suite of your own:
 ```bash
 npx -y sysspec init my-specs --org com.acme
 cd my-specs
-git init && git add -A && git commit -m "chore: scaffold specs"
+git init
 mise install && task setup   # pinned toolchain + the pre-commit hook
+git add -A && git commit -m "chore: scaffold specs"   # runs the hook
 task ci                      # gates + mock cycle, green from the first commit
 ```
 

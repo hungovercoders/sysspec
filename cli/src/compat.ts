@@ -61,12 +61,19 @@ export function asyncapiBad(changes: { action: string; path: string }[]): string
 /** The JSON document in `@asyncapi/cli diff` stdout, skipping any prose
  * the CLI prints ahead of it — exported for unit tests. */
 export function parseAsyncapiDiff(stdout: string): Record<string, any>[] {
+  // A prose line can start with a bracket too ("[asyncapi] ..."), so each
+  // candidate is tried as the document start and skipped when it is not.
   const lines = stdout.split(/\r?\n/);
-  const start = lines.findIndex((l) => /^\s*[{[]/.test(l));
-  if (start === -1) {
-    throw new Error(`asyncapi diff produced no JSON: ${stdout.trim()}`);
+  for (let i = 0; i < lines.length; i++) {
+    if (!/^\s*[{[]/.test(lines[i])) continue;
+    try {
+      const doc = JSON.parse(lines.slice(i).join("\n"));
+      if (doc && typeof doc === "object") return doc.changes ?? [];
+    } catch {
+      // not the document yet
+    }
   }
-  return JSON.parse(lines.slice(start).join("\n")).changes ?? [];
+  throw new Error(`asyncapi diff produced no JSON: ${stdout.trim()}`);
 }
 
 /** Structural changes between two AsyncAPI documents, via `@asyncapi/cli diff`.

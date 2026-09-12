@@ -19774,11 +19774,15 @@ function asyncapiBad(changes) {
 }
 function parseAsyncapiDiff(stdout) {
   const lines = stdout.split(/\r?\n/);
-  const start = lines.findIndex((l) => /^\s*[{[]/.test(l));
-  if (start === -1) {
-    throw new Error(`asyncapi diff produced no JSON: ${stdout.trim()}`);
+  for (let i = 0; i < lines.length; i++) {
+    if (!/^\s*[{[]/.test(lines[i])) continue;
+    try {
+      const doc = JSON.parse(lines.slice(i).join("\n"));
+      if (doc && typeof doc === "object") return doc.changes ?? [];
+    } catch {
+    }
   }
-  return JSON.parse(lines.slice(start).join("\n")).changes ?? [];
+  throw new Error(`asyncapi diff produced no JSON: ${stdout.trim()}`);
 }
 function asyncapiChanges(baseFile, current) {
   const res = run(
@@ -20907,8 +20911,9 @@ function runInit(targetDir, org, sysspecRepo) {
 scaffolded ${written.length} file(s) into ${target} (sysspec ${version}, org ${org})
 
 Next steps:
-  git init && git add -A && git commit -m 'chore: scaffold specs'
+  git init
   mise install && task setup  # pinned toolchain + the pre-commit hook
+  git add -A && git commit -m 'chore: scaffold specs'   # through the hook
   task ci                     # gates + mock cycle, green from the start
   Replace the greeter starter service with your first real one.
   Enable Renovate and GitHub Pages on the repository.`

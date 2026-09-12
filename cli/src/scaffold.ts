@@ -103,8 +103,9 @@ export function runInit(targetDir: string, org: string, sysspecRepo: string): nu
     `\nscaffolded ${written.length} file(s) into ${target} ` +
       `(sysspec ${version}, org ${org})\n\n` +
       "Next steps:\n" +
-      "  git init && git add -A && git commit -m 'chore: scaffold specs'\n" +
+      "  git init\n" +
       "  mise install && task setup  # pinned toolchain + the pre-commit hook\n" +
+      "  git add -A && git commit -m 'chore: scaffold specs'   # through the hook\n" +
       "  task ci                     # gates + mock cycle, green from the start\n" +
       "  Replace the greeter starter service with your first real one.\n" +
       "  Enable Renovate and GitHub Pages on the repository.",

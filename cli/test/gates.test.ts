@@ -78,7 +78,11 @@ describe("asyncapi diff output", () => {
     ].join("\n");
     expect(parseAsyncapiDiff(stdout)).toEqual([{ action: "add", path: "/channels/x" }]);
     expect(parseAsyncapiDiff('{"changes":[]}')).toEqual([]);
+    // Prose that itself opens with a bracket must not be mistaken for the document.
+    const bracketed = ["[asyncapi] anonymous metrics are enabled", "{not json either", '{"changes":[]}'].join("\n");
+    expect(parseAsyncapiDiff(bracketed)).toEqual([]);
     expect(() => parseAsyncapiDiff("only prose")).toThrow("produced no JSON");
+    expect(() => parseAsyncapiDiff("[asyncapi] prose only")).toThrow("produced no JSON");
   });
 });
 
