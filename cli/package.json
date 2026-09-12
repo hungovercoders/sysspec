@@ -1,6 +1,6 @@
 {
   "name": "sysspec",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "System specs first: enforceable system intent (contracts + gherkin) with deterministic gates, generated docs and mocks. The MCP server is the companion package sysspec-mcp.",
   "license": "MIT",
   "repository": {
