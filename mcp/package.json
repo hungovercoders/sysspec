@@ -1,6 +1,6 @@
 {
   "name": "sysspec-mcp",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Read-only MCP access to versioned system specs: AsyncAPI, OpenAPI, ODCS data contracts and Gherkin acceptance criteria.",
   "license": "MIT",
   "repository": {
@@ -22,7 +22,7 @@
     "node": ">=20"
   },
   "scripts": {
-    "build": "tsup",
+    "build": "tsup && node ../scripts/third-party-notices.mjs --title \"sysspec-mcp (dist/stdio.mjs, dist/index.mjs)\" --bundle dist/stdio.mjs --bundle dist/index.mjs --out dist/THIRD_PARTY_NOTICES.txt",
     "test": "vitest run",
     "typecheck": "node scripts/bundle-specs.mjs && tsc --noEmit"
   },

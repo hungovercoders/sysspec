@@ -122,7 +122,7 @@ var SYSSPEC_MCP, ASYNCAPI_CLI, DATACONTRACT_CLI, SPECTRAL_CLI, GHERKIN_LINT, MER
 var init_pins = __esm({
   "src/pins.ts"() {
     "use strict";
-    SYSSPEC_MCP = "sysspec-mcp@1.0.3";
+    SYSSPEC_MCP = "sysspec-mcp@1.0.4";
     ASYNCAPI_CLI = "@asyncapi/cli@5.0.7";
     DATACONTRACT_CLI = "datacontract-cli==1.1.1";
     SPECTRAL_CLI = "@stoplight/spectral-cli@6.16.3";

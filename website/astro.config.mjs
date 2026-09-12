@@ -1,6 +1,7 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
+import { bundledPackagesPlugin } from '../scripts/third-party-notices.mjs';
 
 // The sysspec website: docs for the tool itself (CLI, MCP server, plugin,
 // the spec model). Distinct from docs-site/, which renders a spec suite.
@@ -14,6 +15,9 @@ const siteUrl = (process.env.SYSSPEC_SITE_URL || '').replace(/\/$/, '');
 
 export default defineConfig({
   site: siteUrl || undefined,
+  // Records what the client bundle contains so `npm run build` can write
+  // dist/third-party-notices.txt (see scripts/third-party-notices.mjs).
+  vite: { plugins: [bundledPackagesPlugin()] },
   integrations: [
     starlight({
       title: 'sysspec',

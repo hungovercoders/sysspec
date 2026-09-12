@@ -238,3 +238,14 @@ Whichever route, verify with `/mcp` and then `list_services()`.
 The gate table, spec change rules, and the `sysspec` release
 process live in [CONTRIBUTING.md](CONTRIBUTING.md). Agents: read
 [AGENTS.md](AGENTS.md) first.
+
+## License
+
+sysspec is [MIT licensed](LICENSE). Every published artifact carries the
+notices for the third-party code it bundles: the `sysspec` and
+`sysspec-mcp` npm packages and the MCP container image ship
+`THIRD_PARTY_NOTICES.txt` next to their bundles, and the website and every
+catalog built from the scaffold serve `third-party-notices.txt` at their
+root. The files are generated at build time by
+[scripts/third-party-notices.mjs](scripts/third-party-notices.mjs) from
+exactly the packages each artifact contains.

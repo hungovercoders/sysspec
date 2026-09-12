@@ -14,6 +14,7 @@ tasks:
       - task: lint
       - task: check:version
       - task: check:plugin
+      - task: check:notices
       # dist checks run before the tests: the test suites execute the
       # committed bundles, so a stale dist must fail fast, not pass tests.
       - task: check:cli
@@ -33,6 +34,13 @@ tasks:
         git fetch -q origin main 2>/dev/null || true
         node {{.ROOT_DIR}}/cli/dist/cli.mjs check surface --base "origin/${GITHUB_BASE_REF:-main}" \
           --version-file .claude-plugin/plugin.json --paths cli/,mcp/,skills/,.claude-plugin/,.mcp.json
+
+  check:notices:
+    desc: The scaffold's copy of the third-party notices generator must match the canonical one
+    cmds:
+      - |
+        diff -q scripts/third-party-notices.mjs cli/templates/init/docs-site/scripts/third-party-notices.mjs \
+          || { echo "check:notices: cli/templates/init/docs-site/scripts/third-party-notices.mjs differs from scripts/third-party-notices.mjs - copy the canonical one over"; exit 1; }
 
   check:cli:
     desc: Changes under cli/ must bump the sysspec package version
@@ -56,7 +64,13 @@ tasks:
     cmds:
       - if [ -n "$CI" ]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi
       - npm run build --silent
-      - git diff --exit-code -- dist || { echo "cli/dist is stale - run 'npm run build' in cli/ and commit"; exit 1; }
+      # `git status`, not `git diff`: an untracked file the build recreates
+      # (a notices file left out of the commit) must fail too.
+      - |
+        git ls-files --error-unmatch dist/cli.mjs dist/THIRD_PARTY_NOTICES.txt >/dev/null \
+          || { echo "cli/dist - cli.mjs and THIRD_PARTY_NOTICES.txt must be committed"; exit 1; }
+        test -z "$(git status --porcelain -- dist)" \
+          || { git status --short -- dist; echo "cli/dist is stale - run 'npm run build' in cli/ and commit"; exit 1; }
 
   check:mcp:
     desc: Changes under mcp/ must bump the sysspec-mcp package version
@@ -80,7 +94,13 @@ tasks:
     cmds:
       - if [ -n "$CI" ]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi
       - npm run build --silent
-      - git diff --exit-code -- dist || { echo "mcp/dist is stale - run 'npm run build' in mcp/ and commit"; exit 1; }
+      # `git status`, not `git diff`: an untracked file the build recreates
+      # (a notices file left out of the commit) must fail too.
+      - |
+        git ls-files --error-unmatch dist/stdio.mjs dist/index.mjs dist/THIRD_PARTY_NOTICES.txt >/dev/null \
+          || { echo "mcp/dist - stdio.mjs, index.mjs and THIRD_PARTY_NOTICES.txt must be committed"; exit 1; }
+        test -z "$(git status --porcelain -- dist)" \
+          || { git status --short -- dist; echo "mcp/dist is stale - run 'npm run build' in mcp/ and commit"; exit 1; }
 
   check:branch:
     desc: Branch name must be main, match the Linear convention (user/gri-123-slug), or be an agent branch (claude/slug)
@@ -212,6 +232,11 @@ tasks:
         $sysspec check version
         $sysspec docs data
         $sysspec docs diagrams
+        # The scaffolded catalog must build and carry its third-party notices
+        # where the footer links them (the site's compliance boundary).
+        (cd docs-site && npm ci --no-audit --no-fund && npm run build)
+        test -s site/third-party-notices.txt || { echo "check:init: the scaffolded catalog wrote no third-party-notices.txt"; exit 1; }
+        grep -q 'third-party-notices.txt' site/index.html || { echo "check:init: the scaffolded catalog's footer does not link the notices"; exit 1; }
         cd / && rm -rf "$tmp"
 
   check:null:

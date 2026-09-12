@@ -12,6 +12,8 @@ and gated. Built on [sysspec](https://github.com/__SYSSPEC_REPO_SLUG__).
   artifact and service versions in `service.yaml` with every change; merges
   to main publish each changed service as a `<service>/v<version>` git tag
   that implementation and consumer repos pin.
+- The catalog build writes `third-party-notices.txt` next to the site (the
+  licenses of everything it bundles), so publishing it is compliant as-is.
 - `task mocks:load` stands up Microcks mocks of every service so UIs and
   consumers can build before implementations exist.
 - The machinery arrives by reference and stays current via Renovate: the

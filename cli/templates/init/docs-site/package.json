@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "astro dev",
-    "build": "astro build",
+    "build": "astro build && node scripts/third-party-notices.mjs --title \"this spec catalog\" --packages .astro/bundled-packages.json --add @fontsource-variable/inter --add @fontsource-variable/jetbrains-mono --add pagefind --add astro-expressive-code --add expressive-code --add @expressive-code/core --add @asyncapi/specs --add @asyncapi/parser --holder \"@headlessui/vue=2020 Tailwind Labs\" --out-dir ../site --out-dir-env DOCS_SITE_OUT",
     "preview": "astro preview"
   },
   "dependencies": {
@@ -26,5 +26,8 @@
     "esbuild@0.28.2": true,
     "vue-demi@0.14.10": true,
     "@scarf/scarf": false
+  },
+  "scarfSettings": {
+    "enabled": false
   }
 }

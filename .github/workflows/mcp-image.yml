@@ -3,7 +3,7 @@ name: mcp-image
 on:
   push:
     branches: [main]
-    paths: ["specs/**", "mcp/**", ".github/workflows/mcp-image.yml", ".github/workflows/sysspec-mcp-image.yml"]
+    paths: ["specs/**", "mcp/**", "LICENSE", "scripts/third-party-notices.mjs", ".github/workflows/mcp-image.yml", ".github/workflows/sysspec-mcp-image.yml"]
   workflow_dispatch:
 
 permissions:

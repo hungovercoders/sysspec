@@ -1,6 +1,6 @@
 {
   "name": "sysspec",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "System specs first: enforceable system intent (contracts + gherkin) with deterministic gates, generated docs and mocks. The MCP server is the companion package sysspec-mcp.",
   "license": "MIT",
   "repository": {
@@ -24,7 +24,7 @@
     "node": ">=20"
   },
   "scripts": {
-    "build": "tsup",
+    "build": "tsup && node ../scripts/third-party-notices.mjs --title \"the sysspec CLI (dist/cli.mjs)\" --bundle dist/cli.mjs --out dist/THIRD_PARTY_NOTICES.txt",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },

@@ -23,7 +23,10 @@ test("npm pack ships templates, lockfile and rulesets; excludes build junk", { t
   const files: string[] = JSON.parse(out)[0].files.map((f: { path: string }) => f.path);
 
   for (const wanted of [
+    "LICENSE",
     "dist/cli.mjs",
+    "dist/THIRD_PARTY_NOTICES.txt",
+    "templates/init/docs-site/scripts/third-party-notices.mjs",
     "templates/docker-compose.yml",
     "templates/spectral/datacontracts.yaml",
     "templates/init/gitignore",

@@ -137,3 +137,20 @@ The hosted-URL image needs no release: `mcp-image.yml` republishes
 `ghcr.io/hungovercoders/sysspec-mcp` (server + this repo's specs) on
 every push to main, and any container host serves it — see
 [mcp/README.md](mcp/README.md).
+
+## Licensing
+
+The project is MIT ([LICENSE](LICENSE); copies in `cli/` and `mcp/` ship
+with the npm packages). Contributions are accepted under the same terms.
+
+Everything we publish redistributes bundled third-party code, so every
+build writes a notices file from the packages the artifact actually
+contains — `scripts/third-party-notices.mjs`, driven by the bundle's
+esbuild markers (`cli/dist`, `mcp/dist`, committed and covered by the dist
+gates) or by the Vite plugin it exports (both Astro sites, written next to
+the built site). The scaffold template carries an identical copy of the
+script so generated catalogs get the same file; `task check:notices` fails
+when the two copies drift. When you add a dependency that reaches a shipped
+bundle you need do nothing; when you add one the module graph cannot see
+(fonts through CSS, a runtime copied in by an integration) add it to the
+build script's `--add` list.

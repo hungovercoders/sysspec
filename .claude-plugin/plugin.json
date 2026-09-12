@@ -1,8 +1,9 @@
 {
   "name": "sysspec",
-  "version": "1.2.5",
+  "version": "1.2.6",
   "description": "System specs served over MCP: AsyncAPI, OpenAPI, ODCS data contracts and Gherkin acceptance criteria as enforceable system intent, with deterministic gates - plus three skills driving the authoring (sysspec), implement-service and consume-service journeys.",
   "author": {
     "name": "Hungovercoders"
-  }
+  },
+  "license": "MIT"
 }
