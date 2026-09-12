@@ -83,6 +83,13 @@ describe("bundledPackagesPlugin + generateNotices on a fixture site", () => {
   const beta = pkg("@scope/beta", { license: "Apache-2.0", author: { name: "Bob" } });
   const serverOnly = pkg("server-only", { license: "MIT" }, "MIT License\n\nCopyright (c) Server\n\nPermission is hereby granted, free of charge...");
   const odd = pkg("odd", { license: "WTFPL", author: "Oscar" });
+  // No license file and no author: MIT needs a holder (verified upstream via
+  // --holder), Apache-2.0 stands on the License text alone.
+  const nobody = pkg("nobody", { license: "MIT" });
+  const apacheNobody = pkg("@scope/apache-nobody", { license: "Apache-2.0" });
+  // No `license` in the manifest: inferred from a license file that wraps its phrases.
+  const wrapped = pkg("wrapped", { author: "Wendy" }, "                                 Apache License\n                           Version 2.0, January 2004\n                        http://www.apache.org/licenses/\n");
+  const wrappedIsc = pkg("wrapped-isc", { author: "Ian" }, "ISC License\n\nCopyright (c) Ian\n\nPermission to use, copy, modify, and/or\ndistribute this software for any purpose with or without fee is hereby granted.\n");
   const out = ".astro/bundled-packages.json";
   const outFile = path.join(site, out);
 
@@ -91,6 +98,10 @@ describe("bundledPackagesPlugin + generateNotices on a fixture site", () => {
   const clientIds = [
     path.join(alpha, "index.js") + "?astro",
     path.join(odd, "index.js"),
+    path.join(nobody, "index.js"),
+    path.join(apacheNobody, "index.js"),
+    path.join(wrapped, "index.js"),
+    path.join(wrappedIsc, "index.js"),
     path.join(site, "src/pages/index.astro"),
     "\0virtual:whatever",
   ];
@@ -130,11 +141,13 @@ describe("bundledPackagesPlugin + generateNotices on a fixture site", () => {
 
   test("a package with no license text fails generation unless explicitly allowed", () => {
     runBuild();
-    const base = { root: site, packageLists: [out], title: "fixture" };
+    const base = { root: site, packageLists: [out], title: "fixture", holders: { nobody: "2020 Nobody Labs" } };
     expect(() => generateNotices(base)).toThrow(/odd@1\.0\.0 \(WTFPL\)/);
 
     const { packages, text } = generateNotices({ ...base, allowMissing: ["odd"] });
-    expect(packages.map((p: { name: string }) => p.name).sort()).toEqual(["@scope/beta", "alpha", "odd"]);
+    expect(packages.map((p: { name: string }) => p.name).sort()).toEqual([
+      "@scope/apache-nobody", "@scope/beta", "alpha", "nobody", "odd", "wrapped", "wrapped-isc",
+    ]);
     // alpha's own license file, verbatim
     expect(text).toContain("Copyright (c) Alice");
     // Apache-2.0 without a shipped file: the canonical License text, attributed
@@ -144,7 +157,37 @@ describe("bundledPackagesPlugin + generateNotices on a fixture site", () => {
     // ...and nobody else's copyright: the appendix keeps its placeholders
     expect(text).toContain("Copyright [yyyy] [name of copyright owner]");
     expect(text).not.toMatch(/Copyright \d{4}/);
-    // the allowed one carries the pointer
+    // the allowed one carries the pointer, with no authorship claimed
     expect(text).toMatch(/odd@1\.0\.0\nLicense: WTFPL[\s\S]*ships no license file/);
+    expect(text).not.toMatch(/by its authors|the \S+ authors/);
+  });
+
+  test("a copyright holder is never invented: MIT without one fails unless --holder names it, Apache stands alone", () => {
+    runBuild();
+    const base = { root: site, packageLists: [out], title: "fixture", allowMissing: ["odd"] };
+    expect(() => generateNotices(base)).toThrow(/nobody@1\.0\.0 \(MIT, no copyright holder\)/);
+    expect(() => generateNotices(base)).not.toThrow(/apache-nobody/);
+
+    const { text } = generateNotices({ ...base, holders: { nobody: "2020 Nobody Labs" } });
+    expect(text).toMatch(/nobody@1\.0\.0\nLicense: MIT\nCopyright holder: 2020 Nobody Labs/);
+    expect(text).toContain("Copyright (c) 2020 Nobody Labs");
+    // Apache-2.0 with nobody to name: the License verbatim, no Copyright line prepended
+    const apache = text.slice(text.indexOf("\n@scope/apache-nobody@1.0.0\nLicense:") + 1);
+    const block = apache.slice(0, apache.indexOf("\n" + "-".repeat(72), 10));
+    expect(block).toContain("Version 2.0, January 2004");
+    expect(block).not.toMatch(/Copyright \(c\)/);
+    expect(text).not.toMatch(/the \S+ authors/);
+
+    // --allow-missing still lets it through as a pointer
+    const allowed = generateNotices({ ...base, allowMissing: ["odd", "nobody"] });
+    expect(allowed.text).toMatch(/nobody@1\.0\.0\nLicense: MIT[\s\S]*ships no license file; it is distributed under MIT\./);
+  });
+
+  test("the license id is inferred from a license file whose phrases wrap across lines", () => {
+    runBuild();
+    const { packages } = generateNotices({ root: site, packageLists: [out], title: "fixture", allowMissing: ["odd", "nobody"] });
+    const byName = Object.fromEntries(packages.map((p: { name: string; license: string }) => [p.name, p.license]));
+    expect(byName.wrapped).toBe("Apache-2.0");
+    expect(byName["wrapped-isc"]).toBe("ISC");
   });
 });

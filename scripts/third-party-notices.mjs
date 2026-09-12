@@ -17,9 +17,13 @@
 //                       plugin exported below from an Astro client build.
 //   --add <pkg>         extra packages the graph cannot see (fonts pulled
 //                       in through CSS, pagefind's runtime, ...).
+//   --holder <pkg>=<text>  the copyright line for a package that ships no
+//                       license file and names no author, as verified from
+//                       its upstream LICENSE (e.g. "2020 Tailwind Labs").
 //   --allow-missing <pkg>  publish a pointer to the source for a package
-//                       that ships no license file under a license this
-//                       script has no canonical text for (otherwise an error).
+//                       whose license text cannot be reproduced (no license
+//                       file and no canonical text, or no copyright holder
+//                       for a notice that needs one); otherwise an error.
 //
 // Usage (no dependencies, node >= 20):
 //   node third-party-notices.mjs --title "<artifact>" --out <file>
@@ -72,10 +76,11 @@ function licenseId(pkg) {
 /** A license id read off the license file, for packages whose package.json omits one. */
 function inferLicenseId(texts) {
   const t = texts.join('\n');
-  if (/Permission is hereby granted, free of charge/.test(t)) return 'MIT';
-  if (/Permission to use, copy, modify, and\/or distribute this software/.test(t)) return 'ISC';
-  if (/Apache License,? Version 2\.0/.test(t)) return 'Apache-2.0';
-  if (/Redistributions in binary form/.test(t)) return /endorse or promote/.test(t) ? 'BSD-3-Clause' : 'BSD-2-Clause';
+  // License files wrap freely, so every phrase matches across any whitespace.
+  if (/Permission\s+is\s+hereby\s+granted,\s+free\s+of\s+charge/.test(t)) return 'MIT';
+  if (/Permission\s+to\s+use,\s+copy,\s+modify,\s+and\/or\s+distribute\s+this\s+software/.test(t)) return 'ISC';
+  if (/Apache\s+License,?\s+Version\s+2\.0/.test(t)) return 'Apache-2.0';
+  if (/Redistributions\s+in\s+binary\s+form/.test(t)) return /endorse\s+or\s+promote/.test(t) ? 'BSD-3-Clause' : 'BSD-2-Clause';
   return 'UNKNOWN';
 }
 
@@ -285,13 +290,16 @@ const APACHE_2_0 = `Apache License
 
 // Canonical permission notices, for packages published under one of these
 // licenses without shipping the file: the notice is what the license asks
-// to be reproduced, and the copyright holder comes from the manifest.
+// to be reproduced. The copyright holder comes from the manifest's author
+// or a --holder override verified upstream; it is never invented. MIT, ISC
+// and BSD notices need one (there is no notice without it); Apache-2.0
+// section 4(a) asks only for the License itself, so it stands alone.
 const CANONICAL = {
   MIT: (holder) => `MIT License\n\nCopyright (c) ${holder}\n\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.`,
   ISC: (holder) => `ISC License\n\nCopyright (c) ${holder}\n\nPermission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted, provided that the above copyright notice and this permission notice appear in all copies.\n\nTHE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.`,
   'BSD-2-Clause': (holder) => `BSD 2-Clause License\n\nCopyright (c) ${holder}\n\nRedistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:\n\n1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.\n\n2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.\n\nTHIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.`,
   'BSD-3-Clause': (holder) => `BSD 3-Clause License\n\nCopyright (c) ${holder}\n\nRedistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:\n\n1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.\n\n2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.\n\n3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.\n\nTHIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.`,
-  'Apache-2.0': (holder) => `Copyright (c) ${holder}\n\n${APACHE_2_0}`,
+  'Apache-2.0': (holder) => (holder ? `Copyright (c) ${holder}\n\n${APACHE_2_0}` : APACHE_2_0),
   '0BSD': (holder) => `BSD Zero Clause License\n\nCopyright (c) ${holder}\n\nPermission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted.\n\nTHE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.`,
 };
 
@@ -318,7 +326,7 @@ const filesLike = (dir, re) =>
     : [];
 
 /** One notice record per package directory that has a package.json. */
-export function collectPackages(dirs) {
+export function collectPackages(dirs, holders = {}) {
   const seen = new Map();
   for (const dir of dirs) {
     const manifest = path.join(dir, 'package.json');
@@ -336,6 +344,7 @@ export function collectPackages(dirs) {
       version: pkg.version ?? '0',
       license: licenseId(pkg) === 'UNKNOWN' ? inferLicenseId(licenseTexts) : licenseId(pkg),
       author: personName(pkg.author),
+      holder: holders[pkg.name] ?? personName(pkg.author),
       source: sourceUrl(pkg),
       licenseText: licenseTexts,
       noticeText: noticeFiles.map((f) => readFileSync(f, 'utf8').trim()).filter(Boolean),
@@ -348,6 +357,18 @@ export function collectPackages(dirs) {
 }
 
 const RULE = '-'.repeat(72);
+
+/**
+ * The canonical license text for a package that ships none, or null when it
+ * cannot be written truthfully: no canonical text for its license, or a
+ * license whose notice names a copyright holder and none is known.
+ */
+function canonicalText(p) {
+  const canon = CANONICAL[p.license];
+  if (!canon) return null;
+  if (!p.holder && p.license !== 'Apache-2.0') return null;
+  return canon(p.holder);
+}
 
 /** The notices document. Deterministic: no timestamps, sorted by name. */
 export function renderNotices(packages, title) {
@@ -370,23 +391,24 @@ export function renderNotices(packages, title) {
     out.push(`${p.name}@${p.version}`);
     out.push(`License: ${p.license}`);
     if (p.author) out.push(`Author: ${p.author}`);
+    if (p.holder && p.holder !== p.author) out.push(`Copyright holder: ${p.holder}`);
     out.push(`Source: ${p.source}`);
     out.push('');
     for (const n of p.noticeText) out.push('NOTICE:', n, '');
     if (p.licenseText.length) out.push(...p.licenseText.flatMap((t) => [t, '']));
-    else if (CANONICAL[p.license]) {
+    else if (canonicalText(p)) {
       out.push(
         `(The package ships no license file; this is the ${p.license} notice it is published under.)`,
         '',
-        CANONICAL[p.license](p.author ?? `the ${p.name} authors`),
+        canonicalText(p),
         '',
       );
     } else {
       // Only reachable for packages named in --allow-missing (generateNotices
       // rejects the rest): the pointer is the best that can be said.
       out.push(
-        `The package ships no license file; it is distributed under ${p.license}`,
-        `by ${p.author ?? 'its authors'}. See ${p.source} for the full text.`,
+        `The package ships no license file; it is distributed under ${p.license}.`,
+        `See ${p.source} for its license and copyright notice.`,
         '',
       );
     }
@@ -395,7 +417,7 @@ export function renderNotices(packages, title) {
 }
 
 /** Build the notices for an artifact from bundles, module-id lists and extra package names. */
-export function generateNotices({ root = process.cwd(), bundles = [], packageLists = [], add = [], allowMissing = [], title }) {
+export function generateNotices({ root = process.cwd(), bundles = [], packageLists = [], add = [], allowMissing = [], holders = {}, title }) {
   const dirs = new Set();
   for (const b of bundles) for (const d of packageDirsFromBundle(path.resolve(root, b), root)) dirs.add(d);
   for (const f of packageLists) {
@@ -408,19 +430,21 @@ export function generateNotices({ root = process.cwd(), bundles = [], packageLis
     if (!existsSync(dir)) throw new Error(`--add ${name}: ${dir} does not exist`);
     dirs.add(dir);
   }
-  const packages = collectPackages(dirs);
+  const packages = collectPackages(dirs, holders);
   if (packages.length === 0) throw new Error('no packages found - nothing to write');
-  // A notice without the license text is not a notice. Packages that ship
-  // no license file get the canonical text of the license they declare;
-  // anything else fails the build unless it is named in --allow-missing.
+  // A notice without the license text is not a notice, and a copyright
+  // line is never invented. Packages that ship no license file get the
+  // canonical text of the license they declare with the holder their
+  // manifest or a --holder override names; anything else fails the build
+  // unless it is named in --allow-missing.
   const incomplete = packages.filter(
-    (p) => p.licenseText.length === 0 && !CANONICAL[p.license] && !allowMissing.includes(p.name),
+    (p) => p.licenseText.length === 0 && !canonicalText(p) && !allowMissing.includes(p.name),
   );
   if (incomplete.length) {
     throw new Error(
       'no license text available for ' +
-        incomplete.map((p) => `${p.name}@${p.version} (${p.license})`).join(', ') +
-        ' - vendor the text into the package, or pass --allow-missing <name> to publish a pointer instead',
+        incomplete.map((p) => `${p.name}@${p.version} (${p.license}${p.holder ? '' : ', no copyright holder'})`).join(', ') +
+        ' - pass --holder <name>=<copyright line> verified from its upstream LICENSE, or --allow-missing <name> to publish a pointer instead',
     );
   }
   return { packages, text: renderNotices(packages, title) };
@@ -465,7 +489,7 @@ export function bundledPackagesPlugin({ out = '.astro/bundled-packages.json' } =
 }
 
 function parseArgs(argv) {
-  const o = { bundles: [], packageLists: [], add: [], allowMissing: [], root: process.cwd() };
+  const o = { bundles: [], packageLists: [], add: [], allowMissing: [], holders: {}, root: process.cwd() };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     const v = () => {
@@ -476,6 +500,11 @@ function parseArgs(argv) {
     else if (a === '--packages') o.packageLists.push(v());
     else if (a === '--add') o.add.push(v());
     else if (a === '--allow-missing') o.allowMissing.push(v());
+    else if (a === '--holder') {
+      const [name, ...rest] = v().split('=');
+      if (!name || !rest.length || !rest.join('=').trim()) throw new Error('--holder needs <pkg>=<copyright line>');
+      o.holders[name] = rest.join('=').trim();
+    }
     else if (a === '--root') o.root = path.resolve(v());
     else if (a === '--title') o.title = v();
     else if (a === '--out') o.out = v();
