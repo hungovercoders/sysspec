@@ -48,6 +48,9 @@ describe("MCP third-party notices", () => {
     expect(readFileSync(noticesFile, "utf8")).toBe(text);
     const union = new Set(bundles.flatMap((b) => [...inlinedIn(b)]));
     expect(new Set(packages.map((p: { name: string }) => p.name))).toEqual(union);
-    for (const p of packages) expect(p.licenseText.length, `${p.name} has no license file`).toBeGreaterThan(0);
+    // License text may be the package's own file or the canonical text of
+    // its license (a supported path); only the --allow-missing pointer is rejected.
+    expect(text).not.toMatch(/ships no license file; it is distributed under/);
+    for (const p of packages) expect(p.license, `${p.name} has no license id`).not.toBe("UNKNOWN");
   });
 });

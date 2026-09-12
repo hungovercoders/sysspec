@@ -31,9 +31,16 @@ describe("third-party notices", () => {
     });
     const names = new Set(packages.map((p: { name: string }) => p.name));
     for (const name of inlined) expect(names, `${name} missing from notices`).toContain(name);
+    // Every rendered block carries license text: the package's own file or
+    // the canonical text of its license (a supported path), never the
+    // --allow-missing pointer.
+    expect(text).not.toMatch(/ships no license file; it is distributed under/);
     for (const p of packages) {
       expect(p.license, `${p.name} has no license id`).not.toBe("UNKNOWN");
-      expect(p.licenseText.length, `${p.name} has no license file`).toBeGreaterThan(0);
+      const block = text.slice(text.indexOf(`\n${p.name}@${p.version}\nLicense:`) + 1);
+      expect(block.startsWith(`${p.name}@`), `${p.name} has no block`).toBe(true);
+      const body = block.slice(0, block.indexOf("\n" + "-".repeat(72)));
+      expect(body, `${p.name} has no license text`).toMatch(/Permission|Redistribution|Apache License|Licensed under/);
     }
     // Deterministic (the file is committed under dist/ and gated by check:cli:dist).
     expect(text).not.toMatch(/\d{4}-\d{2}-\d{2}T/);
