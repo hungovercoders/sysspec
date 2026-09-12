@@ -1,6 +1,6 @@
 /** The init scaffold: renames land, substitutions apply, refusals hold. */
 
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
@@ -22,9 +22,13 @@ test("scaffold writes renamed dotfiles and substituted pins", () => {
   const target = path.join(tmp, "repo");
   expect(runInit(target, "com.example", "hungovercoders/sysspec")).toBe(0);
 
-  for (const dotfile of [".gitignore", ".gherkin-lintrc", ".spectral.yaml", ".mcp.json", ".github"]) {
+  for (const dotfile of [".gitignore", ".gherkin-lintrc", ".spectral.yaml", ".mcp.json", ".github", ".githooks"]) {
     expect(existsSync(path.join(target, dotfile)), dotfile).toBe(true);
   }
+  // The README promises a pre-commit hook; git ignores one without its execute bit.
+  const hook = path.join(target, ".githooks", "pre-commit");
+  expect(statSync(hook).mode & 0o111, "pre-commit is executable").not.toBe(0);
+  expect(readFileSync(path.join(target, "Taskfile.yml"), "utf-8")).toContain("core.hooksPath .githooks");
   // npm's always-ignore list must not have eaten the docs-site lockfile.
   expect(existsSync(path.join(target, "docs-site", "package-lock.json"))).toBe(true);
 

@@ -58,14 +58,44 @@ export function asyncapiBad(changes: { action: string; path: string }[]): string
     .map((c) => `${c.action} ${c.path}`);
 }
 
-export function asyncapiBreaking(baseFile: string, current: string): [boolean, string] {
-  const res = run([
-    "npx", "-y", ASYNCAPI_CLI, "diff", baseFile, current, "--format", "json", "--no-error",
-  ]);
+/** The JSON document in `@asyncapi/cli diff` stdout, skipping any prose
+ * the CLI prints ahead of it — exported for unit tests. */
+export function parseAsyncapiDiff(stdout: string): Record<string, any>[] {
+  // A prose line can start with a bracket too ("[asyncapi] ..."), so each
+  // candidate is tried as the document start and skipped when it is not.
+  const lines = stdout.split(/\r?\n/);
+  for (let i = 0; i < lines.length; i++) {
+    if (!/^\s*[{[]/.test(lines[i])) continue;
+    try {
+      const doc = JSON.parse(lines.slice(i).join("\n"));
+      if (doc && typeof doc === "object") return doc.changes ?? [];
+    } catch {
+      // not the document yet
+    }
+  }
+  throw new Error(`asyncapi diff produced no JSON: ${stdout.trim()}`);
+}
+
+/** Structural changes between two AsyncAPI documents, via `@asyncapi/cli diff`.
+ *
+ * The CLI records anonymous adoption metrics and, when that fails (a
+ * runner whose egress cannot reach its metrics API), logs the failure to
+ * stdout ahead of the JSON — as it does its first-run notice. CI=true is
+ * the CLI's own off-switch for both; the parse tolerates prose before the
+ * document regardless. */
+export function asyncapiChanges(baseFile: string, current: string): Record<string, any>[] {
+  const res = run(
+    ["npx", "-y", ASYNCAPI_CLI, "diff", baseFile, current, "--format", "json", "--no-error"],
+    { env: { ...process.env, CI: "true" } },
+  );
   if (res.status !== 0) {
     throw new Error(`asyncapi diff failed: ${res.stderr.trim()}`);
   }
-  const bad = asyncapiBad(JSON.parse(res.stdout).changes ?? []);
+  return parseAsyncapiDiff(res.stdout);
+}
+
+export function asyncapiBreaking(baseFile: string, current: string): [boolean, string] {
+  const bad = asyncapiBad(asyncapiChanges(baseFile, current) as { action: string; path: string }[]);
   return [bad.length > 0, bad.join("\n")];
 }
 

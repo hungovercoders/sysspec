@@ -13,8 +13,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { parse, stringify } from "yaml";
-import { removeTmp, writeTmp } from "./compat.js";
-import { ASYNCAPI_CLI } from "./pins.js";
+import { asyncapiChanges, removeTmp, writeTmp } from "./compat.js";
 import { blob, git, isDigits, mergeBase, run, splitLines } from "./util.js";
 import { listManifests, manifestVersions } from "./versioning.js";
 
@@ -137,13 +136,9 @@ export function asyncapiTokens(
 }
 
 export function asyncapiAdded(baseFile: string, current: string): Set<string> {
-  const res = run([
-    "npx", "-y", ASYNCAPI_CLI, "diff", baseFile, current, "--format", "json", "--no-error",
-  ]);
-  if (res.status !== 0) throw new Error(`asyncapi diff failed: ${res.stderr.trim()}`);
   const channels =
     ((parse(readFileSync(current, "utf-8")) ?? {}) as Record<string, any>).channels ?? {};
-  return asyncapiTokens(JSON.parse(res.stdout).changes ?? [], channels);
+  return asyncapiTokens(asyncapiChanges(baseFile, current), channels);
 }
 
 const ADDED: Record<string, (base: string, current: string) => Set<string>> = {

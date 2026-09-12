@@ -1,0 +1,6 @@
+#!/bin/sh
+# The lint and diff gates, before every commit - the same ones CI runs.
+# git exports GIT_DIR/GIT_INDEX_FILE to hooks; they leak into subprocesses
+# (the docs build) and point them at this repo's git dir.
+unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE GIT_COMMON_DIR GIT_PREFIX
+exec task lint check

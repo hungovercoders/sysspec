@@ -5,6 +5,12 @@ vars:
   SYSSPEC: sysspec@__KIT_VERSION__
 
 tasks:
+  setup:
+    desc: One-shot onboarding - install the pinned toolchain and the pre-commit hook
+    cmds:
+      - mise install
+      - git config core.hooksPath .githooks
+
   ci:
     desc: Full verification - identical locally and in CI
     cmds:
