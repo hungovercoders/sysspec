@@ -27,6 +27,7 @@ test("npm pack ships templates, lockfile and rulesets; excludes build junk", { t
     "templates/docker-compose.yml",
     "templates/spectral/datacontracts.yaml",
     "templates/init/gitignore",
+    "templates/init/githooks/pre-commit",
     "templates/init/mcp.json",
     "templates/init/Taskfile.yml",
     "templates/init/mise.toml",

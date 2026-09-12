@@ -42,9 +42,10 @@ model — lives in [website/](website/) and deploys to Cloudflare as the
 ```bash
 npx -y sysspec init my-specs --org com.acme
 cd my-specs
-git init && git add -A && git commit -m "chore: scaffold specs"
-mise install
-task ci        # gates + mock cycle, green from the first commit
+git init
+mise install && task setup   # pinned toolchain + the pre-commit hook
+git add -A && git commit -m "chore: scaffold specs"   # runs the hook
+task ci                      # gates + mock cycle, green from the first commit
 ```
 
 `mise install` covers the toolchain; the `mocks:*` and `contract:test`
