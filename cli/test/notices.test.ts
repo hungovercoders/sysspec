@@ -87,6 +87,7 @@ describe("bundledPackagesPlugin + generateNotices on a fixture site", () => {
   // --holder), Apache-2.0 stands on the License text alone.
   const nobody = pkg("nobody", { license: "MIT" });
   const apacheNobody = pkg("@scope/apache-nobody", { license: "Apache-2.0" });
+  const zero = pkg("zero", { license: "0BSD" });
   // No `license` in the manifest: inferred from a license file that wraps its phrases.
   const wrapped = pkg("wrapped", { author: "Wendy" }, "                                 Apache License\n                           Version 2.0, January 2004\n                        http://www.apache.org/licenses/\n");
   const wrappedIsc = pkg("wrapped-isc", { author: "Ian" }, "ISC License\n\nCopyright (c) Ian\n\nPermission to use, copy, modify, and/or\ndistribute this software for any purpose with or without fee is hereby granted.\n");
@@ -100,6 +101,7 @@ describe("bundledPackagesPlugin + generateNotices on a fixture site", () => {
     path.join(odd, "index.js"),
     path.join(nobody, "index.js"),
     path.join(apacheNobody, "index.js"),
+    path.join(zero, "index.js"),
     path.join(wrapped, "index.js"),
     path.join(wrappedIsc, "index.js"),
     path.join(site, "src/pages/index.astro"),
@@ -146,7 +148,7 @@ describe("bundledPackagesPlugin + generateNotices on a fixture site", () => {
 
     const { packages, text } = generateNotices({ ...base, allowMissing: ["odd"] });
     expect(packages.map((p: { name: string }) => p.name).sort()).toEqual([
-      "@scope/apache-nobody", "@scope/beta", "alpha", "nobody", "odd", "wrapped", "wrapped-isc",
+      "@scope/apache-nobody", "@scope/beta", "alpha", "nobody", "odd", "wrapped", "wrapped-isc", "zero",
     ]);
     // alpha's own license file, verbatim
     expect(text).toContain("Copyright (c) Alice");
@@ -162,7 +164,7 @@ describe("bundledPackagesPlugin + generateNotices on a fixture site", () => {
     expect(text).not.toMatch(/by its authors|the \S+ authors/);
   });
 
-  test("a copyright holder is never invented: MIT without one fails unless --holder names it, Apache stands alone", () => {
+  test("a copyright holder is never invented: MIT without one fails unless --holder names it, Apache and 0BSD stand alone", () => {
     runBuild();
     const base = { root: site, packageLists: [out], title: "fixture", allowMissing: ["odd"] };
     expect(() => generateNotices(base)).toThrow(/nobody@1\.0\.0 \(MIT, no copyright holder\)/);
@@ -176,6 +178,12 @@ describe("bundledPackagesPlugin + generateNotices on a fixture site", () => {
     const block = apache.slice(0, apache.indexOf("\n" + "-".repeat(72), 10));
     expect(block).toContain("Version 2.0, January 2004");
     expect(block).not.toMatch(/Copyright \(c\)/);
+    // 0BSD attaches no condition, so a holderless package gets the text without a Copyright line
+    const zeroBlock = text.slice(text.indexOf("\nzero@1.0.0\nLicense:") + 1);
+    const zeroBody = zeroBlock.slice(0, zeroBlock.indexOf("\n" + "-".repeat(72), 10));
+    expect(zeroBody).toContain("BSD Zero Clause License");
+    expect(zeroBody).toContain("Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted.");
+    expect(zeroBody).not.toMatch(/Copyright/);
     expect(text).not.toMatch(/the \S+ authors/);
 
     // --allow-missing still lets it through as a pointer
