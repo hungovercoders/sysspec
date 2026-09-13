@@ -5,7 +5,7 @@ import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
 import { Code } from 'astro:components';
 import Mark from '../components/Mark.astro';
 import '../styles/landing.css';
-import { DEMO_SITE_URL, DEMO_SITE_IS_LIVE, GITHUB_URL, NPM_CLI_URL } from '../lib/links';
+import { DEMO_SITE_URL, GITHUB_URL, NPM_CLI_URL } from '../lib/links';
 
 const artifacts = [
   { kind: 'openapi', label: 'OpenAPI', file: 'orders.openapi.yaml', v: '3.2.0' },
@@ -51,7 +51,7 @@ const icons: Record<string, string> = {
       </p>
       <div class="ss-actions">
         <a class="ss-btn ss-btn--primary" href="/getting-started/">Get started</a>
-        <a class="ss-btn ss-btn--secondary" href={DEMO_SITE_URL}>{DEMO_SITE_IS_LIVE ? 'See the live catalog' : 'See the example suite'}</a>
+        <a class="ss-btn ss-btn--secondary" href={DEMO_SITE_URL}>See the live catalog</a>
       </div>
       <div class="ss-install" role="group" aria-label="Install command">
         <span class="ss-install-prompt">$</span>

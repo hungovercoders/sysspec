@@ -55,6 +55,19 @@ export function loadManifests(specs: string): Dict[] {
     .map(readYaml);
 }
 
+/** The suite's system manifest, if the repo declares one.
+ *
+ * `<specs>/system.yaml` names the system the services belong to - its
+ * title, business domain and event namespace. It is what makes one
+ * generated catalog recognisably *this* instance rather than a generic
+ * "System specs". Optional: repos scaffolded before it existed, and
+ * anyone who deletes it, render the generic wording instead.
+ */
+export function loadSystem(specs: string): Dict | null {
+  const file = path.join(specs, "system.yaml");
+  return isFile(file) ? readYaml(file) : null;
+}
+
 /** A mermaid-safe node id. */
 export function nodeId(name: string): string {
   return name.replace(/[^A-Za-z0-9_]/g, "_");
@@ -215,24 +228,50 @@ export function jsonBodySchema(doc: Dict, holder: Dict): Dict {
   return deref(doc, (content["application/json"] ?? {}).schema ?? {});
 }
 
-/** One channel's delivery as a fenced sequence diagram: the producer
- * publishing each message to the channel, and the channel delivering it
- * to every consumer - a note stands in when there is none yet. */
-export function channelSequence(address: string, info: Dict, consuming: Dict[]): string[] {
+/** Mermaid label text: the separators that would end a label early. */
+function mermaidLabel(text: string): string {
+  return String(text).replace(/[\r\n]+/g, " ").replace(/[;#]/g, " ").trim();
+}
+
+/** One channel's delivery as a fenced sequence diagram.
+ *
+ * The producer publishes each message to the channel (solid arrow); the
+ * channel fans it out to every consumer (dotted). Steps are numbered so
+ * prose can cite them, the CloudEvents type rides under each publish -
+ * the thing a consumer actually filters on - and two or more consumers
+ * are boxed as the fan-out. A note stands in when there is none yet.
+ *
+ * `messages` carries the normalized [name, event type] pairs; without it
+ * the names fall back to the raw channel index.
+ */
+export function channelSequence(
+  address: string,
+  info: Dict,
+  consuming: Dict[],
+  messages: Dict[] | null = null,
+): string[] {
   const producer = nodeId(info.service);
+  const msgs: Dict[] =
+    messages ?? (info.messages as [string, Dict][]).map(([name]) => ({ name, event_type: null }));
   const lines = [
     "```mermaid",
     "sequenceDiagram",
-    `    participant ${producer} as ${info.title}`,
-    `    participant chan as ${address}`,
+    "    autonumber",
+    `    participant ${producer} as ${mermaidLabel(info.title)}`,
+    `    participant chan as ${mermaidLabel(address)}`,
   ];
+  // A box earns its keep only as a fan-out: one consumer reads as itself.
+  const boxed = consuming.length > 1;
+  if (boxed) lines.push("    box transparent Consumers");
   for (const c of consuming) {
-    lines.push(`    participant ${nodeId(c.name)} as ${c.title}`);
+    lines.push(`    participant ${nodeId(c.name)} as ${mermaidLabel(c.title)}`);
   }
-  for (const [msgName] of info.messages) {
-    lines.push(`    ${producer}-)chan: ${msgName}`);
+  if (boxed) lines.push("    end");
+  for (const m of msgs) {
+    lines.push(`    ${producer}-)chan: ${mermaidLabel(m.name)}`);
+    if (m.event_type) lines.push(`    Note right of chan: ${mermaidLabel(m.event_type)}`);
     for (const c of consuming) {
-      lines.push(`    chan-)${nodeId(c.name)}: ${msgName}`);
+      lines.push(`    chan--)${nodeId(c.name)}: ${mermaidLabel(m.name)}`);
     }
   }
   if (consuming.length === 0) {
@@ -242,27 +281,48 @@ export function channelSequence(address: string, info: Dict, consuming: Dict[]):
   return lines;
 }
 
+/** An ER attribute comment: markers first, then the prose, clipped.
+ *
+ * Mermaid comments are double-quoted and single-line, so quotes become
+ * typographic ones and the description is trimmed to a width that keeps
+ * the entity box readable next to its neighbours.
+ */
+function erComment(p: Dict): string {
+  const markers: string[] = [];
+  let text = clean(String(p.description ?? "")).replace(/[\r\n]+/g, " ").replace(/"/g, "'");
+  // A marker the prose already makes is noise, not signal.
+  if (p.partitioned && !/partition/i.test(text)) markers.push("partition key");
+  if (p.required !== true && !/optional/i.test(text)) markers.push("optional");
+  if (text.length > 64) text = text.slice(0, 63).trimEnd() + "…";
+  const parts = [...markers, text].filter(Boolean);
+  return parts.join(" · ");
+}
+
 /** The contract's schema objects as a fenced mermaid ER diagram.
  *
- * One entity per object, top-level properties only with their logical
- * type and PK/UK markers - the shape at a glance; the field tables
- * below carry nesting and constraints. Empty when nothing would show.
+ * One entity per object, top-level properties only: logical type,
+ * PK/UK markers, and the property's own description as the attribute
+ * comment, so the shape carries its meaning rather than just its names.
+ * Nesting and constraints stay in the field tables below. Empty when
+ * nothing would show.
  */
 export function odcsEr(odcs: Dict): string[] {
   const entities: [string, string[]][] = [];
   for (const obj of odcs.schema ?? []) {
     const rows: string[] = [];
     for (const p of obj.properties ?? []) {
-      const type = String(p.logicalType ?? "unknown");
+      const type = nodeId(String(p.logicalType ?? "unknown"));
       const key = p.primaryKey ? "PK" : p.unique ? "UK" : "";
-      rows.push(`        ${type} ${p.name} ${key}`.replace(/\s+$/, ""));
+      const comment = erComment(p);
+      const cells = [type, p.name, key, comment && `"${comment}"`].filter(Boolean);
+      rows.push(`        ${cells.join(" ")}`);
     }
     if (rows.length) entities.push([obj.physicalName ?? obj.name, rows]);
   }
   if (entities.length === 0) return [];
   const lines = ["```mermaid", "erDiagram"];
   for (const [entity, rows] of entities) {
-    lines.push(`    ${entity} {`, ...rows, "    }");
+    lines.push(`    ${nodeId(String(entity))} {`, ...rows, "    }");
   }
   lines.push("```");
   return lines;

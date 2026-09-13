@@ -1,0 +1,17 @@
+# The system this spec suite describes: the worked commerce example that
+# ships with sysspec, doubles as the toolkit's regression suite, and is
+# published as the live catalog at demo.sysspec.com.
+apiVersion: sysspec/v1
+kind: System
+name: sysspec-demo
+title: sysspec demo
+domain: Commerce
+# Every event type in this system is prefixed with it, e.g.
+# com.hungovercoders.orders.placed.v2.
+org: com.hungovercoders
+summary: >
+  A small commerce system specified end to end: orders accepted over
+  HTTP, order lifecycle and payment settlement carried as events, and
+  the historical record of both published as data contracts. Every
+  toolkit change must keep it green, so what you read here is what the
+  gates actually enforce.

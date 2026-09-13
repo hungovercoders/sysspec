@@ -28,19 +28,22 @@ This repo is three things at once:
 2. **The distribution** — reusable GitHub workflows
    (`.github/workflows/sysspec-*.yml`) and a Claude Code plugin (MCP tools
    + the three skills).
-3. **The living example** — the `orders`/`payments` spec suite, which
-   doubles as the toolkit's regression suite: every toolkit change must keep
-   it green.
+3. **The living example** — **sysspec demo**, the `orders`/`payments` spec
+   suite (`specs/system.yaml` names it), which doubles as the toolkit's
+   regression suite: every toolkit change must keep it green. It is
+   published as a live catalog at **<https://demo.sysspec.com>**, with its
+   MCP endpoint at `/mcp`.
 
-The tool's own website — docs for the CLI, MCP server, plugin and the spec
-model — lives in [website/](website/) and deploys to Cloudflare as the
-`sysspec-site` Worker, separate from the demo spec catalog
-([deploy/README.md](deploy/README.md) covers both).
+Docs for the tool itself — CLI, MCP server, plugin and the spec model —
+live at **<https://sysspec.dev>** (source in [website/](website/)) and
+deploy to Cloudflare as the `sysspec-site` Worker, separate from the demo
+spec catalog ([deploy/README.md](deploy/README.md) covers both).
 
 ## Start your own spec suite
 
 ```bash
-npx -y sysspec init my-specs --org com.acme
+npx -y sysspec init my-specs --org com.acme \
+  --system "Acme Commerce" --domain Commerce
 cd my-specs
 git init
 mise install && task setup   # pinned toolchain + the pre-commit hook
@@ -136,6 +139,9 @@ sysspec/
 ├── deploy/                   the demo Worker (docs site + MCP), Cloudflare
 ├── website/                  the sysspec website (tool docs), Cloudflare
 └── specs/                    the example: orders, payments
+    ├── system.yaml           the system these specs describe: title,
+    │                         domain, event namespace - the catalog's
+    │                         annotation, unique to each suite
     └── <service>/
         ├── service.yaml      manifest: version, artifacts, produces, consumes
         ├── asyncapi/  openapi/  data-contracts/  features/

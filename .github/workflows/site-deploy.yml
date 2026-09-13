@@ -5,10 +5,10 @@
 #
 # Secrets: CLOUDFLARE_API_TOKEN (Workers Scripts:Edit), CLOUDFLARE_ACCOUNT_ID
 # (shared with the demo Worker's workflows).
-# Variables (optional): SYSSPEC_DEMO_URL, SYSSPEC_DEMO_MCP_URL — the live
-# demo links the site renders; unset, the pages fall back to GitHub links.
-# SYSSPEC_SITE_URL — this site's own deployed URL; set, the build emits a
-# sitemap and canonical/og:url tags.
+# Variables (optional overrides): SYSSPEC_DEMO_URL, SYSSPEC_DEMO_MCP_URL,
+# SYSSPEC_SITE_URL. The production URLs (sysspec.dev, demo.sysspec.com) are
+# committed in website/src/lib/links.ts and website/astro.config.mjs; these
+# exist so a preview deployment can point at itself instead.
 name: site-deploy
 
 on:

@@ -9,19 +9,26 @@ import { withBase } from '../lib/specs';
 const slug = '__SYSSPEC_REPO_SLUG__';
 const sysspecRepo = slug.startsWith('__') ? 'hungovercoders/sysspec' : slug;
 
+// Same boundary as the implementation loop, one lane wider: a consumer
+// never builds the service, it builds against the pinned mocks.
 const flow = `flowchart TD
-  tag["spec repo: merge to main cuts service/vX.Y.Z"]
-  lock["contracts.lock pins the tag + its commit sha"]
-  fetch["task contracts:fetch - read-only .contracts/ (specs + mocks + cli)"]
-  mocks["task -d .contracts mocks:load - pinned mocks up, fixtures included"]
-  build["build: generate types from the fetched specs"]
-  verify["verify: client flows, envelope handling, idempotence"]
-  done(["consumer satisfies the pinned surface"])
+  subgraph specs["Spec repo — the specs of record"]
+    tag["merge to main cuts<br/>&lt;service&gt;/vX.Y.Z"]
+  end
+  subgraph consumer["Consumer repo — UI, client, downstream system"]
+    lock["contracts.lock<br/>pins the tag + its commit sha"]
+    fetch["task contracts:fetch<br/>read-only .contracts/ (specs + mocks + cli)"]
+    mocks["task -d .contracts mocks:load<br/>pinned mocks up, fixtures included"]
+    build["build<br/>generate types from the fetched specs"]
+    verify{"verify against the mocks"}
+    done(["consumer satisfies<br/>the pinned surface"])
+  end
   tag -->|"pin the newest tag"| lock
   lock --> fetch --> mocks --> build --> verify
   verify -->|green| done
   verify -->|red| build
   tag -.->|"each new tag: Renovate re-pins"| lock`;
+
 ---
 <StarlightPage frontmatter={{ title: 'Build a consumer' }}>
   <p>

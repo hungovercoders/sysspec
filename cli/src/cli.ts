@@ -27,7 +27,7 @@ commands:
   check version|compat|intent|surface   diff-based gates against a base ref
   lint manifest|specs|features|datacontracts
   docs data|diagrams
-  init <dir> --org <reverse-dns>
+  init <dir> --org <reverse-dns> [--system <title>] [--domain <name>]
   mocks up|down|load|test|watch
   contract test
   null run --results <file> -- <suite command>`;
@@ -78,14 +78,17 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<numb
     if (sub === "datacontracts") return linters.datacontracts(service, specsDir);
   }
   if (command === "init") {
-    // argparse form: sysspec init <dir> --org com.acme [--sysspec-repo o/r]
-    args.only("org", "sysspec-repo");
+    // argparse form: sysspec init <dir> --org com.acme [--system "Acme Commerce"]
+    //                [--domain Commerce] [--sysspec-repo o/r]
+    args.only("org", "system", "domain", "sysspec-repo");
     const dir = sub;
     if (!dir) throw new Exit("sysspec init: a target directory is required");
     return runInit(
       dir,
       args.require("org"),
       args.get("sysspec-repo", "hungovercoders/sysspec")!,
+      args.get("system"),
+      args.get("domain"),
     );
   }
   if (command === "docs") {

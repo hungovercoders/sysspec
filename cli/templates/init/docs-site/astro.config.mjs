@@ -8,7 +8,15 @@ import { existsSync, readFileSync } from 'node:fs';
 const dataFile = new URL('./src/data/specs.json', import.meta.url);
 const specs = existsSync(dataFile)
   ? JSON.parse(readFileSync(dataFile, 'utf8'))
-  : { services: [], edges: [], unconsumed: [] };
+  : { system: null, services: [], edges: [], unconsumed: [] };
+
+// specs/system.yaml names the system these specs describe; without one
+// the catalog falls back to the generic title it has always used.
+const system = specs.system ?? {};
+const siteTitle = system.title || 'System specs';
+const siteDescription = system.summary
+  ? `${siteTitle}${system.domain ? ` (${system.domain})` : ''} — ${system.summary}`
+  : 'Specs of record: contracts and acceptance criteria, gated and versioned.';
 
 // Reading order: contract → events → data → acceptance criteria → context → changelog.
 const servicePages = (s) => {
@@ -33,6 +41,18 @@ const servicePages = (s) => {
   return pages;
 };
 
+// Services, grouped by domain once a system spans more than one - the
+// sidebar then reads as the system's map rather than a flat list.
+const serviceEntry = (s) => ({ label: s.title, items: servicePages(s) });
+const domains = [...new Set((specs.services ?? []).map((s) => s.domain).filter(Boolean))].sort();
+const serviceGroups =
+  domains.length > 1
+    ? domains.map((domain) => ({
+        label: domain,
+        items: specs.services.filter((s) => s.domain === domain).map(serviceEntry),
+      }))
+    : specs.services.map(serviceEntry);
+
 // On GitHub Pages the site lives under /<repo>; locally at /. Other hosts
 // (the Cloudflare demo Worker) serve at the root: they set DOCS_SITE_BASE=/
 // to override, since CI always has GITHUB_REPOSITORY in the environment.
@@ -49,7 +69,8 @@ export default defineConfig({
   integrations: [
     react(),
     starlight({
-      title: 'System specs',
+      title: siteTitle,
+      description: siteDescription,
       pagefind: true,
       customCss: ['./src/styles/fonts.css', './src/styles/theme.css', './src/styles/specs.css'],
       components: {
@@ -64,10 +85,7 @@ export default defineConfig({
         { label: 'Overview', link: '/' },
         { label: 'Drive an implementation', link: '/implementing/' },
         { label: 'Build a consumer', link: '/consuming/' },
-        ...specs.services.map((s) => ({
-          label: s.title,
-          items: servicePages(s),
-        })),
+        ...serviceGroups,
       ],
     }),
   ],

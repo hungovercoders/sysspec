@@ -1,14 +1,26 @@
 ---
 // Starlight `SiteTitle` override: the catalog mark plus the configured
-// site title, both following the theme tokens.
+// site title - which is the system's own title, from specs/system.yaml -
+// with its domain riding alongside so every page says whose specs these
+// are. Both follow the theme tokens.
 import Mark from './Mark.astro';
+import { system } from '../lib/specs';
 const { siteTitle, siteTitleHref } = Astro.locals.starlightRoute;
 ---
 <a href={siteTitleHref} class="ss-site-title" translate="no">
   <Mark size={26} />
   <span class="ss-wordmark">{siteTitle}</span>
+  {system.domain && <span class="ss-domain">{system.domain}</span>}
 </a>
 <style>
   .ss-site-title { display: inline-flex; align-items: center; gap: 0.6rem; text-decoration: none; color: var(--ss-text); }
   .ss-wordmark { font-weight: 650; font-size: 1.0625rem; letter-spacing: -0.03em; line-height: 1; }
+  .ss-domain {
+    font-size: 0.6875rem; font-weight: 550; letter-spacing: 0.02em; line-height: 1;
+    padding: 0.25rem 0.45rem; border-radius: 999px;
+    border: 1px solid var(--ss-hairline-strong); color: var(--ss-text-2);
+    background: var(--ss-surface-2); white-space: nowrap;
+  }
+  /* The header is tight on phones; the title alone carries it there. */
+  @media (max-width: 50rem) { .ss-domain { display: none; } }
 </style>

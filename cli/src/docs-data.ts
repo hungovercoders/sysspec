@@ -30,6 +30,7 @@ import {
   loadExamples,
   loadManifests,
   loadRestExamples,
+  loadSystem,
   odcsEr,
   parseFeature,
   PHASES,
@@ -37,7 +38,7 @@ import {
   STEP_RE,
   surfaceIndex,
 } from "./docs-gen.js";
-import { Exit, pyJson, pyRepr, splitLines } from "./util.js";
+import { Exit, pyJson, pyRepr, pySorted, splitLines } from "./util.js";
 
 /** A fenced ```mermaid block from docs-gen as a bare chart string. */
 function unfence(lines: string[]): string {
@@ -197,7 +198,7 @@ function channelEntry(
     artifact_version: info.artifact_version,
     description: info.description,
     consumers: consuming.map((c) => c.name),
-    sequence_mermaid: unfence(channelSequence(address, info, consuming)),
+    sequence_mermaid: unfence(channelSequence(address, info, consuming, messages)),
     messages,
     examples: (examples.get(info.op_name) ?? []).map(([caseName, payload]) => ({
       case: caseName,
@@ -357,6 +358,28 @@ function parseYamlLines(lines: string[]): unknown {
   return yamlParse(lines.join("\n"));
 }
 
+/** The suite's own annotation: who this catalog belongs to.
+ *
+ * `<specs>/system.yaml` is optional, so every field degrades to a
+ * neutral default - a repo without one still renders, just generically.
+ * `domains` is derived, never authored: the distinct domains the
+ * services declare, which is what the catalog groups and colours by.
+ */
+export function systemEntry(manifests: Dict[], raw: Dict | null): Dict {
+  const domains = pySorted([
+    ...new Set(manifests.map((m) => m.domain).filter(Boolean).map(String)),
+  ]);
+  const text = (value: unknown) => (value == null ? null : clean(String(value)) || null);
+  return {
+    name: text(raw?.name),
+    title: text(raw?.title) ?? "System specs",
+    domain: text(raw?.domain),
+    org: text(raw?.org),
+    summary: text(raw?.summary) ?? "",
+    domains,
+  };
+}
+
 export function buildData(manifests: Dict[], specs: string, mocks: string): Dict {
   const [index, consumers] = channelIndex(manifests, specs);
   const surfaces = surfaceIndex(manifests, specs);
@@ -438,6 +461,7 @@ export function buildData(manifests: Dict[], specs: string, mocks: string): Dict
     }
   }
   return {
+    system: systemEntry(manifests, loadSystem(specs)),
     services,
     edges,
     unconsumed: Object.entries(unconsumed)
