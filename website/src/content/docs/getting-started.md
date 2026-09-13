@@ -6,7 +6,8 @@ description: Scaffold a spec suite that is green from the first commit.
 Start a spec suite of your own:
 
 ```bash
-npx -y sysspec init my-specs --org com.acme
+npx -y sysspec init my-specs --org com.acme \
+  --system "Acme Commerce" --domain Commerce
 cd my-specs
 git init
 mise install && task setup   # pinned toolchain + the pre-commit hook
@@ -37,6 +38,11 @@ pin against.
 - A `specs/` tree with a starter service (manifest, AsyncAPI contract and
   feature file) that already passes every gate — swap it for your first
   real service.
+- A `specs/system.yaml` naming the system those services add up to — its
+  title, business domain and event namespace. It annotates every page of
+  your catalog, so the site is unmistakably yours rather than a generic
+  "System specs"; `--system` and `--domain` seed it, and you edit it in
+  place from there.
 - A generated docs site (Astro/Starlight) rendering your services, contracts
   and system graph — deployable to GitHub Pages out of the box.
 - The Microcks mock stack, loaded from your contracts, so consumers can build

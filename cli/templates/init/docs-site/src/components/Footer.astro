@@ -1,15 +1,18 @@
 ---
 // Starlight `Footer` override for the generated catalog: pagination on
-// content pages plus a quiet provenance line.
+// content pages plus a quiet provenance line - which system these specs
+// belong to, where they live, and what rendered them.
 import Pagination from '@astrojs/starlight/components/Pagination.astro';
-const slug = '__SYSSPEC_REPO_SLUG__';
-const sysspecRepo = slug.startsWith('__') ? 'hungovercoders/sysspec' : slug;
+import { system } from '../lib/specs';
 const repo = process.env.DOCS_SITE_REPO ?? process.env.GITHUB_REPOSITORY ?? null;
 ---
 <div class="ss-pagination"><Pagination /></div>
 <footer class="ss-cat-footer">
-  <span>Specs of record{repo && <> · <a href={`https://github.com/${repo}`}>{repo}</a></>}</span>
-  <span>Rendered by <a href={`https://github.com/${sysspecRepo}`}>sysspec</a> — intent authored once, versioned deliberately, enforced mechanically.</span>
+  <span>
+    Specs of record{system.name && <> · {system.title}</>}{system.domain && <> ({system.domain})</>}
+    {repo && <> · <a href={`https://github.com/${repo}`}>{repo}</a></>}
+  </span>
+  <span>Rendered by <a href="https://sysspec.dev">sysspec</a> — intent authored once, versioned deliberately, enforced mechanically.</span>
 </footer>
 <style>
   .ss-pagination { margin-top: 2rem; }

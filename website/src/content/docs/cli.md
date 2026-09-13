@@ -14,7 +14,7 @@ commands:
   check version|compat|intent|surface   diff-based gates against a base ref
   lint manifest|specs|features|datacontracts
   docs data|diagrams
-  init <dir> --org <reverse-dns>
+  init <dir> --org <reverse-dns> [--system <title>] [--domain <name>]
   mocks up|down|load|test|watch
   contract test
   null run --results <file> -- <suite command>
@@ -73,11 +73,19 @@ scope to one service.
 ### `init`
 
 `sysspec init <dir> --org <reverse-dns>` scaffolds a complete spec repo:
-starter service, Taskfile, mise toolchain, mock stack, docs site, GitHub
-workflows, Renovate wiring — green from the first commit. `--sysspec-repo
-<owner/repo>` (default `hungovercoders/sysspec`) points the scaffold's
-reusable-workflow references at a fork. See
-[Getting started](/getting-started/).
+starter service, `specs/system.yaml`, Taskfile, mise toolchain, mock stack,
+docs site, GitHub workflows, Renovate wiring — green from the first commit.
+
+| Flag | Default | Effect |
+| --- | --- | --- |
+| `--org <reverse-dns>` | required | The event-type namespace (`com.acme.greeter.greeted.v1`), recorded in `specs/system.yaml`. |
+| `--system <title>` | the org's last label, title-cased | The system's name — the generated catalog's title, header and footer. |
+| `--domain <name>` | `Examples` | The business domain the system sits in, shown beside its name. |
+| `--sysspec-repo <owner/repo>` | `hungovercoders/sysspec` | Points the scaffold's reusable-workflow references at a fork. |
+
+`--system` and `--domain` are what make one catalog recognisably its own
+rather than a generic "System specs"; both land in `specs/system.yaml` and
+can be edited there afterwards. See [Getting started](/getting-started/).
 
 ### `mocks` and `contract test`
 

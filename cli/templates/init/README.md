@@ -1,8 +1,8 @@
-# System specs
+# __SYSTEM_TITLE__ — system specs
 
-The spec of record for this domain's services: AsyncAPI, OpenAPI, ODCS
-data contracts and Gherkin acceptance criteria — system intent, versioned
-and gated. Built on [sysspec](https://github.com/__SYSSPEC_REPO_SLUG__).
+The spec of record for __SYSTEM_TITLE__ (__SYSTEM_DOMAIN__): AsyncAPI,
+OpenAPI, ODCS data contracts and Gherkin acceptance criteria — system
+intent, versioned and gated. Built on [sysspec](https://sysspec.dev).
 
 - `task ci` is the definition of green - the same gates run locally, in the
   pre-commit hook and in CI. `task setup` installs the pinned toolchain
@@ -24,6 +24,10 @@ and gated. Built on [sysspec](https://github.com/__SYSSPEC_REPO_SLUG__).
   `consume-service` skills carry the whole loop, from contract pin to
   verified definition of done, and read as walkthroughs in their own
   right.
+
+- `specs/system.yaml` describes the system as a whole — title, domain and
+  event namespace. It annotates every page of the generated catalog, so
+  fill it in for real once the starter service is gone.
 
 The `greeter` service is scaffold output - replace it with your first real
 service.

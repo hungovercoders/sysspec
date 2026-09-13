@@ -30,6 +30,14 @@ const { chart } = Astro.props;
         primaryTextColor: v('--ss-text'),
         primaryBorderColor: v('--ss-hairline-strong'),
         lineColor: v('--ss-text-3'),
+        // Flowcharts group by repo boundary, so clusters and edge labels
+        // have to follow the theme too, not fall back to mermaid's.
+        clusterBkg: v('--ss-canvas'),
+        clusterBorder: v('--ss-hairline'),
+        edgeLabelBackground: v('--ss-surface'),
+        titleColor: v('--ss-text'),
+        nodeBorder: v('--ss-hairline-strong'),
+        nodeTextColor: v('--ss-text'),
         secondaryColor: v('--ss-accent-soft'),
         tertiaryColor: v('--ss-surface'),
         noteBkgColor: v('--ss-accent-soft'),

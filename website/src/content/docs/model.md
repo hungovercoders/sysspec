@@ -8,6 +8,7 @@ produces and consumes, so the spec suite is a graph rather than a folder:
 
 ```text
 specs/
+├── system.yaml          the system these services add up to
 └── <service>/
     ├── service.yaml      manifest: version, artifacts, produces, consumes
     ├── asyncapi/  openapi/  data-contracts/  features/
@@ -15,6 +16,30 @@ specs/
 
 `service.yaml` is the single source of truth for an artifact's version —
 there is no second place to forget to update.
+
+## The system
+
+One level up sits the suite itself. `specs/system.yaml` says which system
+these services belong to — its `title`, the business `domain` it sits in,
+and the reverse-DNS `org` every event type is prefixed with:
+
+```yaml
+apiVersion: sysspec/v1
+kind: System
+name: acme-commerce
+title: Acme Commerce
+domain: Commerce
+org: com.acme
+summary: >
+  What this system is for, in a sentence or two.
+```
+
+It is ungated — no versioned change ceremony — but `lint:manifest` holds it
+to being complete when present. The generated catalog reads it for its
+title, its header badge, its overview annotation and its footer, which is
+what makes one instance's site recognisably its own. `sysspec init` seeds it
+from `--org`, `--system` and `--domain`; a suite without the file still
+renders, generically.
 
 ## Two classes of artifact
 

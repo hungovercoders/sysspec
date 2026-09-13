@@ -11,18 +11,26 @@ const repoSlug = process.env.GITHUB_REPOSITORY ?? '<owner>/<repo>';
 const slug = '__SYSSPEC_REPO_SLUG__';
 const sysspecRepo = slug.startsWith('__') ? 'hungovercoders/sysspec' : slug;
 
+// The two repos are the point of the model, so the chart draws the
+// boundary: the spec repo publishes a release, everything else happens in
+// the implementation, and the verify gate is the only way out.
 const flow = `flowchart TD
-  tag["spec repo: merge to main cuts service/vX.Y.Z"]
-  lock["contracts.lock pins the tag + its commit sha"]
-  fetch["task contracts:fetch - read-only .contracts/ (specs + mocks + cli)"]
-  build["build: bind the feature files, strict"]
-  verify["task contracts:verify - contract tests, bound scenarios, negative control, schema fuzz"]
-  done(["implementation satisfies the pinned surface"])
+  subgraph specs["Spec repo — the specs of record"]
+    tag["merge to main cuts<br/>&lt;service&gt;/vX.Y.Z"]
+  end
+  subgraph impl["Implementation repo"]
+    lock["contracts.lock<br/>pins the tag + its commit sha"]
+    fetch["task contracts:fetch<br/>read-only .contracts/ (specs + mocks + cli)"]
+    build["build<br/>bind the feature files, strict"]
+    verify{"task contracts:verify"}
+    done(["implementation satisfies<br/>the pinned surface"])
+  end
   tag -->|"pin the newest tag"| lock
   lock --> fetch --> build --> verify
   verify -->|green| done
   verify -->|red| build
   tag -.->|"each new tag: Renovate re-pins"| lock`;
+
 ---
 <StarlightPage frontmatter={{ title: 'Drive an implementation' }}>
   <p>

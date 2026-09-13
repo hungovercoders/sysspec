@@ -1,0 +1,19 @@
+---
+// The system graph's vocabulary, as HTML next to the canvas: it stays
+// readable without JavaScript, is selectable and searchable, and shows
+// only the node kinds the graph in question actually draws.
+interface Props {
+  ops?: boolean;
+  data?: boolean;
+  unconsumed?: boolean;
+}
+const { ops = false, data = false, unconsumed = false } = Astro.props;
+---
+<p class="sc-graph-legend">
+  <span><i class="sc-legend-key sc-legend-key--service"></i>Service</span>
+  <span><i class="sc-legend-key sc-legend-key--channel"></i>Channel</span>
+  {data && <span><i class="sc-legend-key sc-legend-key--data"></i>Data product</span>}
+  {ops && <span><i class="sc-legend-key sc-legend-key--clients"></i>Clients</span>}
+  {ops && <span><i class="sc-legend-key sc-legend-key--call"></i>HTTP operations</span>}
+  {unconsumed && <span><i class="sc-legend-key sc-legend-key--sink"></i>No consumer yet</span>}
+</p>

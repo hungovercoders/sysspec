@@ -1,5 +1,12 @@
 # Deploying the sysspec demo
 
+The demo is live at **<https://demo.sysspec.com>** (spec catalog at `/`, MCP
+endpoint at `/mcp`); the tool's own website is at
+**<https://sysspec.dev>**. Both are Cloudflare Workers in this repo, and
+both custom domains are attached to their Worker in the Cloudflare
+dashboard rather than declared in `wrangler.jsonc`, so a deploy never
+touches DNS.
+
 The demo is one deployable unit built from the same spec commit: the
 generated docs site and the read-only spec MCP server. Anything that can
 serve static files and run the stateless streamable-HTTP MCP server can
@@ -31,9 +38,11 @@ server, plugin and the spec model, not the generated spec catalog) deploys
 as a separate static-assets-only Worker, `sysspec-site`, with the same
 pattern: `site-deploy.yml` on main pushes touching `website/`,
 `site-preview.yml` for per-PR `pr-<number>` preview aliases, the same two
-Cloudflare secrets. The site links back to this demo through the optional
-repo Actions *variables* `SYSSPEC_DEMO_URL` and `SYSSPEC_DEMO_MCP_URL`
-(unset, its pages fall back to GitHub links). First deploy: run
+Cloudflare secrets. The demo and site URLs are committed in
+`website/src/lib/links.ts` and `website/astro.config.mjs`; the repo Actions
+*variables* `SYSSPEC_DEMO_URL`, `SYSSPEC_DEMO_MCP_URL` and
+`SYSSPEC_SITE_URL` stay as overrides for preview deployments that should
+point at themselves rather than at production. First deploy: run
 `site-deploy.yml` once via workflow_dispatch to bootstrap the Worker the
 preview versions target.
 
