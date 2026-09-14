@@ -20188,7 +20188,22 @@ function info(doc) {
 function sendOperations(doc) {
   return Object.entries(doc.operations ?? {}).filter(([, op]) => op?.action === "send").map(([name]) => name);
 }
-function up(compose) {
+async function pull(compose, attempts = 3) {
+  for (let attempt = 1; ; attempt++) {
+    const res = run(["docker", "compose", "-f", compose, "pull"], { inherit: true });
+    if (res.status === 0) return;
+    if (attempt === attempts) {
+      throw new Exit(`docker compose pull failed (exit ${res.status}) after ${attempts} attempts`);
+    }
+    const backoff = 5 * 2 ** (attempt - 1);
+    console.log(
+      `docker compose pull failed (exit ${res.status}) - retrying in ${backoff}s (attempt ${attempt + 1} of ${attempts})`
+    );
+    await sleep(backoff * 1e3);
+  }
+}
+async function up(compose) {
+  await pull(compose);
   dc(compose, "up", "-d", "--wait");
   return 0;
 }
@@ -20198,7 +20213,7 @@ function down(compose) {
 }
 var sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 async function load(only, specsDir, mocksDir, microcksUrl, minionUrl, compose) {
-  up(compose);
+  await up(compose);
   for (const d of serviceDirs(specsDir, only)) {
     for (const kind of ["asyncapi", "openapi"]) {
       for (const [spec] of specDocs(d, kind)) {

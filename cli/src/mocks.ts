@@ -127,7 +127,27 @@ function sendOperations(doc: Dict): string[] {
     .map(([name]) => name);
 }
 
-export function up(compose: string): number {
+/** Pulling crosses a public registry that answers 5xx often enough to
+ * redden a run with nothing wrong in it, so the pull is retried on its own.
+ * Starting the stack is not retried: a failure there is the stack's. */
+export async function pull(compose: string, attempts = 3): Promise<void> {
+  for (let attempt = 1; ; attempt++) {
+    const res = run(["docker", "compose", "-f", compose, "pull"], { inherit: true });
+    if (res.status === 0) return;
+    if (attempt === attempts) {
+      throw new Exit(`docker compose pull failed (exit ${res.status}) after ${attempts} attempts`);
+    }
+    const backoff = 5 * 2 ** (attempt - 1);
+    console.log(
+      `docker compose pull failed (exit ${res.status}) - retrying in ${backoff}s ` +
+        `(attempt ${attempt + 1} of ${attempts})`,
+    );
+    await sleep(backoff * 1000);
+  }
+}
+
+export async function up(compose: string): Promise<number> {
+  await pull(compose);
   dc(compose, "up", "-d", "--wait");
   return 0;
 }
@@ -147,7 +167,7 @@ export async function load(
   minionUrl: string,
   compose: string,
 ): Promise<number> {
-  up(compose);
+  await up(compose);
   for (const d of serviceDirs(specsDir, only)) {
     for (const kind of ["asyncapi", "openapi"]) {
       for (const [spec] of specDocs(d, kind)) {

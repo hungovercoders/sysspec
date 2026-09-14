@@ -1,13 +1,26 @@
 /** Pure pieces of the mock orchestration: the structural body matcher,
- * the info() extraction Microcks uploads depend on, and service discovery.
+ * the info() extraction Microcks uploads depend on, service discovery, and
+ * the registry-pull retry (its subprocess stubbed).
  */
 
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { afterAll, describe, expect, test } from "vitest";
-import { bodyMatches, info, serviceDirs } from "../src/mocks.js";
-import { Exit } from "../src/util.js";
+import { afterAll, afterEach, describe, expect, test, vi } from "vitest";
+import { bodyMatches, info, pull, serviceDirs } from "../src/mocks.js";
+import { Exit, run } from "../src/util.js";
+
+vi.mock("../src/util.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../src/util.js")>()),
+  run: vi.fn(),
+}));
+
+const runMock = vi.mocked(run);
+const exits = (...statuses: number[]) => {
+  for (const status of statuses) {
+    runMock.mockReturnValueOnce({ status, stdout: "", stderr: "" });
+  }
+};
 
 describe("bodyMatches", () => {
   test("templated values ({{...}}) are not asserted", () => {
@@ -47,6 +60,42 @@ describe("info", () => {
     expect(() => info({})).toThrow(Exit);
     expect(() => info({ info: { version: "1.0.0" } })).toThrow(/info\.title/);
     expect(() => info({ info: { title: "Orders" } })).toThrow(/info\.version/);
+  });
+});
+
+describe("pull", () => {
+  afterEach(() => {
+    runMock.mockReset();
+    vi.useRealTimers();
+  });
+
+  test("a registry 5xx is retried, and the run continues once it succeeds", async () => {
+    vi.useFakeTimers();
+    exits(1, 0);
+    const pulled = pull("compose.yml");
+    await vi.advanceTimersByTimeAsync(5000);
+    await expect(pulled).resolves.toBeUndefined();
+    expect(runMock).toHaveBeenCalledTimes(2);
+  });
+
+  test("a pull failing every attempt is an error, not a silent start", async () => {
+    vi.useFakeTimers();
+    exits(1, 1, 1);
+    const pulled = pull("compose.yml");
+    const settled = expect(pulled).rejects.toThrow(/pull failed \(exit 1\) after 3 attempts/);
+    await vi.advanceTimersByTimeAsync(15000);
+    await settled;
+    expect(runMock).toHaveBeenCalledTimes(3);
+  });
+
+  test("a pull that works first time neither retries nor sleeps", async () => {
+    exits(0);
+    await pull("compose.yml");
+    expect(runMock).toHaveBeenCalledTimes(1);
+    expect(runMock).toHaveBeenCalledWith(
+      ["docker", "compose", "-f", "compose.yml", "pull"],
+      { inherit: true },
+    );
   });
 });
 
