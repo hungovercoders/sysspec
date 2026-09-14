@@ -31,7 +31,7 @@ This repo is three things at once:
 3. **The living example** — **sysspec demo**, the `orders`/`payments` spec
    suite (`specs/system.yaml` names it), which doubles as the toolkit's
    regression suite: every toolkit change must keep it green. It is
-   published as a live catalog at **<https://demo.sysspec.com>**, with its
+   published as a live catalog at **<https://demo.sysspec.dev>**, with its
    MCP endpoint at `/mcp`.
 
 Docs for the tool itself — CLI, MCP server, plugin and the spec model —

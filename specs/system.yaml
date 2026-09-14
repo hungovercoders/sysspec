@@ -1,6 +1,6 @@
 # The system this spec suite describes: the worked commerce example that
 # ships with sysspec, doubles as the toolkit's regression suite, and is
-# published as the live catalog at demo.sysspec.com.
+# published as the live catalog at demo.sysspec.dev.
 apiVersion: sysspec/v1
 kind: System
 name: sysspec-demo
