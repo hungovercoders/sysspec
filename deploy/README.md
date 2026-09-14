@@ -1,6 +1,6 @@
 # Deploying the sysspec demo
 
-The demo is live at **<https://demo.sysspec.com>** (spec catalog at `/`, MCP
+The demo is live at **<https://demo.sysspec.dev>** (spec catalog at `/`, MCP
 endpoint at `/mcp`); the tool's own website is at
 **<https://sysspec.dev>**. Both are Cloudflare Workers in this repo, and
 both custom domains are attached to their Worker in the Cloudflare

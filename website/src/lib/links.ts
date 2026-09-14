@@ -2,7 +2,7 @@
 //
 // Both deployments now have permanent homes of their own — this site at
 // sysspec.dev, the demo Worker (generated spec catalog at /, MCP at /mcp)
-// at demo.sysspec.com — so the URLs are committed here rather than
+// at demo.sysspec.dev — so the URLs are committed here rather than
 // arriving as build-time configuration. The environment variables survive
 // as overrides for preview deployments, which serve the same pages from a
 // *.workers.dev alias; the deploy workflows pass them through when the
@@ -10,7 +10,7 @@
 const trim = (url: string | undefined) => (url ? url.replace(/\/$/, '') : '');
 
 export const SITE_URL = trim(process.env.SYSSPEC_SITE_URL) || 'https://sysspec.dev';
-export const DEMO_SITE_URL = trim(process.env.SYSSPEC_DEMO_URL) || 'https://demo.sysspec.com';
+export const DEMO_SITE_URL = trim(process.env.SYSSPEC_DEMO_URL) || 'https://demo.sysspec.dev';
 export const DEMO_MCP_URL = trim(process.env.SYSSPEC_DEMO_MCP_URL) || `${DEMO_SITE_URL}/mcp`;
 
 // Source, packages and issues still live on GitHub; everything a reader
