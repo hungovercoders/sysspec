@@ -1,4 +1,15 @@
 {
+  "system": {
+    "name": "sysspec-demo",
+    "title": "sysspec demo",
+    "domain": "Commerce",
+    "org": "com.hungovercoders",
+    "summary": "A small commerce system specified end to end: orders accepted over HTTP, order lifecycle and payment settlement carried as events, and the historical record of both published as data contracts. Every toolkit change must keep it green, so what you read here is what the gates actually enforce.",
+    "mcp": "https://demo.sysspec.dev/mcp",
+    "domains": [
+      "Commerce"
+    ]
+  },
   "services": [
     {
       "name": "orders",
@@ -520,7 +531,7 @@
               }
             ]
           },
-          "er_mermaid": "erDiagram\n    order_placed_events {\n        string event_id PK\n        string event_type\n        string event_source\n        date event_time\n        string order_id UK\n        string customer_id\n        date placed_at\n        integer total_pence\n    }\n    order_cancelled_events {\n        string event_id PK\n        string event_type\n        string event_source\n        date event_time\n        string order_id UK\n        date cancelled_at\n        string reason\n    }"
+          "er_mermaid": "erDiagram\n    order_placed_events {\n        string event_id PK \"CloudEvents envelope id - the dedupe key.\"\n        string event_type \"CloudEvents type, e.g. com.hungovercoders.orders.placed.v2.\"\n        string event_source \"CloudEvents source of the producing service.\"\n        date event_time \"CloudEvents envelope time.\"\n        string order_id UK\n        string customer_id\n        date placed_at \"partition key\"\n        integer total_pence\n    }\n    order_cancelled_events {\n        string event_id PK \"CloudEvents envelope id - the dedupe key.\"\n        string event_type \"CloudEvents type, e.g. com.hungovercoders.orders.cancelled.v2.\"\n        string event_source \"CloudEvents source of the producing service.\"\n        date event_time \"CloudEvents envelope time.\"\n        string order_id UK\n        date cancelled_at \"partition key\"\n        string reason\n    }"
         }
       ],
       "produces": [
@@ -757,7 +768,7 @@
           "consumers": [
             "payments"
           ],
-          "sequence_mermaid": "sequenceDiagram\n    participant orders as Orders\n    participant chan as orders.placed.v2\n    participant payments as Payments\n    orders-)chan: OrderPlaced\n    chan-)payments: OrderPlaced",
+          "sequence_mermaid": "sequenceDiagram\n    autonumber\n    participant orders as Orders\n    participant chan as orders.placed.v2\n    participant payments as Payments\n    orders-)chan: OrderPlaced\n    Note right of chan: com.hungovercoders.orders.placed.v2\n    chan--)payments: OrderPlaced",
           "messages": [
             {
               "name": "OrderPlaced",
@@ -850,7 +861,7 @@
           "artifact_version": "3.0.0",
           "description": "Emitted when an order is cancelled, with the reason.",
           "consumers": [],
-          "sequence_mermaid": "sequenceDiagram\n    participant orders as Orders\n    participant chan as orders.cancelled.v2\n    orders-)chan: OrderCancelled\n    Note over chan: no consumer in the specs yet",
+          "sequence_mermaid": "sequenceDiagram\n    autonumber\n    participant orders as Orders\n    participant chan as orders.cancelled.v2\n    orders-)chan: OrderCancelled\n    Note right of chan: com.hungovercoders.orders.cancelled.v2\n    Note over chan: no consumer in the specs yet",
           "messages": [
             {
               "name": "OrderCancelled",
@@ -1043,7 +1054,7 @@
               }
             ]
           },
-          "er_mermaid": "erDiagram\n    payments_daily_settled {\n        string payment_id PK\n        string order_id\n        date settled_at\n        integer amount_pence\n    }"
+          "er_mermaid": "erDiagram\n    payments_daily_settled {\n        string payment_id PK\n        string order_id\n        date settled_at \"partition key\"\n        integer amount_pence\n    }"
         },
         {
           "kind": "data-contract",
@@ -1161,7 +1172,7 @@
               }
             ]
           },
-          "er_mermaid": "erDiagram\n    payment_settled_events {\n        string event_id PK\n        string event_type\n        string event_source\n        date event_time\n        string payment_id UK\n        string order_id\n        date settled_at\n        integer amount_pence\n    }"
+          "er_mermaid": "erDiagram\n    payment_settled_events {\n        string event_id PK \"CloudEvents envelope id - the dedupe key.\"\n        string event_type \"CloudEvents type, e.g. com.hungovercoders.payments.settled.v2.\"\n        string event_source \"CloudEvents source of the producing service.\"\n        date event_time \"CloudEvents envelope time.\"\n        string payment_id UK\n        string order_id\n        date settled_at \"partition key\"\n        integer amount_pence\n    }"
         },
         {
           "kind": "feature",
@@ -1321,7 +1332,7 @@
           "consumers": [
             "orders"
           ],
-          "sequence_mermaid": "sequenceDiagram\n    participant payments as Payments\n    participant chan as payments.settled.v2\n    participant orders as Orders\n    payments-)chan: PaymentSettled\n    chan-)orders: PaymentSettled",
+          "sequence_mermaid": "sequenceDiagram\n    autonumber\n    participant payments as Payments\n    participant chan as payments.settled.v2\n    participant orders as Orders\n    payments-)chan: PaymentSettled\n    Note right of chan: com.hungovercoders.payments.settled.v2\n    chan--)orders: PaymentSettled",
           "messages": [
             {
               "name": "PaymentSettled",

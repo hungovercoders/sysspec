@@ -3,17 +3,26 @@ title: MCP server — sysspec-mcp
 description: Seven read-only tools over any spec tree — stdio locally, streamable HTTP behind a URL.
 ---
 
-import { DEMO_MCP_URL, DEMO_MCP_IS_LIVE } from '../../lib/links';
+import { DEMO_MCP_URL } from '../../lib/links';
 
 The [`sysspec-mcp` package](https://www.npmjs.com/package/sysspec-mcp) gives
-agents read-only MCP access to a spec tree. One TypeScript implementation
-behind every route in: stdio for local clients, stateless streamable HTTP for
-a hosted URL. There is no write tool, and reads are confined to artifacts a
-service manifest declares — dropping a file into the tree does not silently
-expose it.
+read-only MCP access to a spec tree — to agents building against it, and to
+anyone who would rather ask the system a question than go looking for the
+file. One TypeScript implementation behind every route in: stdio for local
+clients, stateless streamable HTTP for a hosted URL. There is no write tool,
+and reads are confined to artifacts a service manifest declares — dropping a
+file into the tree does not silently expose it.
 
 The server is a generic engine — the specs are per-repo data, pointed at
 with `SPECS_DIR`.
+
+:::tip[Not just for building]
+Connected to a client, these tools turn a spec suite into a domain expert
+you can interview in plain language — "who consumes this event?", "what
+does a customer have to supply?", "what would this change break?".
+[Ask the specs](/ask-the-specs/) covers that use, which is most people's
+first one.
+:::
 
 ## The tools
 
@@ -73,11 +82,19 @@ Connect from anywhere that can't spawn a local process (remote sessions, CI):
 claude mcp add sysspec --scope project --transport http https://<your-deploy>/mcp
 ```
 
-{DEMO_MCP_IS_LIVE
-  ? <p>The example specs are served live — try the <a href={DEMO_MCP_URL}>demo MCP endpoint</a> with the wiring line above.</p>
-  : <p>Hosting details, hardening notes and the demo deployment live in <a href={DEMO_MCP_URL}>the deploy guide</a>.</p>}
+The example specs are served live at <a href={DEMO_MCP_URL}>{DEMO_MCP_URL}</a> — wire it up
+with the line above and start with `list_services()`.
 
 Whichever route, verify with `/mcp` and then `list_services()`.
+
+Once an endpoint is hosted, record it in the suite's `specs/system.yaml`:
+
+```yaml
+mcp: https://specs.example.com/mcp
+```
+
+The generated catalog reads that field and puts the URL on its **Ask these
+specs** page, so readers can connect without being told how by anyone.
 
 ## Hardening
 

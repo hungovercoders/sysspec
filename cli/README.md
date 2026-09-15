@@ -5,7 +5,8 @@ Microcks mock orchestration and the `init` scaffold for a contract-first
 spec repository.
 
 ```bash
-npx -y sysspec init my-specs --org com.acme   # scaffold a spec repo
+npx -y sysspec init my-specs --org com.acme \
+  --system "Acme Commerce" --domain Commerce   # scaffold a spec repo
 npx -y sysspec lint manifest                  # any command, ad hoc
 ```
 

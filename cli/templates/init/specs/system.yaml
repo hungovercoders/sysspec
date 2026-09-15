@@ -1,0 +1,22 @@
+# The system this spec suite describes.
+#
+# One per repo, and the reason a generated catalog is recognisably yours:
+# the title heads every page, the domain and event namespace annotate the
+# overview, and the summary is the first thing a newcomer reads. Replace
+# these starter values when your first real service lands.
+apiVersion: sysspec/v1
+kind: System
+name: __SYSTEM_NAME__
+title: __SYSTEM_TITLE__
+domain: __SYSTEM_DOMAIN__
+# The reverse-DNS namespace every event type in this system is prefixed
+# with, e.g. __ORG__.greeter.greeted.v1.
+org: __ORG__
+# Optional: the hosted MCP endpoint these specs are served on, once you
+# have one. The catalog's "Ask these specs" page then hands readers a URL
+# to paste into any MCP client rather than a local command to run.
+# mcp: https://specs.example.com/mcp
+summary: >
+  What this system is for, in a sentence or two: the business capability
+  it owns and the boundary it holds. Services live under specs/<name>/;
+  this file describes the whole they add up to.

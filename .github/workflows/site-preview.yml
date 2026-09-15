@@ -5,7 +5,9 @@
 # still builds it on every PR via the site:build gate).
 #
 # Secrets: CLOUDFLARE_API_TOKEN (Workers Scripts:Edit), CLOUDFLARE_ACCOUNT_ID.
-# Variables (optional): SYSSPEC_DEMO_URL, SYSSPEC_DEMO_MCP_URL.
+# Variables (optional overrides): SYSSPEC_DEMO_URL, SYSSPEC_DEMO_MCP_URL —
+# the demo links this build renders. Unset, it uses the committed
+# production URLs (see website/src/lib/links.ts).
 name: site-preview
 
 on:

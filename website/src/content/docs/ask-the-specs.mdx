@@ -1,0 +1,101 @@
+---
+title: Ask the specs
+description: Your spec suite is a domain expert on tap — connect an MCP client and interview the system in plain language.
+---
+
+import { DEMO_MCP_URL, DEMO_SITE_URL } from '../../lib/links';
+
+A spec suite is usually justified by what it does for *building*: agents and
+engineers read the contracts over MCP, implementations are held to them by
+gates. That is half of it. The same tools, pointed at the same specs, make
+the system **answerable** — by anyone, in plain language, without opening a
+file.
+
+- *"Who consumes `orders.placed.v2`?"*
+- *"What does a customer have to supply to place an order?"*
+- *"If we dropped `customer_id` from `OrderPlaced`, who breaks — and is that a major?"*
+- *"Where is 'settled' defined, and does payments mean the same thing by it as orders?"*
+
+Those questions normally cost somebody an afternoon: find the right repo,
+find the right file, work out whether it is current, then find the person
+who actually knows. Here they are a sentence, answered from the specs of
+record — versioned, gated, the same surface every implementation is held
+to. Not someone's memory of the system, and not code that may have drifted
+from what was agreed.
+
+## Who this is for
+
+- **Product and delivery** — what a service is responsible for, what it
+  guarantees, what it deliberately leaves open.
+- **Analysts and data people** — what an event carries, what is required,
+  what the data products promise.
+- **Architects and tech leads** — who depends on a channel, what a change
+  would break, whether an idea is modelled consistently across services.
+- **Support and operations** — what the system is *supposed* to do, which
+  is the first thing you need when deciding whether behaviour is a bug.
+- **New joiners** — a domain expert that is never too busy, on their first
+  morning.
+- **Agents** — the same tools, the same answers, at implementation time.
+
+That last line is the point: the artifact that lets an agent build
+correctly is the artifact that lets a person ask a good question. You
+maintain one of them.
+
+## Try it on the live demo
+
+The example suite is served publicly, so you can ask before you scaffold
+anything:
+
+```bash
+claude mcp add sysspec --scope project \
+  --transport http https://demo.sysspec.dev/mcp
+```
+
+Then `/mcp` to confirm, `list_services()` to open, and ask in your own
+words. The <a href={DEMO_SITE_URL}>catalog</a> and the endpoint at <a
+href={DEMO_MCP_URL}>{DEMO_MCP_URL}</a> are built from the same commit, so
+what you read and what you are told cannot disagree.
+
+## Point it at your own specs
+
+Any checkout works — the server reads one directory and nothing else:
+
+```bash
+claude mcp add sysspec --scope project \
+  --env SPECS_DIR=/path/to/your-specs/specs \
+  -- npx -y sysspec-mcp
+```
+
+Once a team is asking regularly, host it once instead of everyone running a
+process: `sysspec-mcp` serves streamable HTTP behind a URL (see
+[the MCP server](/mcp/#serve-it-over-a-url)). Record the endpoint in
+`specs/system.yaml` —
+
+```yaml
+mcp: https://specs.example.com/mcp
+```
+
+— and your generated catalog's **Ask these specs** page hands every reader
+that URL, alongside starter questions drawn from your own services,
+messages and scenarios.
+
+## What it will not do
+
+- **No writes.** There is no write tool. A conversation cannot amend a
+  contract, because changing one is a deliberate, versioned act with its
+  own gates.
+- **No runtime.** These are specs of intent: what the system is meant to
+  do, not what an instance did last Tuesday. No traffic, no incidents, no
+  data.
+- **No undeclared files.** Reads are confined to artifacts a service
+  manifest declares, so dropping a file into the tree does not silently
+  expose it.
+
+If an implementation disagrees with an answer, that is a bug in the
+implementation — and its [gates](/gates-and-ci/) should already be red.
+
+## Where to next
+
+- [MCP server](/mcp/) — the seven tools, the transports, hardening.
+- [The live demo](/demo/) — catalog and endpoint, deployed on every merge.
+- [Getting started](/getting-started/) — scaffold a suite of your own.

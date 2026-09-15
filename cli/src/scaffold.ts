@@ -25,6 +25,28 @@ const RENAMES: Record<string, string> = {
 
 const ORG_RE = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/;
 
+/** Title Case from the org's last label: com.acme -> "Acme". The system
+ * name has to be *something* per instance, and the org is the one thing
+ * `init` always knows. `--system` overrides it. */
+function systemTitleFrom(org: string): string {
+  const label = org.split(".").pop() ?? org;
+  return label
+    .split("-")
+    .filter(Boolean)
+    .map((w) => w[0].toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
+/** Lower-kebab id from a title, the form lint:manifest requires. */
+function systemName(title: string): string {
+  return (
+    title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "") || "system"
+  );
+}
+
 // Build artifacts and generated data that live inside the docs-site
 // template in a development checkout (the repo root symlinks docs-site
 // into the templates). Published packages exclude them (npm pack drops
@@ -71,7 +93,13 @@ function copy(node: string, target: string, subs: Record<string, string>, rel = 
   return written;
 }
 
-export function runInit(targetDir: string, org: string, sysspecRepo: string): number {
+export function runInit(
+  targetDir: string,
+  org: string,
+  sysspecRepo: string,
+  system: string | null = null,
+  domain: string | null = null,
+): number {
   if (!ORG_RE.test(org)) {
     throw new Exit(`--org must be reverse-DNS (e.g. com.acme), got '${org}'`);
   }
@@ -88,8 +116,17 @@ export function runInit(targetDir: string, org: string, sysspecRepo: string): nu
   mkdirSync(target, { recursive: true });
 
   const version = ownVersion();
+  const systemTitle = (system ?? systemTitleFrom(org)).trim();
+  const systemDomain = (domain ?? "Examples").trim();
+  if (!systemTitle) throw new Exit("--system must not be empty");
+  if (!systemDomain) throw new Exit("--domain must not be empty");
   const subs: Record<string, string> = {
     __ORG__: org,
+    __SYSTEM_TITLE__: systemTitle,
+    __SYSTEM_NAME__: systemName(systemTitle),
+    // The starter service sits in the Examples domain; the system it
+    // belongs to says so until a real service replaces it.
+    __SYSTEM_DOMAIN__: systemDomain,
     __KIT_VERSION__: version,
     __KIT_MAJOR__: `v${version.split(".")[0]}`,
     __MCP_VERSION__: SYSSPEC_MCP.split("@")[1],
@@ -101,13 +138,14 @@ export function runInit(targetDir: string, org: string, sysspecRepo: string): nu
   }
   console.log(
     `\nscaffolded ${written.length} file(s) into ${target} ` +
-      `(sysspec ${version}, org ${org})\n\n` +
+      `(sysspec ${version}, org ${org}, system ${systemTitle})\n\n` +
       "Next steps:\n" +
       "  git init\n" +
       "  mise install && task setup  # pinned toolchain + the pre-commit hook\n" +
       "  git add -A && git commit -m 'chore: scaffold specs'   # through the hook\n" +
       "  task ci                     # gates + mock cycle, green from the start\n" +
       "  Replace the greeter starter service with your first real one.\n" +
+      "  Fill in specs/system.yaml - it annotates every catalog page.\n" +
       "  Enable Renovate and GitHub Pages on the repository.",
   );
   return 0;

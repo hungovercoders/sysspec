@@ -1,0 +1,213 @@
+---
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import { services, system, withBase } from '../lib/specs';
+
+// The plugin and skills live in the sysspec repo, not this spec repo.
+// `sysspec init` substitutes the token; in the sysspec repo itself the
+// token survives untouched, so fall back to its home.
+const slug = '__SYSSPEC_REPO_SLUG__';
+const sysspecRepo = slug.startsWith('__') ? 'hungovercoders/sysspec' : slug;
+
+// specs/system.yaml may name a hosted endpoint. With one, the connect
+// step is a URL anybody can paste; without, it is the local route.
+const hosted = system.mcp;
+
+// The starter questions are drawn from this suite's own specs, so the
+// page reads as an interview with *this* domain rather than a generic
+// how-to. Everything below degrades: a suite with no events, no data
+// products or no scenarios simply shows fewer lines.
+const first = services[0];
+const namedChannel = services.flatMap((s) => s.channels).find((c) => c.consumers.length > 0)
+  ?? services.flatMap((s) => s.channels)[0];
+const namedMessage = namedChannel?.messages[0]?.name ?? null;
+const namedOperation = services.flatMap((s) => s.operations)[0] ?? null;
+const namedScenario = services
+  .flatMap((s) => s.artifacts)
+  .find((a) => a.kind === 'feature' && a.feature?.scenarios.length)
+  ?.feature?.scenarios[0]?.title ?? null;
+const namedProduct = services.flatMap((s) => s.data_products)[0] ?? null;
+
+interface Ask {
+  q: string;
+  why: string;
+}
+
+const understand: Ask[] = [
+  first && {
+    q: `What does ${first.title} do, and where does its responsibility stop?`,
+    why: 'Summary, owner and version, straight from the manifest.',
+  },
+  {
+    q: `Which services make up ${system.name ? system.title : 'this system'}, and who owns each one?`,
+    why: 'The service list, without reading a single file.',
+  },
+  namedScenario && {
+    q: `Explain the rule behind “${namedScenario}” in business terms.`,
+    why: 'The acceptance criteria are the behaviour of record.',
+  },
+].filter(Boolean) as Ask[];
+
+const dig: Ask[] = [
+  namedMessage && {
+    q: `What information does ${namedMessage} carry, and which parts are required?`,
+    why: 'One message schema — the cheapest question there is.',
+  },
+  namedOperation && {
+    q: `What can ${namedOperation.op_id} return, and what does each response mean?`,
+    why: 'The API contract, rendered as answers rather than YAML.',
+  },
+  namedProduct && {
+    q: `What is in the ${namedProduct.title} data product, and what are its guarantees?`,
+    why: 'Data contracts read the same way as the rest of the suite.',
+  },
+].filter(Boolean) as Ask[];
+
+const change: Ask[] = [
+  namedChannel && {
+    q: `Who consumes ${namedChannel.address}?`,
+    why: 'The blast radius of a change, before anyone writes it.',
+  },
+  namedMessage && {
+    q: `If we dropped a field from ${namedMessage}, who would break and would it need a major version?`,
+    why: 'The versioning rules, applied to a real proposal.',
+  },
+  {
+    q: 'Where is the idea of a customer defined, and is it consistent across services?',
+    why: 'Search across every contract, scenario and data product at once.',
+  },
+];
+
+const tools = [
+  ['list_services()', 'What is in this system?'],
+  ['get_service(name)', 'What does one service own, publish and depend on?'],
+  ['get_message_schema(service, message)', 'What is on this event?'],
+  ['get_acceptance_criteria(service)', 'How is it supposed to behave?'],
+  ['get_artifact(service, path)', 'Show me the contract itself.'],
+  ['trace_channel(address)', 'Who do I break if I change this?'],
+  ['search_specs(query)', 'Where is this idea defined?'],
+];
+---
+<StarlightPage
+  frontmatter={{
+    title: 'Ask these specs',
+    description: `Interview ${system.title} in plain language: connect an MCP client and ask the specs of record directly.`,
+  }}
+>
+  <p>
+    This catalog is written to be read — and the same specs behind it are
+    also written to be <strong>asked</strong>. Connect an MCP client to
+    them and you can interview {system.name ? system.title : 'this system'}{' '}
+    in plain language: what a service is for, what an event carries, how
+    something is meant to behave, who breaks if it changes.
+  </p>
+  <p>
+    The answers come from the specs of record — versioned, gated, the same
+    surface implementations are held to — not from anyone's memory of how
+    the system works or from code that may have drifted. That makes this
+    useful well beyond building: product and delivery people, analysts,
+    support, architects and new joiners get a domain expert that is never
+    too busy and never out of date. Agents use exactly the same tools to
+    build against the specs, which is why the answers agree.
+  </p>
+
+  <h2>Connect in one line</h2>
+  {hosted ? (
+    <>
+      <p>
+        These specs are served live at <a href={hosted}>{hosted}</a>. Point
+        a client at that URL — nothing to install, nothing to clone:
+      </p>
+      <pre><code>{`claude mcp add ${system.name ?? 'sysspec'} --scope project \\
+  --transport http ${hosted}`}</code></pre>
+      <p>
+        Prefer a local process, or working from a checkout of the spec
+        repo? That works too:
+      </p>
+      <pre><code>{`claude mcp add ${system.name ?? 'sysspec'} --scope project \\
+  --env SPECS_DIR=/path/to/checkout/specs \\
+  -- npx -y sysspec-mcp`}</code></pre>
+    </>
+  ) : (
+    <>
+      <p>
+        Point a client at a checkout of the spec repo — the server is
+        read-only and needs nothing but the specs directory:
+      </p>
+      <pre><code>{`claude mcp add ${system.name ?? 'sysspec'} --scope project \\
+  --env SPECS_DIR=/path/to/checkout/specs \\
+  -- npx -y sysspec-mcp`}</code></pre>
+      <p>
+        The same server also runs behind a URL
+        (<code>--transport http</code>), so one deployment can answer for
+        everybody. Record it as <code>mcp:</code> in
+        <code> specs/system.yaml</code> and this page hands readers the
+        endpoint instead of a command.
+      </p>
+    </>
+  )}
+  <p class="sc-graph-hint">
+    Any MCP client works. In Claude Code, confirm with <code>/mcp</code>
+    and open with <code>list_services()</code>; the sysspec plugin
+    (<code>/plugin marketplace add {sysspecRepo}</code>) adds the same
+    tools plus the skills that drive implementing and consuming.
+  </p>
+
+  <h2>Questions worth asking</h2>
+  <p>
+    Drawn from these specs, so they are answerable right now:
+  </p>
+
+  <h3>Understand the domain</h3>
+  <ul class="sc-asks">
+    {understand.map((a) => (
+      <li><span class="sc-ask-q">{a.q}</span><span class="sc-ask-why">{a.why}</span></li>
+    ))}
+  </ul>
+
+  {dig.length > 0 && (
+    <>
+      <h3>Get to the detail</h3>
+      <ul class="sc-asks">
+        {dig.map((a) => (
+          <li><span class="sc-ask-q">{a.q}</span><span class="sc-ask-why">{a.why}</span></li>
+        ))}
+      </ul>
+    </>
+  )}
+
+  <h3>Test a change before proposing it</h3>
+  <ul class="sc-asks">
+    {change.map((a) => (
+      <li><span class="sc-ask-q">{a.q}</span><span class="sc-ask-why">{a.why}</span></li>
+    ))}
+  </ul>
+
+  <h2>What answers, and what it will not do</h2>
+  <p>
+    Seven read-only tools serve the answers. There is no write tool: a
+    conversation can never amend a contract, because changing one is a
+    deliberate, versioned act with gates of its own. Reads are confined to
+    artifacts a service manifest declares, so nothing is exposed by
+    accident.
+  </p>
+  <table class="sc-table">
+    <thead><tr><th>Tool</th><th>The question it answers</th></tr></thead>
+    <tbody>
+      {tools.map(([tool, question]) => (
+        <tr><td><code>{tool}</code></td><td>{question}</td></tr>
+      ))}
+    </tbody>
+  </table>
+  <p>
+    One boundary worth stating: these are specs of <em>intent</em>. They
+    say what the system is meant to do, not what a running instance did
+    last Tuesday — no traffic, no incidents, no data. If an implementation
+    disagrees with an answer here, that is a bug in the implementation,
+    and its gates should already be red.
+  </p>
+  <p>
+    Building rather than asking? The same tools carry the
+    <a href={withBase('/implementing/')}> implementation</a> and
+    <a href={withBase('/consuming/')}> consumer</a> loops.
+  </p>
+</StarlightPage>

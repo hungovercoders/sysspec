@@ -55,6 +55,28 @@ test("scaffold writes renamed dotfiles and substituted pins", () => {
   expect(asyncapi).not.toContain("__ORG__");
 });
 
+test("the system manifest carries the instance's own name, domain and org", () => {
+  const target = path.join(tmp, "named");
+  runInit(target, "com.acme", "o/r", "Acme Commerce", "Commerce");
+  const system = readFileSync(path.join(target, "specs", "system.yaml"), "utf-8");
+  expect(system).toContain("name: acme-commerce");
+  expect(system).toContain("title: Acme Commerce");
+  expect(system).toContain("domain: Commerce");
+  expect(system).toContain("org: com.acme");
+  expect(system).not.toContain("__SYSTEM");
+  // The README heads with the same name, so the repo introduces itself.
+  expect(readFileSync(path.join(target, "README.md"), "utf-8")).toContain("# Acme Commerce");
+});
+
+test("without --system the title falls back to the org's last label", () => {
+  const target = path.join(tmp, "derived");
+  runInit(target, "com.example", "o/r");
+  const system = readFileSync(path.join(target, "specs", "system.yaml"), "utf-8");
+  expect(system).toContain("title: Example");
+  expect(system).toContain("name: example");
+  expect(system).toContain("domain: Examples");
+});
+
 test("a non-reverse-DNS org is refused", () => {
   expect(() => runInit(path.join(tmp, "x"), "acme", "o/r")).toThrow("--org must be reverse-DNS");
 });

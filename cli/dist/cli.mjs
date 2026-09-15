@@ -7467,7 +7467,8 @@ __export(docs_data_exports, {
   flattenSchema: () => flattenSchema,
   releaseTags: () => releaseTags,
   runData: () => runData,
-  structuredSteps: () => structuredSteps
+  structuredSteps: () => structuredSteps,
+  systemEntry: () => systemEntry
 });
 import { cpSync, mkdirSync, readFileSync as readFileSync3, rmSync as rmSync2, writeFileSync as writeFileSync2 } from "fs";
 import path2 from "path";
@@ -7603,7 +7604,7 @@ function channelEntry(address, info2, consumers, examples) {
     artifact_version: info2.artifact_version,
     description: info2.description,
     consumers: consuming.map((c) => c.name),
-    sequence_mermaid: unfence(channelSequence(address, info2, consuming)),
+    sequence_mermaid: unfence(channelSequence(address, info2, consuming, messages)),
     messages,
     examples: (examples.get(info2.op_name) ?? []).map(([caseName, payload]) => ({
       case: caseName,
@@ -7744,6 +7745,23 @@ function artifactHistories(m) {
 function parseYamlLines(lines) {
   return (0, import_yaml2.parse)(lines.join("\n"));
 }
+function systemEntry(manifests, raw) {
+  const domains = pySorted([
+    ...new Set(manifests.map((m) => m.domain).filter(Boolean).map(String))
+  ]);
+  const text = (value) => value == null ? null : clean(String(value)) || null;
+  return {
+    name: text(raw?.name),
+    title: text(raw?.title) ?? "System specs",
+    domain: text(raw?.domain),
+    org: text(raw?.org),
+    summary: text(raw?.summary) ?? "",
+    // Where these specs can be asked questions, if they are served
+    // anywhere. Null just means the catalog offers the local route.
+    mcp: text(raw?.mcp),
+    domains
+  };
+}
 function buildData(manifests, specs2, mocks) {
   const [index, consumers] = channelIndex(manifests, specs2);
   const surfaces = surfaceIndex(manifests, specs2);
@@ -7820,6 +7838,7 @@ function buildData(manifests, specs2, mocks) {
     }
   }
   return {
+    system: systemEntry(manifests, loadSystem(specs2)),
     services,
     edges,
     unconsumed: Object.entries(unconsumed).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0).map(([a, s]) => ({ channel: a, producer: s }))
@@ -7898,6 +7917,10 @@ function which(cmd) {
 function loadManifests(specs2) {
   if (!isDir(specs2)) return [];
   return readdirSync(specs2).sort().map((d) => path3.join(specs2, d, "service.yaml")).filter(isFile).map(readYaml);
+}
+function loadSystem(specs2) {
+  const file = path3.join(specs2, "system.yaml");
+  return isFile(file) ? readYaml(file) : null;
 }
 function nodeId(name) {
   return name.replace(/[^A-Za-z0-9_]/g, "_");
@@ -8019,21 +8042,30 @@ function jsonBodySchema(doc, holder) {
   const content = (holder ?? {}).content ?? {};
   return deref(doc, (content["application/json"] ?? {}).schema ?? {});
 }
-function channelSequence(address, info2, consuming) {
+function mermaidLabel(text) {
+  return String(text).replace(/[\r\n]+/g, " ").replace(/[;#]/g, " ").trim();
+}
+function channelSequence(address, info2, consuming, messages = null) {
   const producer = nodeId(info2.service);
+  const msgs = messages ?? info2.messages.map(([name]) => ({ name, event_type: null }));
   const lines = [
     "```mermaid",
     "sequenceDiagram",
-    `    participant ${producer} as ${info2.title}`,
-    `    participant chan as ${address}`
+    "    autonumber",
+    `    participant ${producer} as ${mermaidLabel(info2.title)}`,
+    `    participant chan as ${mermaidLabel(address)}`
   ];
+  const boxed = consuming.length > 1;
+  if (boxed) lines.push("    box transparent Consumers");
   for (const c of consuming) {
-    lines.push(`    participant ${nodeId(c.name)} as ${c.title}`);
+    lines.push(`    participant ${nodeId(c.name)} as ${mermaidLabel(c.title)}`);
   }
-  for (const [msgName] of info2.messages) {
-    lines.push(`    ${producer}-)chan: ${msgName}`);
+  if (boxed) lines.push("    end");
+  for (const m of msgs) {
+    lines.push(`    ${producer}-)chan: ${mermaidLabel(m.name)}`);
+    if (m.event_type) lines.push(`    Note right of chan: ${mermaidLabel(m.event_type)}`);
     for (const c of consuming) {
-      lines.push(`    chan-)${nodeId(c.name)}: ${msgName}`);
+      lines.push(`    chan--)${nodeId(c.name)}: ${mermaidLabel(m.name)}`);
     }
   }
   if (consuming.length === 0) {
@@ -8042,21 +8074,32 @@ function channelSequence(address, info2, consuming) {
   lines.push("```");
   return lines;
 }
+function erComment(p) {
+  const markers = [];
+  let text = clean(String(p.description ?? "")).replace(/[\r\n]+/g, " ").replace(/"/g, "'");
+  if (p.partitioned && !/partition/i.test(text)) markers.push("partition key");
+  if (p.required !== true && !/optional/i.test(text)) markers.push("optional");
+  if (text.length > 64) text = text.slice(0, 63).trimEnd() + "\u2026";
+  const parts = [...markers, text].filter(Boolean);
+  return parts.join(" \xB7 ");
+}
 function odcsEr(odcs) {
   const entities = [];
   for (const obj of odcs.schema ?? []) {
     const rows = [];
     for (const p of obj.properties ?? []) {
-      const type = String(p.logicalType ?? "unknown");
+      const type = nodeId(String(p.logicalType ?? "unknown"));
       const key = p.primaryKey ? "PK" : p.unique ? "UK" : "";
-      rows.push(`        ${type} ${p.name} ${key}`.replace(/\s+$/, ""));
+      const comment = erComment(p);
+      const cells = [type, p.name, key, comment && `"${comment}"`].filter(Boolean);
+      rows.push(`        ${cells.join(" ")}`);
     }
     if (rows.length) entities.push([obj.physicalName ?? obj.name, rows]);
   }
   if (entities.length === 0) return [];
   const lines = ["```mermaid", "erDiagram"];
   for (const [entity, rows] of entities) {
-    lines.push(`    ${entity} {`, ...rows, "    }");
+    lines.push(`    ${nodeId(String(entity))} {`, ...rows, "    }");
   }
   lines.push("```");
   return lines;
@@ -20148,7 +20191,22 @@ function info(doc) {
 function sendOperations(doc) {
   return Object.entries(doc.operations ?? {}).filter(([, op]) => op?.action === "send").map(([name]) => name);
 }
-function up(compose) {
+async function pull(compose, attempts = 3) {
+  for (let attempt = 1; ; attempt++) {
+    const res = run(["docker", "compose", "-f", compose, "pull"], { inherit: true });
+    if (res.status === 0) return;
+    if (attempt === attempts) {
+      throw new Exit(`docker compose pull failed (exit ${res.status}) after ${attempts} attempts`);
+    }
+    const backoff = 5 * 2 ** (attempt - 1);
+    console.log(
+      `docker compose pull failed (exit ${res.status}) - retrying in ${backoff}s (attempt ${attempt + 1} of ${attempts})`
+    );
+    await sleep(backoff * 1e3);
+  }
+}
+async function up(compose) {
+  await pull(compose);
   dc(compose, "up", "-d", "--wait");
   return 0;
 }
@@ -20158,7 +20216,7 @@ function down(compose) {
 }
 var sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 async function load(only, specsDir, mocksDir, microcksUrl, minionUrl, compose) {
-  up(compose);
+  await up(compose);
   for (const d of serviceDirs(specsDir, only)) {
     for (const kind of ["asyncapi", "openapi"]) {
       for (const [spec] of specDocs(d, kind)) {
@@ -20583,6 +20641,43 @@ function channelOps(doc) {
   }
   return [sent, received];
 }
+var ORG_RE = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/;
+var MCP_URL_RE = /^https?:\/\/[^\s]+$/;
+function lintSystem(specsDir) {
+  const file = path7.join(specsDir, "system.yaml");
+  if (!isFile4(file)) return [];
+  const manifest = readYaml2(file);
+  const problems = [];
+  const where = path7.join(specsDir, "system.yaml");
+  if (manifest.kind !== "System") {
+    problems.push(`${where}: kind must be 'System', got ${pyRepr(manifest.kind ?? null)}`);
+  }
+  if (manifest.apiVersion !== "sysspec/v1") {
+    problems.push(
+      `${where}: apiVersion must be 'sysspec/v1', got ${pyRepr(manifest.apiVersion ?? null)}`
+    );
+  }
+  for (const field of ["name", "title", "domain"]) {
+    const value = manifest[field];
+    if (typeof value !== "string" || !value.trim()) {
+      problems.push(`${where}: ${field} is required and must be a non-empty string`);
+    }
+  }
+  if (typeof manifest.name === "string" && !/^[a-z0-9][a-z0-9-]*$/.test(manifest.name)) {
+    problems.push(`${where}: name must be lower-kebab-case, got ${pyRepr(manifest.name)}`);
+  }
+  const org = manifest.org;
+  if (org !== void 0 && org !== null && !ORG_RE.test(String(org))) {
+    problems.push(`${where}: org must be reverse-DNS (e.g. com.acme), got ${pyRepr(String(org))}`);
+  }
+  const mcp = manifest.mcp;
+  if (mcp !== void 0 && mcp !== null && !MCP_URL_RE.test(String(mcp).trim())) {
+    problems.push(
+      `${where}: mcp must be the http(s) URL of the MCP endpoint, got ${pyRepr(String(mcp))}`
+    );
+  }
+  return problems;
+}
 function lintService(serviceDir, producedBy, messagesByAddress, ownMessages) {
   const problems = [];
   const manifest = readYaml2(path7.join(serviceDir, "service.yaml"));
@@ -20685,7 +20780,7 @@ function runLint(only, specsDir) {
     for (const address of manifest.produces ?? []) producedBy.set(address, manifest.name);
   }
   const [messagesByAddress, ownMessages] = messageIndex(dirs);
-  const problems = [];
+  const problems = only ? [] : lintSystem(specsDir);
   let checked = 0;
   for (const d of dirs) {
     if (only && path7.basename(d) !== only) continue;
@@ -20842,7 +20937,14 @@ var RENAMES = {
   githooks: ".githooks",
   gitkeep: ".gitkeep"
 };
-var ORG_RE = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/;
+var ORG_RE2 = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/;
+function systemTitleFrom(org) {
+  const label = org.split(".").pop() ?? org;
+  return label.split("-").filter(Boolean).map((w) => w[0].toUpperCase() + w.slice(1)).join(" ");
+}
+function systemName(title) {
+  return title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "system";
+}
 var SKIP = /* @__PURE__ */ new Set([
   "docs-site/node_modules",
   "docs-site/.astro",
@@ -20879,8 +20981,8 @@ function copy(node, target, subs, rel = "") {
   }
   return written;
 }
-function runInit(targetDir, org, sysspecRepo) {
-  if (!ORG_RE.test(org)) {
+function runInit(targetDir, org, sysspecRepo, system = null, domain = null) {
+  if (!ORG_RE2.test(org)) {
     throw new Exit(`--org must be reverse-DNS (e.g. com.acme), got '${org}'`);
   }
   const target = targetDir;
@@ -20895,8 +20997,17 @@ function runInit(targetDir, org, sysspecRepo) {
   }
   mkdirSync3(target, { recursive: true });
   const version = ownVersion();
+  const systemTitle = (system ?? systemTitleFrom(org)).trim();
+  const systemDomain = (domain ?? "Examples").trim();
+  if (!systemTitle) throw new Exit("--system must not be empty");
+  if (!systemDomain) throw new Exit("--domain must not be empty");
   const subs = {
     __ORG__: org,
+    __SYSTEM_TITLE__: systemTitle,
+    __SYSTEM_NAME__: systemName(systemTitle),
+    // The starter service sits in the Examples domain; the system it
+    // belongs to says so until a real service replaces it.
+    __SYSTEM_DOMAIN__: systemDomain,
     __KIT_VERSION__: version,
     __KIT_MAJOR__: `v${version.split(".")[0]}`,
     __MCP_VERSION__: SYSSPEC_MCP.split("@")[1],
@@ -20908,7 +21019,7 @@ function runInit(targetDir, org, sysspecRepo) {
   }
   console.log(
     `
-scaffolded ${written.length} file(s) into ${target} (sysspec ${version}, org ${org})
+scaffolded ${written.length} file(s) into ${target} (sysspec ${version}, org ${org}, system ${systemTitle})
 
 Next steps:
   git init
@@ -20916,6 +21027,7 @@ Next steps:
   git add -A && git commit -m 'chore: scaffold specs'   # through the hook
   task ci                     # gates + mock cycle, green from the start
   Replace the greeter starter service with your first real one.
+  Fill in specs/system.yaml - it annotates every catalog page.
   Enable Renovate and GitHub Pages on the repository.`
   );
   return 0;
@@ -21625,7 +21737,7 @@ commands:
   check version|compat|intent|surface   diff-based gates against a base ref
   lint manifest|specs|features|datacontracts
   docs data|diagrams
-  init <dir> --org <reverse-dns>
+  init <dir> --org <reverse-dns> [--system <title>] [--domain <name>]
   mocks up|down|load|test|watch
   contract test
   null run --results <file> -- <suite command>`;
@@ -21673,13 +21785,15 @@ async function main(argv = process.argv.slice(2)) {
     if (sub === "datacontracts") return datacontracts(service, specsDir);
   }
   if (command === "init") {
-    args.only("org", "sysspec-repo");
+    args.only("org", "system", "domain", "sysspec-repo");
     const dir = sub;
     if (!dir) throw new Exit("sysspec init: a target directory is required");
     return runInit(
       dir,
       args.require("org"),
-      args.get("sysspec-repo", "hungovercoders/sysspec")
+      args.get("sysspec-repo", "hungovercoders/sysspec"),
+      args.get("system"),
+      args.get("domain")
     );
   }
   if (command === "docs") {

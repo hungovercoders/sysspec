@@ -8,13 +8,14 @@ import { bundledPackagesPlugin } from '../scripts/third-party-notices.mjs';
 // Served at the root of its own Cloudflare Worker (sysspec-site), so no
 // base-path handling is needed.
 //
-// SYSSPEC_SITE_URL (a repository variable, like SYSSPEC_DEMO_URL) is the
-// deployed URL: with it set, builds emit a sitemap and canonical/og:url
-// tags; without it (local builds) Astro simply skips them.
-const siteUrl = (process.env.SYSSPEC_SITE_URL || '').replace(/\/$/, '');
+// The site's permanent home (kept in step with src/lib/links.ts, which
+// astro.config cannot import). SYSSPEC_SITE_URL overrides it for preview
+// deployments served from a *.workers.dev alias, so their canonical tags
+// and sitemap point at themselves rather than at production.
+const siteUrl = (process.env.SYSSPEC_SITE_URL || 'https://sysspec.dev').replace(/\/$/, '');
 
 export default defineConfig({
-  site: siteUrl || undefined,
+  site: siteUrl,
   // Records what the client bundle contains so `npm run build` can write
   // dist/third-party-notices.txt (see scripts/third-party-notices.mjs).
   vite: { plugins: [bundledPackagesPlugin()] },
@@ -31,14 +32,9 @@ export default defineConfig({
         styleOverrides: { borderRadius: '10px', codeFontFamily: 'var(--ss-font-mono)', codeFontSize: '0.8125rem' },
       },
       head: [
-        // og:image must be absolute, so the social card is only advertised
-        // when the deployed origin is known (local/preview builds omit it).
-        ...(siteUrl
-          ? [
-              { tag: 'meta', attrs: { property: 'og:image', content: `${siteUrl}/og.png` } },
-              { tag: 'meta', attrs: { name: 'twitter:card', content: 'summary_large_image' } },
-            ]
-          : []),
+        // og:image must be absolute, hence the known origin above.
+        { tag: 'meta', attrs: { property: 'og:image', content: `${siteUrl}/og.png` } },
+        { tag: 'meta', attrs: { name: 'twitter:card', content: 'summary_large_image' } },
         { tag: 'meta', attrs: { name: 'theme-color', content: '#2456e6' } },
       ],
       description:
@@ -54,6 +50,9 @@ export default defineConfig({
       sidebar: [
         { label: 'Overview', link: '/' },
         { label: 'Getting started', link: '/getting-started/' },
+        // Reading the specs by asking them is the cheapest way in, and
+        // it is not only agents doing the asking - hence top level.
+        { label: 'Ask the specs', link: '/ask-the-specs/' },
         {
           label: 'The model',
           items: [

@@ -5,7 +5,7 @@ import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
 import { Code } from 'astro:components';
 import Mark from '../components/Mark.astro';
 import '../styles/landing.css';
-import { DEMO_SITE_URL, DEMO_SITE_IS_LIVE, GITHUB_URL, NPM_CLI_URL } from '../lib/links';
+import { DEMO_MCP_URL, DEMO_SITE_URL, GITHUB_URL, NPM_CLI_URL } from '../lib/links';
 
 const artifacts = [
   { kind: 'openapi', label: 'OpenAPI', file: 'orders.openapi.yaml', v: '3.2.0' },
@@ -26,7 +26,7 @@ const features = [
   { title: 'Intent stated before shape', body: 'Every schema element added to an OpenAPI or AsyncAPI contract must be named in an acceptance scenario. If it is not worth a scenario, it is not worth adding.', icon: 'intent' },
   { title: 'Mocks straight from the contracts', body: 'Microcks stands up REST and event mocks from your specs, so consumers and UIs build before any implementation exists.', icon: 'mock' },
   { title: 'Contract testing that cannot be gamed', body: 'Implementations pin a released tag, fetch it read-only, and prove conformance — including a negative control that must fail against a service that proves nothing.', icon: 'test' },
-  { title: 'Read-only MCP for agents', body: 'Seven narrow tools serve exactly the artifact, message or scenario needed. Agents build from the record, never from a remembered copy.', icon: 'mcp' },
+  { title: 'Read-only MCP — ask or build', body: 'Seven narrow tools serve exactly the artifact, message or scenario needed. Agents build from the record; people interview it in plain language and get the same answers.', icon: 'mcp' },
   { title: 'A catalog you would ship', body: 'Every spec suite publishes a searchable catalog — rendered contracts, acceptance criteria, data products, an interactive system graph, release history.', icon: 'catalog' },
 ];
 const icons: Record<string, string> = {
@@ -51,7 +51,7 @@ const icons: Record<string, string> = {
       </p>
       <div class="ss-actions">
         <a class="ss-btn ss-btn--primary" href="/getting-started/">Get started</a>
-        <a class="ss-btn ss-btn--secondary" href={DEMO_SITE_URL}>{DEMO_SITE_IS_LIVE ? 'See the live catalog' : 'See the example suite'}</a>
+        <a class="ss-btn ss-btn--secondary" href={DEMO_SITE_URL}>See the live catalog</a>
       </div>
       <div class="ss-install" role="group" aria-label="Install command">
         <span class="ss-install-prompt">$</span>
@@ -84,7 +84,7 @@ const icons: Record<string, string> = {
       </div>
       <div class="ss-flow-arrow" aria-hidden="true"></div>
       <div class="ss-panel ss-panel--agents">
-        <div class="ss-panel-head"><span>sysspec-mcp</span><span class="ss-chip">read-only</span></div>
+        <div class="ss-panel-head"><span>sysspec-mcp</span><span class="ss-chip">ask or build</span></div>
         <ul class="ss-tools">
           {tools.map((t) => <li><span class="ss-mono">{t}</span></li>)}
         </ul>
@@ -127,12 +127,40 @@ Schema additions with no stated behaviour:
 
   <section class="ss-section">
     <div class="ss-section-head">
+      <p class="ss-kicker">For people, not only agents</p>
+      <h2>A domain expert on tap</h2>
+      <p class="ss-sub">The same MCP tools an agent builds from answer questions in plain language. Product, analysts, architects, support and new joiners get the system's intent straight from the specs of record — no repo tour, no file hunt, no one's memory.</p>
+    </div>
+    <div class="ss-duo">
+      <article class="ss-duo-card">
+        <h3>Questions, not file paths</h3>
+        <p>Ask in your own words; the answer arrives with its version and authority class attached, from the same surface implementations are gated against.</p>
+        <ul class="ss-asks">
+          <li>Who consumes <code>orders.placed.v2</code>?</li>
+          <li>What does a customer have to supply to place an order?</li>
+          <li>If we dropped <code>customer_id</code>, who breaks — and is that a major?</li>
+          <li>Where is “settled” defined, and does every service mean the same by it?</li>
+        </ul>
+        <p class="ss-note"><a href="/ask-the-specs/">Ask the specs →</a></p>
+      </article>
+      <article class="ss-duo-card">
+        <h3>Connect in one line</h3>
+        <p>Point any MCP client at a hosted endpoint — the example suite is live, so you can ask before you scaffold anything.</p>
+        <Code lang="bash" code={`claude mcp add sysspec --scope project \\
+  --transport http ${DEMO_MCP_URL}`} />
+        <p class="ss-note">Every generated catalog carries its own <strong>Ask these specs</strong> page: the endpoint, plus starter questions drawn from that suite's own services, events and scenarios.</p>
+      </article>
+    </div>
+  </section>
+
+  <section class="ss-section">
+    <div class="ss-section-head">
       <p class="ss-kicker">The loop</p>
       <h2>How it works</h2>
     </div>
     <ol class="ss-steps">
       <li><span class="ss-step-n">01</span><h3>Specify intent</h3><p>Author contracts and acceptance criteria in a spec repo of their own. Every change is a deliberate, versioned act; merges publish <code>&lt;service&gt;/v&lt;version&gt;</code> tags.</p></li>
-      <li><span class="ss-step-n">02</span><h3>Build with context</h3><p>Agents and engineers read the record over MCP. The plugin's skills drive the authoring, implementing and consuming journeys end to end.</p></li>
+      <li><span class="ss-step-n">02</span><h3>Ask and build with context</h3><p>Anyone reads the record over MCP — people in plain language, agents at implementation time. The plugin's skills drive the authoring, implementing and consuming journeys end to end.</p></li>
       <li><span class="ss-step-n">03</span><h3>Converge on gates</h3><p>Implementations pin a release in <code>contracts.lock</code>, fetch it read-only and prove conformance: contract tests, strict-bound scenarios, the negative control, schema fuzz.</p></li>
     </ol>
   </section>
@@ -163,6 +191,7 @@ Schema additions with no stated behaviour:
       <a href="/model/"><strong>The model</strong><span>Services, gated artifacts, versioned change.</span></a>
       <a href="/conventions/"><strong>Conventions</strong><span>The house rules the linters enforce.</span></a>
       <a href="/cli/"><strong>CLI — sysspec</strong><span>Gates, lint, docs, mocks, contract testing, init.</span></a>
+      <a href="/ask-the-specs/"><strong>Ask the specs</strong><span>Interview the system in plain language.</span></a>
       <a href="/mcp/"><strong>MCP server — sysspec-mcp</strong><span>Seven read-only tools, stdio or a URL.</span></a>
       <a href="/plugin-and-skills/"><strong>Plugin &amp; skills</strong><span>Tools plus three journey-driving skills.</span></a>
       <a href="/gates-and-ci/"><strong>Gates and CI</strong><span><code>task ci</code> is the definition of green.</span></a>

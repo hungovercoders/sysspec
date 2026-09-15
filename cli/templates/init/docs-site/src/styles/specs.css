@@ -12,6 +12,7 @@
 .sc-chip--gated { background: var(--ss-accent-soft); color: var(--ss-accent-high); border-color: transparent; }
 .sc-chip--ok { background: color-mix(in srgb, var(--ss-ok) 14%, transparent); color: var(--ss-ok); border-color: transparent; }
 .sc-chip--warn { background: color-mix(in srgb, var(--ss-warn) 14%, transparent); color: var(--ss-warn); border-color: transparent; }
+.sc-chip--domain { background: var(--ss-surface-3); color: var(--ss-text); border-color: var(--ss-hairline-strong); }
 .sc-kind-label {
   font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
   display: inline-flex; align-items: center; gap: 0.4em; color: var(--ss-text-3);
@@ -37,6 +38,12 @@
 }
 .sc-page-meta .sc-version { font-family: var(--ss-font-mono); font-weight: 600; color: var(--ss-text); }
 .sc-page-meta .sc-sep { color: var(--ss-hairline-strong); }
+/* The system annotation: whose specs these are, above the summary. */
+.sl-markdown-content .sc-system-meta {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.9rem;
+  font-size: 0.8125rem; color: var(--ss-text-3); margin: -0.25rem 0 1rem;
+}
+.sc-system-meta code { font-size: 0.78rem; color: var(--ss-text-2); }
 .sc-summary { font-size: 1.0625rem; line-height: 1.6; color: var(--ss-text-2); max-width: 60ch; margin: 0 0 1.5rem; }
 .sl-markdown-content .sc-notice {
   padding: 0.75rem 1rem; border-radius: var(--ss-radius); line-height: 1.6;
@@ -166,8 +173,52 @@
 .mermaid:not([data-processed]) { font-family: var(--ss-font-mono); font-size: 0.75rem; color: var(--ss-text-3); white-space: pre; overflow: auto; }
 .scalar-host, .asyncapi-host { border: 1px solid var(--ss-hairline); border-radius: var(--ss-radius); overflow: hidden; margin-top: 1rem; }
 [data-theme='dark'] .asyncapi-host { background: #ffffff; padding: 0.5rem 1rem; }
+/* React Flow draws every edge in its own absolutely-positioned <svg>
+   that carries no width of its own. Starlight's global `svg { max-width:
+   100% }` resolves that against a zero-width parent, clamping the svg to
+   0 - and a zero-width svg renders nothing at all, so the graph loses
+   every edge, label and arrowhead while the nodes stay put. Scoped
+   opt-out; the Controls icons keep their own explicit max-width. */
+.sc-graph svg { max-width: none; }
 .sc-graph { border: 1px solid var(--ss-hairline); border-radius: var(--ss-radius-lg); overflow: hidden; background: var(--ss-surface); box-shadow: var(--ss-shadow-sm); }
 .sc-graph-hint { font-size: 0.8125rem; color: var(--ss-text-3); margin: 0.5rem 0 0.75rem; }
+/* Graph legend: the node vocabulary, in HTML so it stays readable and
+   selectable rather than being baked into the canvas. */
+.sc-graph-legend {
+  display: flex; flex-wrap: wrap; gap: 0.4rem 1.1rem; align-items: center;
+  margin: 0.6rem 0 1.5rem; font-size: 0.75rem; color: var(--ss-text-3);
+}
+.sc-graph-legend > span { display: inline-flex; align-items: center; gap: 0.4rem; }
+.sc-legend-key { width: 1.1rem; height: 0.7rem; border-radius: 3px; border: 1.5px solid var(--ss-hairline-strong); background: var(--ss-surface-2); }
+.sc-legend-key--service { border-color: var(--ss-accent); }
+.sc-legend-key--data { border-radius: 999px; border-color: var(--ss-kind-data); border-style: dashed; }
+.sc-legend-key--channel { border-radius: 999px; border-color: var(--ss-accent); }
+.sc-legend-key--clients { border-radius: 999px; }
+.sc-legend-key--sink { border-style: dashed; opacity: 0.8; }
+.sc-legend-key--call { height: 0; border: 0; border-top: 2px dotted var(--ss-text-3); border-radius: 0; }
+
+/* ---------- Ask these specs ----------------------------------------- */
+/* Starter questions: the question leads, the reason it is answerable
+   sits under it in the quieter voice. */
+.sc-asks { list-style: none; margin: 0.75rem 0 1.5rem; padding: 0; display: grid; gap: 0.5rem; }
+.sc-asks li {
+  display: grid; gap: 0.2rem; margin: 0 !important; padding: 0.7rem 0.95rem;
+  border: 1px solid var(--ss-hairline); border-radius: var(--ss-radius); background: var(--ss-surface);
+}
+.sc-ask-q { font-size: 0.9375rem; color: var(--ss-text); font-weight: 550; }
+.sc-ask-why { font-size: 0.8125rem; color: var(--ss-text-3); }
+
+/* The overview's pointer to that page: the one card that is an
+   invitation rather than a link to a document. */
+.sc-ask-card {
+  display: block; margin: 1.5rem 0; padding: 1.05rem 1.25rem; text-decoration: none;
+  border: 1px solid var(--ss-hairline-strong); border-radius: var(--ss-radius-lg);
+  background: var(--ss-accent-soft); box-shadow: var(--ss-shadow-sm);
+}
+.sc-ask-card:hover { box-shadow: var(--ss-shadow-md); transform: translateY(-1px); }
+.sc-ask-card strong { display: block; font-size: 1rem; letter-spacing: -0.01em; color: var(--ss-text); }
+.sc-ask-card span { display: block; margin-top: 0.3rem; font-size: 0.875rem; line-height: 1.55; color: var(--ss-text-2); }
+.sc-ask-card em { font-style: normal; color: var(--ss-accent-high); font-weight: 600; }
 
 /* ---------- Changelog ----------------------------------------------- */
 .sc-release-meta { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; font-size: 0.8125rem; color: var(--ss-text-3); margin: -0.25rem 0 0.75rem; }
@@ -177,7 +228,7 @@
 /* ---------- Starlight prose-rule overrides ------------------------- */
 /* Starlight adds margin-top to every sibling inside markdown content;
    grids, rows and meta strips lay out their own children. */
-.sl-markdown-content :is(.sc-loop, .sc-artifacts, .sc-stats, .sc-rows, .sc-page-meta, .sc-artifact-meta, .sc-release-meta) > * + * { margin-top: 0; }
+.sl-markdown-content :is(.sc-loop, .sc-artifacts, .sc-stats, .sc-rows, .sc-page-meta, .sc-artifact-meta, .sc-release-meta, .sc-system-meta, .sc-graph-legend, .sc-asks, .sc-asks li) > * + * { margin-top: 0; }
 .sl-markdown-content .sc-artifact-card > * + * { margin-top: 0; }
 /* Starlight renders tables as scrollable blocks; inside .sc-table-wrap the
    wrapper scrolls and the table spans the frame. */

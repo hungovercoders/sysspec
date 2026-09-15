@@ -12,6 +12,9 @@
  *   5. Feature files may only reference messages the service owns or consumes
  *      (quoted PascalCase tokens) and channels it produces or consumes (quoted
  *      dotted addresses) - scenarios about phantom events are rot.
+ *
+ * Suite-wide: the optional `<specs>/system.yaml` - the annotation every
+ * generated catalog page carries - must be complete when it exists.
  */
 
 import { readdirSync, readFileSync, statSync } from "node:fs";
@@ -111,6 +114,56 @@ export function channelOps(doc: Record<string, any>): [Set<string>, Set<string>]
     else if (op?.action === "receive") received.add(address);
   }
   return [sent, received];
+}
+
+const ORG_RE = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/;
+const MCP_URL_RE = /^https?:\/\/[^\s]+$/;
+
+/** The optional suite-level system manifest.
+ *
+ * Absent is fine (the catalog falls back to generic wording), but a
+ * half-filled one is not: an instance that claims a system must say
+ * which one, in which domain, so its catalog is unmistakably its own.
+ * `mcp` is the one genuinely optional field: the hosted endpoint these
+ * specs answer questions on, checked for shape when it is there.
+ */
+export function lintSystem(specsDir: string): string[] {
+  const file = path.join(specsDir, "system.yaml");
+  if (!isFile(file)) return [];
+  const manifest = readYaml(file);
+  const problems: string[] = [];
+  const where = path.join(specsDir, "system.yaml");
+  if (manifest.kind !== "System") {
+    problems.push(`${where}: kind must be 'System', got ${pyRepr(manifest.kind ?? null)}`);
+  }
+  if (manifest.apiVersion !== "sysspec/v1") {
+    problems.push(
+      `${where}: apiVersion must be 'sysspec/v1', got ${pyRepr(manifest.apiVersion ?? null)}`,
+    );
+  }
+  for (const field of ["name", "title", "domain"]) {
+    const value = manifest[field];
+    if (typeof value !== "string" || !value.trim()) {
+      problems.push(`${where}: ${field} is required and must be a non-empty string`);
+    }
+  }
+  if (typeof manifest.name === "string" && !/^[a-z0-9][a-z0-9-]*$/.test(manifest.name)) {
+    problems.push(`${where}: name must be lower-kebab-case, got ${pyRepr(manifest.name)}`);
+  }
+  const org = manifest.org;
+  if (org !== undefined && org !== null && !ORG_RE.test(String(org))) {
+    problems.push(`${where}: org must be reverse-DNS (e.g. com.acme), got ${pyRepr(String(org))}`);
+  }
+  // Optional: where these specs answer questions over MCP. Absent means
+  // the catalog shows the local stdio route only; present, it hands
+  // readers a URL they can paste into a client.
+  const mcp = manifest.mcp;
+  if (mcp !== undefined && mcp !== null && !MCP_URL_RE.test(String(mcp).trim())) {
+    problems.push(
+      `${where}: mcp must be the http(s) URL of the MCP endpoint, got ${pyRepr(String(mcp))}`,
+    );
+  }
+  return problems;
 }
 
 function lintService(
@@ -239,7 +292,8 @@ export function runLint(only: string | null, specsDir: string): number {
   }
   const [messagesByAddress, ownMessages] = messageIndex(dirs);
 
-  const problems: string[] = [];
+  // Suite-wide, so only on a full run: `--service` scopes to one service.
+  const problems: string[] = only ? [] : lintSystem(specsDir);
   let checked = 0;
   for (const d of dirs) {
     if (only && path.basename(d) !== only) continue;

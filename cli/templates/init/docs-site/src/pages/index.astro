@@ -1,7 +1,8 @@
 ---
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
 import SystemGraph from '../components/SystemGraph';
-import { services, edges, unconsumed, withBase } from '../lib/specs';
+import GraphLegend from '../components/GraphLegend.astro';
+import { services, edges, system, unconsumed, withBase } from '../lib/specs';
 
 const graphServices = services.map((s) => ({
   name: s.name,
@@ -12,6 +13,10 @@ const graphServices = services.map((s) => ({
   data_products: s.data_products,
 }));
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+
+// The system manifest is optional; with nothing in it there is no
+// annotation line to draw.
+const annotated = Boolean(system.domain || system.org || system.domains.length > 1);
 
 const gatedCount = services.reduce(
   (n, s) => n + s.artifacts.filter((a) => a.gated).length,
@@ -24,11 +29,33 @@ const lastRelease = services
   .sort()
   .at(-1);
 ---
-<StarlightPage frontmatter={{ title: 'System specs' }}>
+<StarlightPage
+  frontmatter={{
+    title: system.title,
+    description: system.summary || undefined,
+    // The heading and the site title are the same string here; without
+    // this the tab would read "X | X".
+    head: [{ tag: 'title', content: system.title }],
+  }}
+>
+  {annotated && (
+    <p class="sc-system-meta">
+      {system.domain && <span class="sc-chip sc-chip--domain">{system.domain}</span>}
+      {system.org && <code>{system.org}</code>}
+      {system.domains.length > 1 && (
+        <span>{system.domains.length} domains · {system.domains.join(', ')}</span>
+      )}
+    </p>
+  )}
+  {system.summary && <p class="sc-summary">{system.summary}</p>}
   <p>
-    These are specs of what the system <strong>should be</strong> — not
-    documentation of what exists. Implementations converge on them; they
-    never bend to an implementation.
+    {system.name ? (
+      <>The specs of record for <strong>{system.title}</strong>: what it</>
+    ) : (
+      <>These are specs of what the system</>
+    )}{' '}
+    <strong>should be</strong> — not documentation of what exists.
+    Implementations converge on them; they never bend to an implementation.
   </p>
 
   <div class="sc-loop">
@@ -42,11 +69,11 @@ const lastRelease = services
     </div>
     <div class="sc-loop-step">
       <span class="sc-loop-n">2</span>
-      <strong>Build with context</strong>
+      <strong>Ask and build with context</strong>
       <p>
-        Agents and engineers read these specs over MCP (the
-        <code>sysspec</code> server) at implementation time — never from a
-        remembered or vendored copy.
+        Anyone can interrogate these specs over MCP (the
+        <code>sysspec</code> server) — people in plain language, agents at
+        implementation time — never from a remembered or vendored copy.
       </p>
     </div>
     <div class="sc-loop-step">
@@ -59,6 +86,16 @@ const lastRelease = services
       </p>
     </div>
   </div>
+
+  <a class="sc-ask-card" href={withBase('/ask/')}>
+    <strong>Ask these specs anything →</strong>
+    <span>
+      Connect an MCP client{system.mcp ? <> (<em>{system.mcp}</em>)</> : null} and
+      interview this system in plain language: what a service is for, what an
+      event carries, how something should behave, who breaks if it changes.
+      Same answers for people as for the agents building against it.
+    </span>
+  </a>
 
   <div class="sc-stats">
     <span><strong>{services.length}</strong> service{services.length === 1 ? '' : 's'}</span>
@@ -91,8 +128,15 @@ const lastRelease = services
 
   <h2>Message flow</h2>
   <p class="sc-graph-hint">
-    Click a node to trace its connections; double-click a service to open it.
+    Producer → channel → consumer, left to right down the page; colour
+    follows the domain. Click a node to trace its connections, double-click
+    a service to open it.
   </p>
+  <GraphLegend
+    ops={services.some((s) => s.operations.length > 0)}
+    data={services.some((s) => s.data_products.length > 0)}
+    unconsumed={unconsumed.length > 0}
+  />
   <div class="sc-graph"><SystemGraph
     client:only="react"
     services={graphServices}

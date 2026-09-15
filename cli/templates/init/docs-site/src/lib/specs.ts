@@ -110,6 +110,30 @@ export interface Service {
   ahead: boolean;
 }
 
+/** The suite's own annotation, from specs/system.yaml. Every field has
+ * a neutral fallback, so a repo without that manifest still renders. */
+export interface System {
+  name: string | null;
+  title: string;
+  domain: string | null;
+  org: string | null;
+  summary: string;
+  /** Hosted MCP endpoint these specs answer questions on, if any. */
+  mcp: string | null;
+  /** Distinct service domains, derived - what the catalog groups by. */
+  domains: string[];
+}
+
+export const system = (data as { system?: System }).system ?? {
+  name: null,
+  title: 'System specs',
+  domain: null,
+  org: null,
+  summary: '',
+  mcp: null,
+  domains: [],
+};
+
 export const services = data.services as Service[];
 export const edges = data.edges as { from: string; channel: string; to: string }[];
 export const unconsumed = data.unconsumed as { channel: string; producer: string }[];
