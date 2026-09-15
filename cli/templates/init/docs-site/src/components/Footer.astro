@@ -3,6 +3,9 @@
 // content pages plus a quiet provenance line - which system these specs
 // belong to, where they live, and what rendered them.
 import Pagination from '@astrojs/starlight/components/Pagination.astro';
+import { withBase } from '../lib/specs';
+const slug = '__SYSSPEC_REPO_SLUG__';
+const sysspecRepo = slug.startsWith('__') ? 'hungovercoders/sysspec' : slug;
 import { system } from '../lib/specs';
 const repo = process.env.DOCS_SITE_REPO ?? process.env.GITHUB_REPOSITORY ?? null;
 ---
@@ -12,7 +15,10 @@ const repo = process.env.DOCS_SITE_REPO ?? process.env.GITHUB_REPOSITORY ?? null
     Specs of record{system.name && <> · {system.title}</>}{system.domain && <> ({system.domain})</>}
     {repo && <> · <a href={`https://github.com/${repo}`}>{repo}</a></>}
   </span>
-  <span>Rendered by <a href="https://sysspec.dev">sysspec</a> — intent authored once, versioned deliberately, enforced mechanically.</span>
+  <span>
+    Rendered by <a href={`https://github.com/${sysspecRepo}`}>sysspec</a> — intent authored once, versioned deliberately,
+    enforced mechanically. · <a href={withBase('/third-party-notices.txt')}>Third-party notices</a>
+  </span>
 </footer>
 <style>
   .ss-pagination { margin-top: 2rem; }

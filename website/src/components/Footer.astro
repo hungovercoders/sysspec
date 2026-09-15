@@ -32,7 +32,7 @@ const groups = [
     <div class="ss-footer-brand">
       <a href="/" class="ss-footer-logo"><Mark size={24} /><span>sysspec</span></a>
       <p>System specs first. Intent authored once, versioned deliberately, enforced mechanically.</p>
-      <p class="ss-footer-fine">MIT licensed · Hungovercoders</p>
+      <p class="ss-footer-fine">MIT licensed · Hungovercoders · <a href="/third-party-notices.txt">Third-party notices</a></p>
     </div>
     {groups.map((g) => (
       <div class="ss-footer-group">
@@ -59,6 +59,8 @@ const groups = [
   .ss-footer-logo { display: inline-flex; align-items: center; gap: 0.55rem; color: var(--ss-text); font-weight: 650; letter-spacing: -0.03em; text-decoration: none; font-size: 1.05rem; }
   .ss-footer-brand p { margin: 0.75rem 0 0; max-width: 26ch; line-height: 1.5; }
   .ss-footer-fine { color: var(--ss-text-3); font-size: 0.8125rem; }
+  .ss-footer-fine a { color: var(--ss-text-3); text-decoration: underline; text-underline-offset: 0.15em; }
+  .ss-footer-fine a:hover { color: var(--ss-text); }
   .ss-footer-group h3 { margin: 0 0 0.75rem; font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ss-text-3); font-weight: 600; }
   .ss-footer-group ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.45rem; }
   .ss-footer-group a { color: var(--ss-text-2); text-decoration: none; }

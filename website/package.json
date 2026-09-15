@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "astro dev",
-    "build": "astro build",
+    "build": "astro build && node ../scripts/third-party-notices.mjs --title \"the sysspec website\" --packages .astro/bundled-packages.json --add @fontsource-variable/inter --add @fontsource-variable/jetbrains-mono --add pagefind --add astro-expressive-code --add expressive-code --add @expressive-code/core --out-dir dist",
     "preview": "astro preview"
   },
   "dependencies": {

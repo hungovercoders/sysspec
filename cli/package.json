@@ -24,7 +24,7 @@
     "node": ">=20"
   },
   "scripts": {
-    "build": "tsup",
+    "build": "tsup && node ../scripts/third-party-notices.mjs --title \"the sysspec CLI (dist/cli.mjs)\" --bundle dist/cli.mjs --out dist/THIRD_PARTY_NOTICES.txt",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },

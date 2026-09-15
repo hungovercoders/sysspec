@@ -16,6 +16,7 @@ on:
     branches: [main]
     paths:
       - "website/**"
+      - "scripts/third-party-notices.mjs"
       - ".github/workflows/site-deploy.yml"
   # First deploy bootstraps the Worker that preview versions target.
   workflow_dispatch:
