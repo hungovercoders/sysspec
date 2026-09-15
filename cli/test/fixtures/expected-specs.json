@@ -5,6 +5,7 @@
     "domain": "Commerce",
     "org": "com.hungovercoders",
     "summary": "A small commerce system specified end to end: orders accepted over HTTP, order lifecycle and payment settlement carried as events, and the historical record of both published as data contracts. Every toolkit change must keep it green, so what you read here is what the gates actually enforce.",
+    "mcp": "https://demo.sysspec.dev/mcp",
     "domains": [
       "Commerce"
     ]

@@ -17,6 +17,10 @@ intent, versioned and gated. Built on [sysspec](https://sysspec.dev).
 - The machinery arrives by reference and stays current via Renovate: the
   `sysspec@` pin in `Taskfile.yml`, the `sysspec-mcp@` pin in
   `.mcp.json` (both npm), and the reusable workflows under `.github/workflows/`.
+- Anyone can ask these specs questions over MCP — the catalog's **Ask
+  these specs** page has the connect line and starter questions drawn from
+  this suite. It is the same server agents build from, so a product
+  question and an implementation get the same answer.
 - Agents get the same specs over MCP (`.mcp.json`) and the deeper
   processes via the sysspec plugin's skills — install with
   `/plugin marketplace add __SYSSPEC_REPO_SLUG__` then `/plugin install`,
@@ -25,8 +29,9 @@ intent, versioned and gated. Built on [sysspec](https://sysspec.dev).
   verified definition of done, and read as walkthroughs in their own
   right.
 
-- `specs/system.yaml` describes the system as a whole — title, domain and
-  event namespace. It annotates every page of the generated catalog, so
+- `specs/system.yaml` describes the system as a whole — title, domain,
+  event namespace and, once you host one, the `mcp:` endpoint these specs
+  answer questions on. It annotates every page of the generated catalog, so
   fill it in for real once the starter service is gone.
 
 The `greeter` service is scaffold output - replace it with your first real

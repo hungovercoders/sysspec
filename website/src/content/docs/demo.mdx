@@ -34,15 +34,20 @@ Then ask things like:
 
 - "What fields are on OrderPlaced?"
 - "Who consumes payments.settled.v2?"
+- "What does a customer have to supply to place an order?"
 - "Change OrderPlaced to drop customer_id" — it should refuse and cite consumers
+
+You do not need to be building anything to get value from that endpoint —
+see [Ask the specs](/ask-the-specs/).
 
 This website and the demo are separate deployments: the demo renders a
 *spec suite* (what `sysspec init` gives you for your own specs), while this
 site documents the tool itself.
 
 Each catalog is annotated for the system it describes: `specs/system.yaml`
-names the system, its business domain and its event namespace, and the
-generated site carries them in its title, header and footer. The demo reads
+names the system, its business domain, its event namespace and the MCP
+endpoint it is served on, and the generated site carries them in its title,
+header, footer and its **Ask these specs** page. The demo reads
 "sysspec demo · Commerce · `com.hungovercoders`"; yours reads as whatever
 you scaffolded — `sysspec init my-specs --org com.acme --system "Acme
 Commerce" --domain Commerce`.

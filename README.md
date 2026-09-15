@@ -6,7 +6,11 @@ Gherkin acceptance criteria — and those specs do double duty:
 
 1. **Context to build from.** Engineers and AI agents read the specs (over
    MCP, at implementation time) instead of guessing from code.
-2. **Deterministic gates.** The same specs are packaged and consumed by
+2. **A domain expert anyone can interrogate.** The same MCP tools answer
+   questions in plain language — what a service is for, what an event
+   carries, who breaks if it changes — so product, analysts, architects,
+   support and new joiners get the system's intent without opening a file.
+3. **Deterministic gates.** The same specs are packaged and consumed by
    implementations for local and CI testing. They cannot be quietly
    amended to make failing code pass, because they live and version
    separately from every implementation.
@@ -68,6 +72,43 @@ reference and stays current without you copying anything:
 Merges to main publish each changed service as a `<service>/v<version>`
 git tag — the release hook the implement/consume journey below pins
 against.
+
+## Ask the specs
+
+Before anyone builds anything, the suite is already useful: connect an MCP
+client and interview the system in plain language. The example suite is
+served publicly, so this works right now:
+
+```bash
+claude mcp add sysspec --scope project \
+  --transport http https://demo.sysspec.dev/mcp
+```
+
+Then ask in your own words:
+
+- "Who consumes `orders.placed.v2`?"
+- "What does a customer have to supply to place an order?"
+- "If we dropped `customer_id` from `OrderPlaced`, who breaks — and is that
+  a major?"
+- "Where is 'settled' defined, and does payments mean the same by it as
+  orders?"
+
+Answers come from the specs of record — versioned, gated, the same surface
+implementations are held to — not from anyone's memory and not from code
+that may have drifted. That is a byproduct worth having on its own: a
+domain expert that is never too busy and never out of date, for people who
+will never open the repo.
+
+Point it at your own specs with `SPECS_DIR` (route 3 below), or host the
+endpoint once and record it in `specs/system.yaml`:
+
+```yaml
+mcp: https://specs.example.com/mcp
+```
+
+Every generated catalog then carries an **Ask these specs** page with that
+URL and starter questions drawn from your own services, events and
+scenarios. The full story: <https://sysspec.dev/ask-the-specs/>.
 
 ## Implement or consume a service
 
@@ -140,8 +181,8 @@ sysspec/
 ├── website/                  the sysspec website (tool docs), Cloudflare
 └── specs/                    the example: orders, payments
     ├── system.yaml           the system these specs describe: title,
-    │                         domain, event namespace - the catalog's
-    │                         annotation, unique to each suite
+    │                         domain, event namespace, MCP endpoint - the
+    │                         catalog's annotation, unique to each suite
     └── <service>/
         ├── service.yaml      manifest: version, artifacts, produces, consumes
         ├── asyncapi/  openapi/  data-contracts/  features/
@@ -151,6 +192,9 @@ sysspec/
 there is no second place to forget to update.
 
 ## Tools
+
+Seven read-only tools — the same ones behind both uses above, asking and
+building:
 
 | Tool | Use |
 | --- | --- |

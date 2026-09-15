@@ -46,6 +46,9 @@ export default defineConfig({
       sidebar: [
         { label: 'Overview', link: '/' },
         { label: 'Getting started', link: '/getting-started/' },
+        // Reading the specs by asking them is the cheapest way in, and
+        // it is not only agents doing the asking - hence top level.
+        { label: 'Ask the specs', link: '/ask-the-specs/' },
         {
           label: 'The model',
           items: [

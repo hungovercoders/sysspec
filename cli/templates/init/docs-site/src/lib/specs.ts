@@ -118,6 +118,8 @@ export interface System {
   domain: string | null;
   org: string | null;
   summary: string;
+  /** Hosted MCP endpoint these specs answer questions on, if any. */
+  mcp: string | null;
   /** Distinct service domains, derived - what the catalog groups by. */
   domains: string[];
 }
@@ -128,6 +130,7 @@ export const system = (data as { system?: System }).system ?? {
   domain: null,
   org: null,
   summary: '',
+  mcp: null,
   domains: [],
 };
 
