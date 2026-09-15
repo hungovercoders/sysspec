@@ -12,6 +12,9 @@
  *   5. Feature files may only reference messages the service owns or consumes
  *      (quoted PascalCase tokens) and channels it produces or consumes (quoted
  *      dotted addresses) - scenarios about phantom events are rot.
+ *   6. For data contracts, the ODCS `version` must equal the manifest version,
+ *      and every declared relationship (ODCS 3.2 foreign keys) must resolve -
+ *      inside the document, or in the contract file it names.
  *
  * Suite-wide: the optional `<specs>/system.yaml` - the annotation every
  * generated catalog page carries - must be complete when it exists.
@@ -119,6 +122,112 @@ export function channelOps(doc: Record<string, any>): [Set<string>, Set<string>]
 const ORG_RE = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/;
 const MCP_URL_RE = /^https?:\/\/[^\s]+$/;
 
+/** Resolve one ODCS relationship reference inside a contract document.
+ *
+ * Shorthand (`object.column`) resolves by `name`; the fully qualified
+ * form (`schema/<id>/properties/<id>`) resolves by `id`, which is what
+ * makes it survive a rename. Returns null when it resolves, or the
+ * reason it does not.
+ */
+export function resolveOdcsTarget(doc: Record<string, any>, ref: string): string | null {
+  const parts = ref.split("/").filter(Boolean);
+  const qualified = parts.length > 1;
+  const objects: any[] = doc.schema ?? [];
+  const objectKey = qualified ? parts[1] : ref.split(".")[0];
+  const obj = objects.find((o) => String(qualified ? o?.id ?? "" : o?.name ?? "") === objectKey);
+  if (!obj) {
+    return qualified && objects.some((o) => String(o?.name ?? "") === objectKey)
+      ? `object '${objectKey}' is referenced by id but declares only a name - add 'id: ${objectKey}'`
+      : `object '${objectKey}' does not exist`;
+  }
+  const at = qualified ? parts.indexOf("properties") : -1;
+  const propertyKey = qualified
+    ? at === -1
+      ? null
+      : parts[at + 1]
+    : (ref.split(".")[1] ?? null);
+  if (!propertyKey) return null;
+  const properties: any[] = obj.properties ?? [];
+  const found = properties.some(
+    (p) => String(qualified ? p?.id ?? "" : p?.name ?? "") === propertyKey,
+  );
+  if (found) return null;
+  return qualified && properties.some((p) => String(p?.name ?? "") === propertyKey)
+    ? `property '${objectKey}.${propertyKey}' is referenced by id but declares only a name - add 'id: ${propertyKey}'`
+    : `property '${objectKey}.${propertyKey}' does not exist`;
+}
+
+/** Every unresolvable relationship in one data contract.
+ *
+ * A declared foreign key is a promise about two columns; if either end
+ * does not exist, the promise is decoration. Remote (http) targets are
+ * skipped - a gate that needs the network to agree with itself is not a
+ * gate - everything else must resolve on disk.
+ */
+export function relationshipProblems(doc: Record<string, any>, file: string): string[] {
+  const problems: string[] = [];
+  const cache = new Map<string, Record<string, any> | null>();
+  const load = (target: string): Record<string, any> | null => {
+    if (!cache.has(target)) {
+      cache.set(target, isFile(target) ? readYaml(target) : null);
+    }
+    return cache.get(target) ?? null;
+  };
+
+  const check = (rel: Record<string, any>, ends: [string, unknown][]) => {
+    for (const [side, value] of ends) {
+      for (const ref of ([] as unknown[]).concat(value ?? [])) {
+        const text = String(ref ?? "").trim();
+        if (!text) continue;
+        if (/^https?:\/\//.test(text)) continue;
+        const [maybeFile, pointer] = text.includes("#") ? text.split("#") : [null, text];
+        let doc2 = doc;
+        if (maybeFile) {
+          const resolved = path.resolve(path.dirname(file), maybeFile);
+          const loaded = load(resolved);
+          if (!loaded) {
+            problems.push(`relationship ${side} '${text}': no contract at ${maybeFile}`);
+            continue;
+          }
+          doc2 = loaded;
+        }
+        const problem = resolveOdcsTarget(doc2, pointer);
+        if (problem) problems.push(`relationship ${side} '${text}': ${problem}`);
+      }
+    }
+    const from = rel.from;
+    const to = rel.to;
+    if (Array.isArray(from) !== Array.isArray(to) && from !== undefined) {
+      problems.push(`relationship '${rel.id ?? to}': from and to must both be single or both be lists`);
+    } else if (Array.isArray(from) && Array.isArray(to) && from.length !== to.length) {
+      problems.push(`relationship '${rel.id ?? "composite"}': from and to list different numbers of columns`);
+    }
+  };
+
+  for (const obj of doc.schema ?? []) {
+    for (const rel of obj.relationships ?? []) {
+      if (rel?.from === undefined) {
+        problems.push(`relationship '${rel?.id ?? rel?.to}': a schema-level relationship needs 'from'`);
+      }
+      check(rel ?? {}, [
+        ["from", rel?.from],
+        ["to", rel?.to],
+      ]);
+    }
+    for (const p of obj.properties ?? []) {
+      for (const rel of p.relationships ?? []) {
+        if (rel?.from !== undefined) {
+          problems.push(
+            `relationship '${rel?.id ?? rel?.to}': 'from' is implicit on a property-level relationship`,
+          );
+        }
+        check(rel ?? {}, [["to", rel?.to]]);
+      }
+    }
+  }
+  return problems;
+}
+
 /** The optional suite-level system manifest.
  *
  * Absent is fine (the catalog falls back to generic wording), but a
@@ -204,6 +313,17 @@ function lintService(
         const [s, r] = channelOps(doc);
         sent = new Set([...sent, ...s]);
         received = new Set([...received, ...r]);
+      }
+    }
+    if (a.kind === "data-contract") {
+      const doc = readYaml(file);
+      if (String(doc.version) !== String(a.version)) {
+        problems.push(
+          `${name}: ${a.path} version ${doc.version} != manifest version ${a.version}`,
+        );
+      }
+      for (const problem of relationshipProblems(doc, file)) {
+        problems.push(`${name}: ${a.path} ${problem}`);
       }
     }
   }

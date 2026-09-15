@@ -298,6 +298,93 @@ function erComment(p: Dict): string {
   return parts.join(" · ");
 }
 
+/** One declared relationship, resolved far enough to draw.
+ *
+ * ODCS 3.2 writes a reference either as shorthand (`table.column`) or
+ * fully qualified (`section/id/properties/id`), optionally prefixed by
+ * another contract file. Only the tail matters for the diagram: which
+ * object, which column, and - when the target is in another file - which
+ * contract it belongs to.
+ */
+export interface OdcsRef {
+  file: string | null;
+  object: string;
+  property: string | null;
+}
+
+export function parseOdcsRef(ref: string): OdcsRef | null {
+  const text = String(ref ?? "").trim();
+  if (!text) return null;
+  const hash = text.indexOf("#");
+  const file = hash === -1 ? null : text.slice(0, hash) || null;
+  const target = hash === -1 ? text : text.slice(hash + 1);
+  const parts = target.split("/").filter(Boolean);
+  if (parts.length > 1) {
+    // Fully qualified: schema/<object>[/properties/<property>].
+    const object = parts[1] ?? null;
+    const at = parts.indexOf("properties");
+    const property = at === -1 ? null : (parts[at + 1] ?? null);
+    return object ? { file, object, property } : null;
+  }
+  // Shorthand: <object>.<column>, dotted, no slashes.
+  const dotted = parts[0]?.split(".") ?? [];
+  if (dotted.length < 2) return null;
+  return { file, object: dotted[0], property: dotted[dotted.length - 1] };
+}
+
+/** Every relationship in the document, as [fromObject, fromProperty, ref].
+ *
+ * A reference may name an object by either its logical `name` or its
+ * `physicalName`; entity boxes are drawn under the physical one, so both
+ * spellings resolve to that to keep one table from becoming two.
+ */
+function odcsRelationships(odcs: Dict): [string, string | null, OdcsRef][] {
+  const boxes = new Map<string, string>();
+  for (const obj of odcs.schema ?? []) {
+    const box = String(obj.physicalName ?? obj.name);
+    boxes.set(String(obj.name), box);
+    boxes.set(box, box);
+  }
+  const box = (name: string) => boxes.get(name) ?? name;
+  const found: [string, string | null, OdcsRef][] = [];
+  for (const obj of odcs.schema ?? []) {
+    const objectName = String(obj.physicalName ?? obj.name);
+    for (const rel of obj.relationships ?? []) {
+      // Schema level names both ends; a composite key lists several, and
+      // the diagram draws one edge per pair.
+      const froms = Array.isArray(rel.from) ? rel.from : [rel.from];
+      const tos = Array.isArray(rel.to) ? rel.to : [rel.to];
+      for (let i = 0; i < tos.length; i++) {
+        const to = parseOdcsRef(tos[i]);
+        if (!to) continue;
+        const from = parseOdcsRef(froms[i] ?? froms[0] ?? "");
+        const target = to.file ? to : { ...to, object: box(to.object) };
+        found.push([box(from?.object ?? objectName), from?.property ?? null, target]);
+      }
+    }
+    for (const p of obj.properties ?? []) {
+      for (const rel of p.relationships ?? []) {
+        for (const to of Array.isArray(rel.to) ? rel.to : [rel.to]) {
+          const target = parseOdcsRef(to);
+          if (!target) continue;
+          found.push([
+            objectName,
+            String(p.name),
+            target.file ? target : { ...target, object: box(target.object) },
+          ]);
+        }
+      }
+    }
+  }
+  return found;
+}
+
+/** A foreign contract's file path, reduced to something readable in a box. */
+function foreignLabel(file: string): string {
+  const base = file.split("/").pop() ?? file;
+  return base.replace(/\.(odcs\.)?ya?ml$/i, "");
+}
+
 /** The contract's schema objects as a fenced mermaid ER diagram.
  *
  * One entity per object, top-level properties only: logical type,
@@ -305,6 +392,11 @@ function erComment(p: Dict): string {
  * comment, so the shape carries its meaning rather than just its names.
  * Nesting and constraints stay in the field tables below. Empty when
  * nothing would show.
+ *
+ * Declared `relationships` (ODCS 3.2) become the edges. One that points
+ * into another contract draws an empty stub entity named for that file,
+ * so the lineage shows without the diagram pretending to own a table it
+ * does not describe.
  */
 export function odcsEr(odcs: Dict): string[] {
   const entities: [string, string[]][] = [];
@@ -324,6 +416,25 @@ export function odcsEr(odcs: Dict): string[] {
   for (const [entity, rows] of entities) {
     lines.push(`    ${nodeId(String(entity))} {`, ...rows, "    }");
   }
+
+  const stubs = new Map<string, string[]>();
+  const edges: string[] = [];
+  for (const [from, property, to] of odcsRelationships(odcs)) {
+    const target = to.file ? `${foreignLabel(to.file)}_${to.object}` : to.object;
+    if (to.file) {
+      const rows = stubs.get(target) ?? [];
+      const row = `        key ${to.property ?? "id"} "in ${foreignLabel(to.file)}"`;
+      if (!rows.includes(row)) rows.push(row);
+      stubs.set(target, rows);
+    }
+    const label = [to.property, to.file && "external"].filter(Boolean).join(" · ");
+    // Many-to-one: a foreign key is the many side by construction.
+    edges.push(`    ${nodeId(target)} ||--o{ ${nodeId(String(from))} : "${label || property || "references"}"`);
+  }
+  for (const stub of [...stubs.keys()].sort()) {
+    lines.push(`    ${nodeId(stub)} {`, ...stubs.get(stub)!, "    }");
+  }
+  lines.push(...edges);
   lines.push("```");
   return lines;
 }

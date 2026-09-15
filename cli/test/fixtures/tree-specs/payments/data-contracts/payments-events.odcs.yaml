@@ -1,12 +1,11 @@
-apiVersion: v3.1.0
+apiVersion: v3.2.0
 kind: DataContract
 id: payments-events-history
 name: Payment events history
-version: 1.2.0
+version: 1.3.0
 status: active
 domain: Commerce
 tenant: hungovercoders
-dataProduct: payments
 description:
   purpose: >
     Append-only historical record of payment settlement events. One row per
@@ -22,8 +21,37 @@ description:
     terminal). Not a source for real-time balances - use the payments
     service API for that.
 
+context:
+  instructions: >
+    This is the settlement event history, one row per settled payment,
+    never updated in place. Settlement is terminal: a payment settles once
+    or not at all, so there is no later row to supersede one. Money is
+    always integer pence in amount_pence. Join to the order record on
+    order_id when a question spans both.
+  verifiedStatements:
+    - question: How much settled on a given day?
+      answer: >
+        Sum amount_pence over rows whose settled_at falls in the day. That
+        is processor settlement time, not order time.
+    - question: Which orders have been paid?
+      answer: >
+        The distinct order_id values present here. An order with no row has
+        not settled - it may still be in flight.
+    - question: Can one order settle more than once?
+      answer: >
+        No. payment_id is unique and settlement is terminal, so at most one
+        settlement row exists per payment.
+  constraints:
+    - constraint: >
+        Never use this as a real-time balance or a payment status check -
+        it is an event record with minutes of lag; the payments service API
+        answers those.
+
 schema:
-  - name: payment_settled_events
+  # Referenced by the daily reconciliation contract, so it carries the
+  # `id` that reference resolves against.
+  - id: payment_settled_events
+    name: payment_settled_events
     logicalType: object
     physicalName: payment_settled_events
     physicalType: table
@@ -51,7 +79,8 @@ schema:
         physicalType: timestamp
         required: true
         description: CloudEvents envelope time.
-      - name: payment_id
+      - id: payment_id
+        name: payment_id
         logicalType: string
         physicalType: uuid
         required: true
@@ -60,18 +89,34 @@ schema:
         logicalType: string
         physicalType: uuid
         required: true
+        description: The order this payment settles.
+        # Cross-contract foreign key: the order it points at lives in the
+        # orders service's own contract. Declaring it makes the lineage
+        # between two services' data products explicit.
+        relationships:
+          - id: settles_order
+            to: ../../orders/data-contracts/orders-events.odcs.yaml#/schema/order_placed_events/properties/order_id
       - name: settled_at
         logicalType: date
         physicalType: timestamp
         required: true
         partitioned: true
+        semanticType: dimension
+        synonyms:
+          - synonym: settlement date
       - name: amount_pence
         logicalType: integer
         physicalType: bigint
         required: true
+        description: Settled amount in whole pence.
+        synonyms:
+          - synonym: settlement amount
         quality:
-          - rule: nonNegative
-            mustBeGreaterThanOrEqualTo: 0
+          - type: sql
+            description: Settled amounts are never negative.
+            dimension: conformity
+            query: SELECT COUNT(*) FROM payment_settled_events WHERE amount_pence < 0
+            mustBe: 0
 
 slaProperties:
   - property: latency
@@ -79,8 +124,11 @@ slaProperties:
     unit: m
 
 team:
-  - username: team-payments
-    role: owner
+  name: Payments
+  description: Owns payment settlement and everything published from it.
+  members:
+    - username: team-payments
+      role: owner
 
 support:
   - channel: '#payments-support'

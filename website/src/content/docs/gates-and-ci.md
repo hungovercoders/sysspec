@@ -17,11 +17,11 @@ In a spec repo it composes, in order:
 | --- | --- |
 | `lint:specs` | Spectral over the OpenAPI/AsyncAPI contracts, house naming rules included |
 | `lint:features` | gherkin-lint over the acceptance criteria |
-| `lint:datacontracts` | datacontract-cli over the ODCS data contracts, plus Spectral for naming |
+| `lint:datacontracts` | the ODCS 3.2 JSON Schema (vendored, strict), then datacontract-cli, then Spectral for naming |
 | `lint:manifest` | manifests ⇄ contracts ⇄ spec graph consistency, semver versions, feature references resolve to real messages and channels, and `specs/system.yaml` is complete when present |
 | `check:version` | any gated artifact change bumps its manifest version *and* the service's top-level version; artifact major ⇒ service major |
 | `check:compat` | breaking contract changes carry major bumps (artifact and service) |
-| `check:intent` | every schema element added to an OpenAPI/AsyncAPI contract is named in the service's feature files — no escape hatch (ODCS columns and enum values are covered by the version gate only) |
+| `check:intent` | every schema element added to a contract is named in the service's feature files — no escape hatch; ODCS columns and enum values included |
 | `docs:build` | the generated docs site builds `--strict` |
 | `docs:diagrams` | every mermaid diagram in the generated site parses |
 | `contract:test` / `mocks:test` | Microcks mocks load, contract-test, and smoke-test green (needs a running Docker daemon) |

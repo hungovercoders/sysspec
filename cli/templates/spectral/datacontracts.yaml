@@ -7,7 +7,9 @@
 #
 # Same convention as the specs: attributes and their controlled values are
 # lower_snake_case. Contract metadata is not an attribute - `id`, `name`,
-# `domain`, `tenant` and `dataProduct` keep whatever the catalogue uses.
+# `domain` and `tenant` keep whatever the catalogue uses. Neither are the
+# deliberately human parts ODCS 3.2 adds: a `synonym` is the business
+# phrase ("settlement amount"), and enum `label`s are for display.
 #
 # A repo overrides this wholesale by putting its own
 # `.spectral-datacontracts.yaml` at its root.
@@ -45,11 +47,38 @@ rules:
       functionOptions:
         type: snake
 
-  datacontract-valid-values-snake-case:
-    description: Controlled vocabularies in quality rules are lower_snake_case.
-    message: 'valid value "{{value}}" is not lower_snake_case'
+  datacontract-no-deprecated-shapes:
+    description: The shapes ODCS deprecated are not used.
+    message: '{{property}} is a pre-3.1 shape - use the team object, and let id/name carry the data product'
     severity: error
     given:
+      # Valid but deprecated, so neither the JSON Schema nor
+      # datacontract-cli will tell you: `dataProduct` went in 3.1, and the
+      # array form of `team` goes in ODCS 4.0.
+      - $.dataProduct
+    then:
+      function: undefined
+
+  datacontract-team-is-an-object:
+    description: team is the 3.1+ object with members, not the 3.0 array.
+    message: 'team must be an object with members[], not an array'
+    severity: error
+    given:
+      - $.team
+    then:
+      function: schema
+      functionOptions:
+        schema:
+          type: object
+
+  datacontract-enum-values-snake-case:
+    description: Controlled vocabularies are lower_snake_case.
+    message: 'enum value "{{value}}" is not lower_snake_case'
+    severity: error
+    given:
+      # ODCS 3.2 made enums first class; a vocabulary smuggled through a
+      # quality rule is still held to the same convention.
+      - $..enum[*].value
       - $..validValues[*]
     then:
       function: casing

@@ -33,7 +33,7 @@ All four compare the working tree against a base ref (`--base`, default
 - `check compat` — breaking contract changes must carry major bumps.
 - `check intent` — every schema element added to an OpenAPI/AsyncAPI
   contract must be named in the service's feature files. No escape hatch
-  there; ODCS columns and enum values are covered by the version gate only.
+  there — ODCS columns and enum values included.
 - `check surface` — changes under given paths must bump a named version file
   (how the repo enforces its own package and plugin version bumps).
 
@@ -54,7 +54,7 @@ default.
 - `lint specs` — Spectral over the OpenAPI/AsyncAPI contracts, house naming
   rules included.
 - `lint features` — gherkin-lint over the acceptance criteria.
-- `lint datacontracts` — datacontract-cli over the ODCS files, plus a
+- `lint datacontracts` — the vendored ODCS 3.2 JSON Schema and datacontract-cli over the ODCS files, plus a
   Spectral ruleset for the naming rules.
 - `lint manifest` — manifests ⇄ contracts ⇄ spec graph consistency, semver
   versions, feature references resolve to real messages and channels.

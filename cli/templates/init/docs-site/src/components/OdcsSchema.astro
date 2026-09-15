@@ -16,26 +16,79 @@ const keyFlags = (p: Record<string, any>) =>
     .filter(Boolean)
     .join(', ');
 
+// ODCS 3.2 comparison operators, in the spelling the standard uses.
+const OPERATORS: [string, (v: any) => string][] = [
+  ['mustBe', (v) => `= ${v}`],
+  ['mustNotBe', (v) => `≠ ${v}`],
+  ['mustBeGreaterThan', (v) => `> ${v}`],
+  ['mustBeGreaterOrEqualTo', (v) => `≥ ${v}`],
+  ['mustBeLessThan', (v) => `< ${v}`],
+  ['mustBeLessOrEqualTo', (v) => `≤ ${v}`],
+  ['mustBeBetween', (v) => `between ${[].concat(v).join(' and ')}`],
+  ['mustNotBeBetween', (v) => `outside ${[].concat(v).join(' and ')}`],
+];
+
+const operatorOf = (q: Record<string, any>) => {
+  for (const [key, fmt] of OPERATORS) if (q[key] !== undefined) return fmt(q[key]);
+  return '';
+};
+
+// A quality entry reads as what it checks, not as the keyword it uses:
+// a library metric, a SQL probe, a vendor engine, or plain text.
 const qualityRules = (p: Record<string, any>) =>
   (p.quality ?? [])
     .map((q: Record<string, any>) => {
+      const op = operatorOf(q);
+      // `invalidValues` reads as "invalid values" in a table of prose.
+      if (q.metric) {
+        const metric = String(q.metric).replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();
+        return [metric, op].filter(Boolean).join(' ');
+      }
+      if (q.type === 'sql' || q.query) return [q.description ?? 'sql check', op].filter(Boolean).join(' · ');
+      if (q.engine) return `${q.engine} check`;
+      // Pre-3.2 shorthand, still readable if a suite has not migrated.
       if (q.validValues) return 'one of ' + q.validValues.join(', ');
-      if (q.mustBeGreaterThanOrEqualTo !== undefined)
-        return `≥ ${q.mustBeGreaterThanOrEqualTo}`;
-      return q.rule;
+      return q.description ?? q.rule ?? 'check';
     })
+    .filter(Boolean)
     .join('; ');
 
 const typeOf = (p: Record<string, any>) =>
   p.physicalType ? `${p.logicalType ?? '—'} (${p.physicalType})` : p.logicalType ?? '—';
+
+// A relationship target, shortened to what a reader needs: the column it
+// points at, and the contract it lives in when that is elsewhere.
+const targetOf = (ref: unknown) => {
+  const text = String(ref ?? '');
+  const [file, pointer] = text.includes('#') ? text.split('#') : [null, text];
+  const parts = (pointer ?? '').split('/').filter(Boolean);
+  const tail = parts.length > 1 ? parts.filter((s) => s !== 'properties' && s !== 'schema') : [text];
+  const where = file ? (file.split('/').pop() ?? '').replace(/\.(odcs\.)?ya?ml$/i, '') : null;
+  return { label: tail.join('.'), where };
+};
+
+const relationshipsOf = (p: Record<string, any>) =>
+  (p.relationships ?? []).flatMap((r: Record<string, any>) =>
+    ([] as unknown[]).concat(r.to ?? []).map(targetOf),
+  );
+
+const synonymsOf = (el: Record<string, any>) =>
+  (el.synonyms ?? []).map((s: Record<string, any>) => s.synonym).filter(Boolean);
 ---
 {erMermaid && <Mermaid chart={erMermaid} />}
 {(odcs.schema ?? []).map((table: Record<string, any>) => (
   <>
     <p>
       <strong><code>{table.physicalName ?? table.name}</code></strong>
+      {table.deprecated && <> <span class="sc-chip sc-chip--warn">deprecated</span></>}
       {table.description && <> — {table.description}</>}
+      {synonymsOf(table).length > 0 && (
+        <> <span class="sc-odcs-synonyms">also called {synonymsOf(table).join(', ')}</span></>
+      )}
     </p>
+    {table.context?.instructions && (
+      <p class="sc-odcs-note">{table.context.instructions}</p>
+    )}
     <div class="sc-table-wrap"><table class="sc-table">
       <thead>
         <tr><th>Field</th><th>Type</th><th>Required</th><th>Key</th><th>Constraints</th></tr>
@@ -43,11 +96,39 @@ const typeOf = (p: Record<string, any>) =>
       <tbody>
         {(table.properties ?? []).map((p: Record<string, any>) => (
           <tr>
-            <td><code>{p.name}</code></td>
-            <td>{typeOf(p)}</td>
+            <td>
+              <code>{p.name}</code>
+              {p.deprecated && <> <span class="sc-chip sc-chip--warn">deprecated</span></>}
+              {synonymsOf(p).length > 0 && (
+                <div class="sc-odcs-synonyms">{synonymsOf(p).join(', ')}</div>
+              )}
+            </td>
+            <td>
+              {typeOf(p)}
+              {p.semanticType && p.semanticType !== 'column' && (
+                <div class="sc-odcs-synonyms">{p.semanticType}</div>
+              )}
+            </td>
             <td>{p.required ? <span class="sc-req">required</span> : <span class="sc-opt">optional</span>}</td>
-            <td>{keyFlags(p) || '—'}</td>
-            <td>{qualityRules(p) || '—'}</td>
+            <td>
+              {keyFlags(p) || '—'}
+              {relationshipsOf(p).map((t: { label: string; where: string | null }) => (
+                <div class="sc-odcs-synonyms">→ {t.label}{t.where && <> in <code>{t.where}</code></>}</div>
+              ))}
+            </td>
+            <td>
+              {(p.enum ?? []).length > 0 ? (
+                <ul class="sc-odcs-enum">
+                  {p.enum.map((e: Record<string, any>) => (
+                    <li>
+                      <code>{String(e.value)}</code>
+                      {e.description && <> — {e.description}</>}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              {qualityRules(p) || ((p.enum ?? []).length > 0 ? '' : '—')}
+            </td>
           </tr>
         ))}
       </tbody>

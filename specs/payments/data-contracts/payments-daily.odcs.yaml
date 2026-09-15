@@ -1,12 +1,11 @@
-apiVersion: v3.1.0
+apiVersion: v3.2.0
 kind: DataContract
 id: payments-daily-settled
 name: Daily settled payments
-version: 1.0.1
+version: 1.1.0
 status: active
 domain: Commerce
 tenant: hungovercoders
-dataProduct: payments
 description:
   purpose: >
     Daily reconciliation of settled payments for finance. One row per
@@ -18,12 +17,44 @@ description:
     Settlement date is the processor's, not ours, so late arrivals can
     backfill up to 3 days. Do not treat a partition as final until D+3.
 
+context:
+  instructions: >
+    This is the finance-facing reconciliation of settled payments, derived
+    from the payment event history. One row per settled payment. Money is
+    integer pence; sum amount_pence rather than averaging rates.
+  verifiedStatements:
+    - question: What settled yesterday?
+      answer: >
+        The rows in yesterday's settled_at partition - but that partition is
+        not final until D+3, so a figure quoted before then can move.
+    - question: How does this differ from the payment event history?
+      answer: >
+        Same settlements, shaped for finance close: one row per payment with
+        no CloudEvents envelope columns. The event history is the record it
+        derives from.
+  constraints:
+    - constraint: >
+        Never report a settlement-date partition as final before D+3 -
+        late arrivals from the processor still backfill it.
+    - constraint: >
+        Never use this for real-time balances; it is a daily product.
+
 schema:
   - name: settled_payments
     logicalType: object
     physicalName: payments_daily_settled
     physicalType: table
     description: One row per settled payment, partitioned by settlement date.
+    context:
+      instructions: >
+        Partitioned by settled_at. Treat the most recent three days as
+        provisional: the processor backfills late arrivals up to D+3.
+    # Derived from the event record, and pointing at the order the payment
+    # settles - both edges declared rather than left to a reader to infer.
+    relationships:
+      - id: derived_from_settlement_event
+        from: settled_payments.payment_id
+        to: ./payments-events.odcs.yaml#/schema/payment_settled_events/properties/payment_id
     properties:
       - name: payment_id
         logicalType: string
@@ -37,20 +68,31 @@ schema:
         physicalType: uuid
         required: true
         description: The order the payment settles.
+        relationships:
+          - id: settles_order
+            to: ../../orders/data-contracts/orders-events.odcs.yaml#/schema/order_placed_events/properties/order_id
       - name: settled_at
         logicalType: date
         physicalType: timestamp
         required: true
         partitioned: true
         description: Processor settlement time - the partition key; late arrivals backfill up to D+3.
+        semanticType: dimension
+        synonyms:
+          - synonym: settlement date
       - name: amount_pence
         logicalType: integer
         physicalType: bigint
         required: true
-        description: Settled amount in pence.
+        description: Settled amount in whole pence.
+        synonyms:
+          - synonym: settlement amount
         quality:
-          - rule: nonNegative
-            mustBeGreaterThanOrEqualTo: 0
+          - type: sql
+            description: Settled amounts are never negative.
+            dimension: conformity
+            query: SELECT COUNT(*) FROM payments_daily_settled WHERE amount_pence < 0
+            mustBe: 0
 
 slaProperties:
   - property: frequency
@@ -61,8 +103,11 @@ slaProperties:
     unit: h
 
 team:
-  - username: team-payments
-    role: owner
+  name: Payments
+  description: Owns payment settlement and everything published from it.
+  members:
+    - username: team-payments
+      role: owner
 
 support:
   - channel: '#payments-support'

@@ -8,15 +8,17 @@
  *
  * Classification: `oasdiff breaking` for OpenAPI; a structural diff via
  * `@asyncapi/cli diff` for AsyncAPI (removals and edits are breaking,
- * additions are fine; parser noise and prose fields are ignored). ODCS data
- * contracts and feature files have no reliable differ and stay covered by
- * the version gate alone.
+ * additions are fine; parser noise and prose fields are ignored);
+ * `datacontract breaking` for ODCS data contracts, which since ODCS 3.2
+ * sees removed columns *and* removed enum values. Feature files have no
+ * reliable differ and stay covered by the version gate alone.
  */
 
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { ASYNCAPI_CLI } from "./pins.js";
+import { parse, stringify } from "yaml";
+import { ASYNCAPI_CLI, DATACONTRACT_CLI } from "./pins.js";
 import { blob, git, mergeBase, run, splitLines } from "./util.js";
 import {
   GATED_KINDS,
@@ -99,9 +101,106 @@ export function asyncapiBreaking(baseFile: string, current: string): [boolean, s
   return [bad.length > 0, bad.join("\n")];
 }
 
+/** The ERROR rows of a `datacontract breaking` report, unboxed.
+ *
+ * The tool prints two rich tables: a summary, which rolls a child's
+ * severity up onto its parent path (so a removed enum value also lights
+ * up the column above it), and the details, which names each breaking
+ * change once. Only the details are read, so the failure message says
+ * what actually broke rather than what contains it. Exported for unit
+ * tests over captured output.
+ */
+export function odcsBreakingDetail(output: string): string[] {
+  const seen = new Set<string>();
+  let inDetails = false;
+  for (const line of splitLines(output)) {
+    if (/^\s*Details\s*$/.test(line)) {
+      inDetails = true;
+      continue;
+    }
+    if (!inDetails || !/│\s*ERROR\s*│/.test(line)) continue;
+    // Severity │ Change │ Path │ Old Value │ New Value │ Message. Rich
+    // truncates the narrow columns; Path and Old Value are what identify
+    // the change, and they are the ones it keeps whole.
+    const cells = line.split("│").map((c) => c.trim());
+    const severity = cells.indexOf("ERROR");
+    const path = cells[severity + 2];
+    const oldValue = cells[severity + 3];
+    if (!path) continue;
+    const detail = oldValue ? `${path} (was ${oldValue})` : path;
+    if (!seen.has(detail)) seen.add(detail);
+  }
+  return [...seen];
+}
+
+/** A controlled vocabulary, wherever the document happens to put it.
+ *
+ * Before ODCS 3.2 the only way to declare one was a `validValues` quality
+ * rule; 3.2 made `enum` first class. They say the same thing, so both
+ * sides of a diff are normalised to the 3.2 spelling first - otherwise
+ * moving a vocabulary from one to the other reads as "a constraint
+ * appeared", which the differ rightly calls breaking, for a change that
+ * constrains nothing that was not already constrained. Exported for unit
+ * tests.
+ */
+export function normalizeOdcs(text: string): string {
+  const doc = (parse(text) ?? {}) as Record<string, any>;
+  for (const obj of doc.schema ?? []) {
+    for (const p of obj.properties ?? []) {
+      const quality: Record<string, any>[] = p.quality ?? [];
+      const vocab = quality.find((q) => Array.isArray(q?.validValues));
+      if (!vocab) continue;
+      if (!p.enum) p.enum = vocab.validValues.map((value: unknown) => ({ value }));
+      p.quality = quality.filter((q) => q !== vocab);
+      if (p.quality.length === 0) delete p.quality;
+    }
+  }
+  return stringify(doc);
+}
+
+/** Breaking-change classification for ODCS data contracts.
+ *
+ * `datacontract breaking` exits 0 when every change is compatible and 1
+ * when any is not; it understands the 3.2 shapes, so a removed column and
+ * a removed enum value both land here. Any other exit is the differ
+ * itself failing, which must be loud rather than a silent pass.
+ *
+ * `--no-inline-references` keeps the gate hermetic: without it the tool
+ * resolves external `authoritativeDefinitions` over the network, and a
+ * gate that needs the internet to agree with itself is not a gate.
+ */
+export function odcsBreaking(baseFile: string, current: string): [boolean, string] {
+  const base = writeTmp(normalizeOdcs(readFileSync(baseFile, "utf-8")), ".yaml");
+  const head = writeTmp(normalizeOdcs(readFileSync(current, "utf-8")), ".yaml");
+  let res;
+  try {
+    res = run([
+      "uvx",
+      "--from",
+      DATACONTRACT_CLI,
+      "datacontract",
+      "breaking",
+      "--no-inline-references",
+      base,
+      head,
+    ]);
+  } finally {
+    removeTmp(base);
+    removeTmp(head);
+  }
+  const output = res.stdout + res.stderr;
+  if (res.status !== 0 && res.status !== 1) {
+    throw new Error(`datacontract breaking failed (exit ${res.status}): ${output.trim()}`);
+  }
+  if (res.status === 0) return [false, ""];
+  const detail = odcsBreakingDetail(output);
+  return [true, (detail.length ? detail.join("\n") : output).trim()];
+}
+
 const CLASSIFIERS: Record<string, (base: string, current: string) => [boolean, string]> = {
   openapi: openapiBreaking,
   asyncapi: asyncapiBreaking,
+  "data-contract": odcsBreaking,
 };
 
 export function runGate(base: string, only: string | null, specsDir: string): number {

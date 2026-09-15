@@ -76,6 +76,30 @@ test("unknown service name fails", () => {
   expect(runLint("nope", specs)).toBe(1);
 });
 
+test("a relationship pointing at a column that does not exist is drift", () => {
+  const errs = captureErr();
+  const f = path.join(specs, "payments", "data-contracts", "payments-events.odcs.yaml");
+  writeFileSync(f, readFileSync(f, "utf-8").replace("properties/order_id", "properties/nope"));
+  expect(runLint(null, specs)).toBe(1);
+  expect(errs.join("\n")).toContain("does not exist");
+});
+
+test("a relationship pointing at a contract that is not there is drift", () => {
+  const errs = captureErr();
+  const f = path.join(specs, "payments", "data-contracts", "payments-events.odcs.yaml");
+  writeFileSync(f, readFileSync(f, "utf-8").replace("orders-events.odcs.yaml", "gone.odcs.yaml"));
+  expect(runLint(null, specs)).toBe(1);
+  expect(errs.join("\n")).toContain("no contract at");
+});
+
+test("a data contract whose own version drifts from the manifest is drift", () => {
+  const errs = captureErr();
+  const f = path.join(specs, "orders", "data-contracts", "orders-events.odcs.yaml");
+  writeFileSync(f, readFileSync(f, "utf-8").replace(/^version: .*$/m, "version: 9.9.9"));
+  expect(runLint("orders", specs)).toBe(1);
+  expect(errs.join("\n")).toContain("!= manifest version");
+});
+
 test("a system manifest missing its domain is drift", () => {
   const errs = captureErr();
   const f = path.join(specs, "system.yaml");

@@ -7,7 +7,11 @@
  * feature files. There is no escape hatch: if it is not worth a scenario, it
  * is not worth adding to the contract yet.
  *
- * Known limitation: new enum values are not gated (they carry no unique name).
+ * ODCS data contracts are gated too, columns and enum values alike - ODCS
+ * 3.2 gives every allowed value a first-class entry, so a vocabulary is
+ * now something the gate can name. Known limitation: `enum` members in
+ * OpenAPI and AsyncAPI schemas stay ungated, where they still carry no
+ * unique name of their own.
  */
 
 import { readdirSync, readFileSync } from "node:fs";
@@ -52,17 +56,25 @@ const OASDIFF_GATED: Record<string, string> = {
 /** A synthetic empty spec so a brand-new file gates everything it adds. */
 export function emptyBase(kind: string, currentText: string): string {
   const doc = (parse(currentText) ?? {}) as Record<string, any>;
-  const skeleton =
-    kind === "openapi"
-      ? { openapi: doc.openapi ?? "3.0.3", info: doc.info ?? {}, paths: {} }
-      : {
-          asyncapi: doc.asyncapi ?? "3.0.0",
-          info: doc.info ?? {},
-          channels: {},
-          operations: {},
-          components: { messages: {} },
-        };
-  return stringify(skeleton);
+  const skeletons: Record<string, () => Record<string, any>> = {
+    openapi: () => ({ openapi: doc.openapi ?? "3.0.3", info: doc.info ?? {}, paths: {} }),
+    "data-contract": () => ({
+      apiVersion: doc.apiVersion ?? "v3.2.0",
+      kind: doc.kind ?? "DataContract",
+      id: doc.id ?? "",
+      name: doc.name ?? "",
+      version: doc.version ?? "0.0.0",
+      schema: [],
+    }),
+    asyncapi: () => ({
+      asyncapi: doc.asyncapi ?? "3.0.0",
+      info: doc.info ?? {},
+      channels: {},
+      operations: {},
+      components: { messages: {} },
+    }),
+  };
+  return stringify((skeletons[kind] ?? skeletons.asyncapi)());
 }
 
 /** Token extraction from oasdiff changelog entries — exported for unit
@@ -141,9 +153,68 @@ export function asyncapiAdded(baseFile: string, current: string): Set<string> {
   return asyncapiTokens(asyncapiChanges(baseFile, current), channels);
 }
 
+/** Every named element of an ODCS document, keyed by where it sits.
+ *
+ * Keys are structural (`object/property/nested`) so a rename anywhere in
+ * the path reads as an addition, which it is; the value is what a
+ * scenario would call the thing. Enum members hang off their property's
+ * key, because "a new allowed value" is a new case a consumer must
+ * handle even though the column already existed.
+ */
+export function odcsIndex(doc: Record<string, any>): {
+  names: Map<string, string>;
+  enums: Map<string, Set<string>>;
+} {
+  const names = new Map<string, string>();
+  const enums = new Map<string, Set<string>>();
+  const walk = (properties: any[], prefix: string) => {
+    for (const p of properties ?? []) {
+      if (!p?.name) continue;
+      const key = `${prefix}/${p.name}`;
+      names.set(key, String(p.name));
+      // A vocabulary counts wherever it is declared: `enum` since ODCS
+      // 3.2, a `validValues` quality rule before it. Reading both means
+      // moving one to the other is correctly seen as adding nothing.
+      const legacy = (p.quality ?? []).find((q: any) => Array.isArray(q?.validValues));
+      const vocabulary = Array.isArray(p.enum)
+        ? p.enum.map((e: any) => String(e?.value ?? e))
+        : legacy?.validValues.map((v: unknown) => String(v));
+      if (vocabulary) enums.set(key, new Set<string>(vocabulary));
+      // Nested objects, and the element type of an array of objects.
+      walk(p.properties ?? p.items?.properties ?? [], key);
+    }
+  };
+  for (const obj of doc.schema ?? []) {
+    if (!obj?.name) continue;
+    names.set(obj.name, String(obj.name));
+    walk(obj.properties ?? [], String(obj.name));
+  }
+  return { names, enums };
+}
+
+/** Added schema objects, columns and enum values, by name. */
+export function odcsAdded(baseFile: string, current: string): Set<string> {
+  const base = odcsIndex((parse(readFileSync(baseFile, "utf-8")) ?? {}) as Record<string, any>);
+  const head = odcsIndex((parse(readFileSync(current, "utf-8")) ?? {}) as Record<string, any>);
+  const tokens = new Set<string>();
+  for (const [key, name] of head.names) {
+    if (!base.names.has(key)) tokens.add(name);
+  }
+  for (const [key, values] of head.enums) {
+    const before = base.enums.get(key);
+    for (const value of values) {
+      // A value on a brand-new column is already gated by the column;
+      // this is for vocabularies growing under a column that existed.
+      if (before && !before.has(value)) tokens.add(value);
+    }
+  }
+  return tokens;
+}
+
 const ADDED: Record<string, (base: string, current: string) => Set<string>> = {
   openapi: openapiAdded,
   asyncapi: asyncapiAdded,
+  "data-contract": odcsAdded,
 };
 
 function escapeRe(s: string): string {

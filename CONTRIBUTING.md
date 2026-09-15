@@ -30,8 +30,8 @@ Exactly what CI runs. It composes, in order:
 | `check:branch` | branch is `main`, `<user>/gri-<number>-<slug>` (Linear convention), or `claude/<slug>` (agent sessions) |
 | `lint:specs` | Spectral over the OpenAPI/AsyncAPI contracts, house naming rules included |
 | `lint:features` | gherkin-lint over the acceptance criteria |
-| `lint:datacontracts` | datacontract-cli over the ODCS data contracts, plus Spectral for naming |
-| `lint:manifest` | manifests ⇄ contracts ⇄ spec graph consistency, semver versions, feature references resolve to real messages and channels, and `specs/system.yaml` is complete when present |
+| `lint:datacontracts` | the ODCS 3.2 JSON Schema (vendored, strict) over the data contracts, then datacontract-cli, then Spectral for naming |
+| `lint:manifest` | manifests ⇄ contracts ⇄ spec graph consistency, semver versions, feature references resolve to real messages and channels, ODCS relationships resolve to columns that exist, and `specs/system.yaml` is complete when present |
 | `check:version` | any gated artifact change bumps its manifest version *and* the service's top-level version; artifact major ⇒ service major |
 | `check:plugin` | plugin surface changes (cli, mcp, skills, plugin manifests) bump the plugin version |
 | `check:cli` / `check:mcp` | changes under `cli/` / `mcp/` bump that package's version |
@@ -41,8 +41,8 @@ Exactly what CI runs. It composes, in order:
 | `docs:diagrams` | every mermaid diagram in the generated site parses (mermaid-cli, headless Chromium) |
 | `site:build` | the sysspec website (`website/`, the tool's own docs) builds |
 | `check:commits` | conventional commit messages |
-| `check:compat` | breaking contract changes carry major bumps (artifact and service) |
-| `check:intent` | every schema element added to an OpenAPI/AsyncAPI contract is named in the service's feature files — no escape hatch (ODCS columns and enum values are covered by the version gate only) |
+| `check:compat` | breaking contract changes carry major bumps (artifact and service) — OpenAPI via oasdiff, AsyncAPI structurally, ODCS via `datacontract breaking` |
+| `check:intent` | every schema element added to a contract is named in the service's feature files — no escape hatch; ODCS columns and enum values included |
 | `check:init` | the init scaffold passes its own lint, version, and docs gates |
 | `check:null` | the falsifiability gate self-test: a hollow suite goes red, an honest all-failing one green |
 | `mocks:load` / `contract:test` / `mocks:test` | Microcks mocks load, contract-test, and smoke-test green |
@@ -61,15 +61,24 @@ one deliberately:
 2. Bump the service's top-level `version:`. Breaking change ⇒ major on both.
 3. If you added a schema element, name it in a scenario in that service's
    `features/` — `check:intent` fails otherwise, deliberately without an
-   escape hatch.
+   escape hatch. That includes an ODCS column and an ODCS `enum` value: a
+   new allowed value is a new case a consumer has to handle, so it gets a
+   sentence like everything else.
 4. Conventions (channel naming, payload rules, money, idempotency) live in
    `skills/sysspec/SKILL.md`. Attribute names and enumerated values
    are `lower_snake_case` everywhere — `.spectral.yaml` holds the rules for
    the specs, and `lint:datacontracts` applies the equivalent ruleset to the
-   ODCS files (datacontract-cli has no hook for house rules, so Spectral
-   does that half). A spec suite that wants a different rule for its data
-   contracts overrides the bundled ruleset with its own
-   `.spectral-datacontracts.yaml` at the repo root.
+   ODCS files (neither the JSON Schema nor datacontract-cli has a hook for
+   house rules, so Spectral does that third). A spec suite that wants a
+   different rule for its data contracts overrides the bundled ruleset with
+   its own `.spectral-datacontracts.yaml` at the repo root.
+5. Data contracts are ODCS **3.2** (`apiVersion: v3.2.0`). Declare a
+   controlled vocabulary as `enum`, never as a `validValues` quality rule;
+   declare foreign keys as `relationships`, which `lint:manifest` resolves
+   and the catalog draws; put reader guidance in `context` — it is part of
+   the gated artifact, not a comment. Removing a column or an allowed value
+   is breaking and takes a major; adding an allowed value is a minor that
+   needs a scenario.
 
 `specs/system.yaml` sits alongside the services and describes the suite
 itself — title, business domain, event namespace, and the optional `mcp:`

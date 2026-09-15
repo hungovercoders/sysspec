@@ -14,7 +14,7 @@
     {
       "name": "orders",
       "title": "Orders",
-      "version": "3.2.0",
+      "version": "3.3.0",
       "domain": "Commerce",
       "owner": "team-commerce",
       "summary": "Owns the Order aggregate. Accepts order placement over HTTP, emits lifecycle events, and consumes payment settlement to close orders out.",
@@ -42,11 +42,11 @@
           "kind": "feature",
           "path": "features/place-order.feature",
           "stem": "place-order",
-          "version": "2.1.0",
+          "version": "2.2.0",
           "gated": true,
           "summary": "Acceptance criteria for order placement and guaranteed event publication.",
           "history": [],
-          "text": "Feature: Placing an order\n  As a customer\n  I want to place an order\n  So that it is fulfilled once payment settles\n\n  These scenarios are acceptance criteria, not suggestions. An\n  implementation that fails any of them is wrong. If a scenario is\n  itself wrong, that is a versioned change to this file.\n\n  Background:\n    Given the customer \"c-1001\" exists\n\n  Scenario: A valid order is accepted and its event is guaranteed\n    When the customer places an order for 2 units of \"SKU-RED\" at 1250 pence\n    Then the response status is 201\n    And the order status is \"placed\"\n    And the order total is 2500 pence\n    And an \"OrderPlaced\" event is guaranteed to be published for the order\n\n  Scenario: The order and its event succeed or fail together\n    Given event publication is unavailable\n    When the customer places an order for 1 unit of \"SKU-RED\" at 1250 pence\n    Then the response status is 201\n    And the \"OrderPlaced\" event is published once publication recovers\n    And no order ever exists without its \"OrderPlaced\" event\n\n  Scenario: Replaying an idempotency key returns the original order\n    Given the customer placed an order with idempotency key \"idem-99\"\n    When the same request is retried with idempotency key \"idem-99\"\n    Then the response status is 201\n    And the same order_id is returned\n    And no second \"OrderPlaced\" event is published\n\n  Scenario: A conflicting body on a used idempotency key is rejected\n    Given the customer placed an order with idempotency key \"idem-99\"\n    When a different order body is sent with idempotency key \"idem-99\"\n    Then the response status is 409\n\n  Scenario: Order events are CloudEvents envelopes\n    When the customer places an order for 2 units of \"SKU-RED\" at 1250 pence\n    Then an \"OrderPlaced\" event is published on \"orders.placed.v2\"\n    And the envelope carries specversion \"1.0\", a unique id and a time\n    And the envelope source is /orders and its type is com.hungovercoders.orders.placed.v2\n    And the envelope subject is the order_id, with datacontenttype \"application/json\"\n    And the data carries the order_id, customer_id, placed_at and total_pence\n    And handlers dedupe on the envelope id, not the natural key\n\n  Scenario: Cancellation is a CloudEvents envelope too\n    Given the customer placed an order\n    When the order is cancelled because \"out_of_stock\"\n    Then an \"OrderCancelled\" event is published on \"orders.cancelled.v2\"\n    And its data carries the order_id, cancelled_at and reason\n\n  Scenario: A settled payment marks the order paid\n    Given the customer placed an order\n    When a \"PaymentSettled\" event arrives on \"payments.settled.v2\" for that order_id\n    Then the order status is \"paid\"\n    And replaying the same envelope id does not change the order again\n\n  Scenario: An order can be fetched by its id\n    Given the customer placed an order via placeOrder\n    When the order is fetched by order_id via getOrder\n    Then the response status is 200\n    And the order carries the order_id, customer_id, status and total_pence\n\n  Scenario: Fetching an unknown order returns 404\n    When an unknown order_id is fetched via getOrder\n    Then the response status is 404\n\n  Scenario Outline: Orders must have at least one valid line\n    When the customer places an order with <lines>\n    Then the response status is 400\n\n    Examples:\n      | lines                       |\n      | no lines                    |\n      | a line quantity of 0        |\n      | a negative unit_price_pence |\n      | a line missing its sku      |\n",
+          "text": "Feature: Placing an order\n  As a customer\n  I want to place an order\n  So that it is fulfilled once payment settles\n\n  These scenarios are acceptance criteria, not suggestions. An\n  implementation that fails any of them is wrong. If a scenario is\n  itself wrong, that is a versioned change to this file.\n\n  Background:\n    Given the customer \"c-1001\" exists\n\n  Scenario: A valid order is accepted and its event is guaranteed\n    When the customer places an order for 2 units of \"SKU-RED\" at 1250 pence\n    Then the response status is 201\n    And the order status is \"placed\"\n    And the order total is 2500 pence\n    And an \"OrderPlaced\" event is guaranteed to be published for the order\n\n  Scenario: The order and its event succeed or fail together\n    Given event publication is unavailable\n    When the customer places an order for 1 unit of \"SKU-RED\" at 1250 pence\n    Then the response status is 201\n    And the \"OrderPlaced\" event is published once publication recovers\n    And no order ever exists without its \"OrderPlaced\" event\n\n  Scenario: Replaying an idempotency key returns the original order\n    Given the customer placed an order with idempotency key \"idem-99\"\n    When the same request is retried with idempotency key \"idem-99\"\n    Then the response status is 201\n    And the same order_id is returned\n    And no second \"OrderPlaced\" event is published\n\n  Scenario: A conflicting body on a used idempotency key is rejected\n    Given the customer placed an order with idempotency key \"idem-99\"\n    When a different order body is sent with idempotency key \"idem-99\"\n    Then the response status is 409\n\n  Scenario: Order events are CloudEvents envelopes\n    When the customer places an order for 2 units of \"SKU-RED\" at 1250 pence\n    Then an \"OrderPlaced\" event is published on \"orders.placed.v2\"\n    And the envelope carries specversion \"1.0\", a unique id and a time\n    And the envelope source is /orders and its type is com.hungovercoders.orders.placed.v2\n    And the envelope subject is the order_id, with datacontenttype \"application/json\"\n    And the data carries the order_id, customer_id, placed_at and total_pence\n    And handlers dedupe on the envelope id, not the natural key\n\n  Scenario: Cancellation is a CloudEvents envelope too\n    Given the customer placed an order\n    When the order is cancelled because \"out_of_stock\"\n    Then an \"OrderCancelled\" event is published on \"orders.cancelled.v2\"\n    And its data carries the order_id, cancelled_at and reason\n\n  Scenario Outline: An order is only cancelled for a declared reason\n    Given the customer placed an order\n    When the order is cancelled because \"<reason>\"\n    Then the cancellation is accepted and records that reason\n    And a reason outside this list is rejected\n\n    Examples:\n      | reason           | meaning                                          |\n      | customer_request | the customer asked for the order to be cancelled |\n      | payment_failed   | no payment settled inside the window             |\n      | out_of_stock     | the order cannot be fulfilled from stock         |\n\n  Scenario: A settled payment marks the order paid\n    Given the customer placed an order\n    When a \"PaymentSettled\" event arrives on \"payments.settled.v2\" for that order_id\n    Then the order status is \"paid\"\n    And replaying the same envelope id does not change the order again\n\n  Scenario: An order can be fetched by its id\n    Given the customer placed an order via placeOrder\n    When the order is fetched by order_id via getOrder\n    Then the response status is 200\n    And the order carries the order_id, customer_id, status and total_pence\n\n  Scenario: Fetching an unknown order returns 404\n    When an unknown order_id is fetched via getOrder\n    Then the response status is 404\n\n  Scenario Outline: Orders must have at least one valid line\n    When the customer places an order with <lines>\n    Then the response status is 400\n\n    Examples:\n      | lines                       |\n      | no lines                    |\n      | a line quantity of 0        |\n      | a negative unit_price_pence |\n      | a line missing its sku      |\n",
           "feature": {
             "title": "Placing an order",
             "description": [
@@ -242,6 +242,54 @@
                 ]
               },
               {
+                "title": "An order is only cancelled for a declared reason",
+                "steps": [
+                  {
+                    "keyword": "Given",
+                    "phase": "given",
+                    "text": "the customer placed an order"
+                  },
+                  {
+                    "keyword": "When",
+                    "phase": "when",
+                    "text": "the order is cancelled because \"<reason>\""
+                  },
+                  {
+                    "keyword": "Then",
+                    "phase": "then",
+                    "text": "the cancellation is accepted and records that reason"
+                  },
+                  {
+                    "keyword": "And",
+                    "phase": "then",
+                    "text": "a reason outside this list is rejected"
+                  },
+                  {
+                    "heading": "Examples"
+                  },
+                  {
+                    "table": [
+                      [
+                        "reason",
+                        "meaning"
+                      ],
+                      [
+                        "customer_request",
+                        "the customer asked for the order to be cancelled"
+                      ],
+                      [
+                        "payment_failed",
+                        "no payment settled inside the window"
+                      ],
+                      [
+                        "out_of_stock",
+                        "the order cannot be fulfilled from stock"
+                      ]
+                    ]
+                  }
+                ]
+              },
+              {
                 "title": "A settled payment marks the order paid",
                 "steps": [
                   {
@@ -350,27 +398,52 @@
           "kind": "data-contract",
           "path": "data-contracts/orders-events.odcs.yaml",
           "stem": "orders-events.odcs",
-          "version": "1.2.0",
+          "version": "1.3.0",
           "gated": true,
           "summary": "Append-only historical record of the order lifecycle events.",
           "history": [],
           "odcs": {
-            "apiVersion": "v3.1.0",
+            "apiVersion": "v3.2.0",
             "kind": "DataContract",
             "id": "orders-events-history",
             "name": "Order events history",
-            "version": "1.2.0",
+            "version": "1.3.0",
             "status": "active",
             "domain": "Commerce",
             "tenant": "hungovercoders",
-            "dataProduct": "orders",
             "description": {
               "purpose": "Append-only historical record of the Order aggregate's events. One row per event, mirroring the AsyncAPI payloads on orders.placed.v2 and orders.cancelled.v2 field for field - the stream is ephemeral, this table is the record.\n",
               "usage": "Order lifecycle analytics, audit, and replay/backfill for downstream consumers that joined after the fact. Not a source for current order state - use the orders service API for that.\n",
               "limitations": "Delivery upstream is at-least-once; rows are deduplicated on the CloudEvents envelope id, so exactly one row per event. Events land within minutes but ordering across event types is only guaranteed per order_id.\n"
             },
+            "context": {
+              "instructions": "This is the event history of the Order aggregate, one row per event, never updated in place. Count orders from order_placed_events and treat order_cancelled_events as a separate fact joined on order_id; an order can appear in both. Money is always integer pence in total_pence - never divide before aggregating.\n",
+              "verifiedStatements": [
+                {
+                  "question": "How many orders were placed on a given day?",
+                  "answer": "Count rows in order_placed_events where placed_at falls in the day, in the placed_at timezone. The table is deduplicated on event_id, so no DISTINCT is needed.\n"
+                },
+                {
+                  "question": "What proportion of orders are cancelled, and why?",
+                  "answer": "Join order_cancelled_events to order_placed_events on order_id and group by reason. reason is a closed vocabulary of three values.\n"
+                },
+                {
+                  "question": "What is the value of an order?",
+                  "answer": "total_pence, an integer number of pence covering the whole order. There is no per-line breakdown in this record.\n"
+                }
+              ],
+              "constraints": [
+                {
+                  "constraint": "Never present this as current order state. An order cancelled after the last event you read still reads as placed here; the orders service API is the source for current state.\n"
+                },
+                {
+                  "constraint": "Never treat a missing order_cancelled_events row as proof an order was fulfilled - it only means no cancellation event has landed.\n"
+                }
+              ]
+            },
             "schema": [
               {
+                "id": "order_placed_events",
                 "name": "order_placed_events",
                 "logicalType": "object",
                 "physicalName": "order_placed_events",
@@ -408,6 +481,7 @@
                     "description": "CloudEvents envelope time."
                   },
                   {
+                    "id": "order_id",
                     "name": "order_id",
                     "logicalType": "string",
                     "physicalType": "uuid",
@@ -425,17 +499,33 @@
                     "logicalType": "date",
                     "physicalType": "timestamp",
                     "required": true,
-                    "partitioned": true
+                    "partitioned": true,
+                    "semanticType": "dimension",
+                    "synonyms": [
+                      {
+                        "synonym": "order date"
+                      }
+                    ]
                   },
                   {
                     "name": "total_pence",
                     "logicalType": "integer",
                     "physicalType": "bigint",
                     "required": true,
+                    "description": "Order value in whole pence, the whole order.",
+                    "synonyms": [
+                      {
+                        "synonym": "order value",
+                        "description": "What the business calls this when reporting revenue."
+                      }
+                    ],
                     "quality": [
                       {
-                        "rule": "nonNegative",
-                        "mustBeGreaterThanOrEqualTo": 0
+                        "type": "sql",
+                        "description": "Order totals are never negative.",
+                        "dimension": "conformity",
+                        "query": "SELECT COUNT(*) FROM order_placed_events WHERE total_pence < 0",
+                        "mustBe": 0
                       }
                     ]
                   }
@@ -447,6 +537,13 @@
                 "physicalName": "order_cancelled_events",
                 "physicalType": "table",
                 "description": "One row per OrderCancelled event on orders.cancelled.v2.",
+                "relationships": [
+                  {
+                    "id": "cancellation_of_order",
+                    "from": "order_cancelled_events.order_id",
+                    "to": "order_placed_events.order_id"
+                  }
+                ],
                 "properties": [
                   {
                     "name": "event_id",
@@ -490,21 +587,38 @@
                     "logicalType": "date",
                     "physicalType": "timestamp",
                     "required": true,
-                    "partitioned": true
+                    "partitioned": true,
+                    "semanticType": "dimension"
                   },
                   {
                     "name": "reason",
                     "logicalType": "string",
                     "physicalType": "text",
                     "required": true,
+                    "description": "Why the order was cancelled - a closed vocabulary.",
+                    "enum": [
+                      {
+                        "value": "customer_request",
+                        "label": "Customer request",
+                        "description": "The customer asked for the order to be cancelled."
+                      },
+                      {
+                        "value": "payment_failed",
+                        "label": "Payment failed",
+                        "description": "No payment settled for the order inside the window."
+                      },
+                      {
+                        "value": "out_of_stock",
+                        "label": "Out of stock",
+                        "description": "The order could not be fulfilled from available stock."
+                      }
+                    ],
                     "quality": [
                       {
-                        "rule": "validValues",
-                        "validValues": [
-                          "customer_request",
-                          "payment_failed",
-                          "out_of_stock"
-                        ]
+                        "metric": "invalidValues",
+                        "description": "Every reason is one of the declared values.",
+                        "dimension": "conformity",
+                        "mustBe": 0
                       }
                     ]
                   }
@@ -518,12 +632,16 @@
                 "unit": "m"
               }
             ],
-            "team": [
-              {
-                "username": "team-commerce",
-                "role": "owner"
-              }
-            ],
+            "team": {
+              "name": "Commerce",
+              "description": "Owns the Order aggregate and everything published from it.",
+              "members": [
+                {
+                  "username": "team-commerce",
+                  "role": "owner"
+                }
+              ]
+            },
             "support": [
               {
                 "channel": "#orders-support",
@@ -531,7 +649,7 @@
               }
             ]
           },
-          "er_mermaid": "erDiagram\n    order_placed_events {\n        string event_id PK \"CloudEvents envelope id - the dedupe key.\"\n        string event_type \"CloudEvents type, e.g. com.hungovercoders.orders.placed.v2.\"\n        string event_source \"CloudEvents source of the producing service.\"\n        date event_time \"CloudEvents envelope time.\"\n        string order_id UK\n        string customer_id\n        date placed_at \"partition key\"\n        integer total_pence\n    }\n    order_cancelled_events {\n        string event_id PK \"CloudEvents envelope id - the dedupe key.\"\n        string event_type \"CloudEvents type, e.g. com.hungovercoders.orders.cancelled.v2.\"\n        string event_source \"CloudEvents source of the producing service.\"\n        date event_time \"CloudEvents envelope time.\"\n        string order_id UK\n        date cancelled_at \"partition key\"\n        string reason\n    }"
+          "er_mermaid": "erDiagram\n    order_placed_events {\n        string event_id PK \"CloudEvents envelope id - the dedupe key.\"\n        string event_type \"CloudEvents type, e.g. com.hungovercoders.orders.placed.v2.\"\n        string event_source \"CloudEvents source of the producing service.\"\n        date event_time \"CloudEvents envelope time.\"\n        string order_id UK\n        string customer_id\n        date placed_at \"partition key\"\n        integer total_pence \"Order value in whole pence, the whole order.\"\n    }\n    order_cancelled_events {\n        string event_id PK \"CloudEvents envelope id - the dedupe key.\"\n        string event_type \"CloudEvents type, e.g. com.hungovercoders.orders.cancelled.v2.\"\n        string event_source \"CloudEvents source of the producing service.\"\n        date event_time \"CloudEvents envelope time.\"\n        string order_id UK\n        date cancelled_at \"partition key\"\n        string reason \"Why the order was cancelled - a closed vocabulary.\"\n    }\n    order_placed_events ||--o{ order_cancelled_events : \"order_id\""
         }
       ],
       "produces": [
@@ -972,7 +1090,7 @@
           "summary": "Daily settled-payments table for finance reconciliation.",
           "history": [],
           "odcs": {
-            "apiVersion": "v3.1.0",
+            "apiVersion": "v3.2.0",
             "kind": "DataContract",
             "id": "payments-daily-settled",
             "name": "Daily settled payments",
@@ -980,11 +1098,31 @@
             "status": "active",
             "domain": "Commerce",
             "tenant": "hungovecoders",
-            "dataProduct": "payments",
             "description": {
               "purpose": "Daily reconciliation of settled payments for finance. One row per settled payment, partitioned by settlement date.\n",
               "usage": "Finance close and chargeback investigation. Not a source for real-time balances \u2014 use the payments service API for that.\n",
               "limitations": "Settlement date is the processor's, not ours, so late arrivals can backfill up to 3 days. Do not treat a partition as final until D+3.\n"
+            },
+            "context": {
+              "instructions": "This is the finance-facing reconciliation of settled payments, derived from the payment event history. One row per settled payment. Money is integer pence; sum amount_pence rather than averaging rates.\n",
+              "verifiedStatements": [
+                {
+                  "question": "What settled yesterday?",
+                  "answer": "The rows in yesterday's settled_at partition - but that partition is not final until D+3, so a figure quoted before then can move.\n"
+                },
+                {
+                  "question": "How does this differ from the payment event history?",
+                  "answer": "Same settlements, shaped for finance close: one row per payment with no CloudEvents envelope columns. The event history is the record it derives from.\n"
+                }
+              ],
+              "constraints": [
+                {
+                  "constraint": "Never report a settlement-date partition as final before D+3 - late arrivals from the processor still backfill it.\n"
+                },
+                {
+                  "constraint": "Never use this for real-time balances; it is a daily product.\n"
+                }
+              ]
             },
             "schema": [
               {
@@ -992,6 +1130,16 @@
                 "logicalType": "object",
                 "physicalName": "payments_daily_settled",
                 "physicalType": "table",
+                "context": {
+                  "instructions": "Partitioned by settled_at. Treat the most recent three days as provisional: the processor backfills late arrivals up to D+3.\n"
+                },
+                "relationships": [
+                  {
+                    "id": "derived_from_settlement_event",
+                    "from": "settled_payments.payment_id",
+                    "to": "./payments-events.odcs.yaml#/schema/payment_settled_events/properties/payment_id"
+                  }
+                ],
                 "properties": [
                   {
                     "name": "payment_id",
@@ -1005,24 +1153,45 @@
                     "name": "order_id",
                     "logicalType": "string",
                     "physicalType": "uuid",
-                    "required": true
+                    "required": true,
+                    "relationships": [
+                      {
+                        "id": "settles_order",
+                        "to": "../../orders/data-contracts/orders-events.odcs.yaml#/schema/order_placed_events/properties/order_id"
+                      }
+                    ]
                   },
                   {
                     "name": "settled_at",
                     "logicalType": "date",
                     "physicalType": "timestamp",
                     "required": true,
-                    "partitioned": true
+                    "partitioned": true,
+                    "semanticType": "dimension",
+                    "synonyms": [
+                      {
+                        "synonym": "settlement date"
+                      }
+                    ]
                   },
                   {
                     "name": "amount_pence",
                     "logicalType": "integer",
                     "physicalType": "bigint",
                     "required": true,
+                    "description": "Settled amount in pence.",
+                    "synonyms": [
+                      {
+                        "synonym": "settlement amount"
+                      }
+                    ],
                     "quality": [
                       {
-                        "rule": "nonNegative",
-                        "mustBeGreaterThanOrEqualTo": 0
+                        "type": "sql",
+                        "description": "Settled amounts are never negative.",
+                        "dimension": "conformity",
+                        "query": "SELECT COUNT(*) FROM payments_daily_settled WHERE amount_pence < 0",
+                        "mustBe": 0
                       }
                     ]
                   }
@@ -1041,12 +1210,16 @@
                 "unit": "h"
               }
             ],
-            "team": [
-              {
-                "username": "team-payments",
-                "role": "owner"
-              }
-            ],
+            "team": {
+              "name": "Payments",
+              "description": "Owns payment settlement and everything published from it.",
+              "members": [
+                {
+                  "username": "team-payments",
+                  "role": "owner"
+                }
+              ]
+            },
             "support": [
               {
                 "channel": "#payments-support",
@@ -1054,33 +1227,55 @@
               }
             ]
           },
-          "er_mermaid": "erDiagram\n    payments_daily_settled {\n        string payment_id PK\n        string order_id\n        date settled_at \"partition key\"\n        integer amount_pence\n    }"
+          "er_mermaid": "erDiagram\n    payments_daily_settled {\n        string payment_id PK\n        string order_id\n        date settled_at \"partition key\"\n        integer amount_pence \"Settled amount in pence.\"\n    }\n    orders_events_order_placed_events {\n        key order_id \"in orders-events\"\n    }\n    payments_events_payment_settled_events {\n        key payment_id \"in payments-events\"\n    }\n    payments_events_payment_settled_events ||--o{ payments_daily_settled : \"payment_id \u00b7 external\"\n    orders_events_order_placed_events ||--o{ payments_daily_settled : \"order_id \u00b7 external\""
         },
         {
           "kind": "data-contract",
           "path": "data-contracts/payments-events.odcs.yaml",
           "stem": "payments-events.odcs",
-          "version": "1.2.0",
+          "version": "1.3.0",
           "gated": true,
           "summary": "Append-only historical record of the settlement events.",
           "history": [],
           "odcs": {
-            "apiVersion": "v3.1.0",
+            "apiVersion": "v3.2.0",
             "kind": "DataContract",
             "id": "payments-events-history",
             "name": "Payment events history",
-            "version": "1.2.0",
+            "version": "1.3.0",
             "status": "active",
             "domain": "Commerce",
             "tenant": "hungovercoders",
-            "dataProduct": "payments",
             "description": {
               "purpose": "Append-only historical record of payment settlement events. One row per event, mirroring the AsyncAPI payload on payments.settled.v2 field for field - the stream is ephemeral, this table is the record.\n",
               "usage": "Settlement analytics, audit, and replay/backfill for downstream consumers that joined after the fact. The daily reconciliation product (payments-daily) is derived from this record.\n",
               "limitations": "Delivery upstream is at-least-once; rows are deduplicated on the CloudEvents envelope id, so exactly one row per settlement (settlement is terminal). Not a source for real-time balances - use the payments service API for that.\n"
             },
+            "context": {
+              "instructions": "This is the settlement event history, one row per settled payment, never updated in place. Settlement is terminal: a payment settles once or not at all, so there is no later row to supersede one. Money is always integer pence in amount_pence. Join to the order record on order_id when a question spans both.\n",
+              "verifiedStatements": [
+                {
+                  "question": "How much settled on a given day?",
+                  "answer": "Sum amount_pence over rows whose settled_at falls in the day. That is processor settlement time, not order time.\n"
+                },
+                {
+                  "question": "Which orders have been paid?",
+                  "answer": "The distinct order_id values present here. An order with no row has not settled - it may still be in flight.\n"
+                },
+                {
+                  "question": "Can one order settle more than once?",
+                  "answer": "No. payment_id is unique and settlement is terminal, so at most one settlement row exists per payment.\n"
+                }
+              ],
+              "constraints": [
+                {
+                  "constraint": "Never use this as a real-time balance or a payment status check - it is an event record with minutes of lag; the payments service API answers those.\n"
+                }
+              ]
+            },
             "schema": [
               {
+                "id": "payment_settled_events",
                 "name": "payment_settled_events",
                 "logicalType": "object",
                 "physicalName": "payment_settled_events",
@@ -1118,6 +1313,7 @@
                     "description": "CloudEvents envelope time."
                   },
                   {
+                    "id": "payment_id",
                     "name": "payment_id",
                     "logicalType": "string",
                     "physicalType": "uuid",
@@ -1128,24 +1324,46 @@
                     "name": "order_id",
                     "logicalType": "string",
                     "physicalType": "uuid",
-                    "required": true
+                    "required": true,
+                    "description": "The order this payment settles.",
+                    "relationships": [
+                      {
+                        "id": "settles_order",
+                        "to": "../../orders/data-contracts/orders-events.odcs.yaml#/schema/order_placed_events/properties/order_id"
+                      }
+                    ]
                   },
                   {
                     "name": "settled_at",
                     "logicalType": "date",
                     "physicalType": "timestamp",
                     "required": true,
-                    "partitioned": true
+                    "partitioned": true,
+                    "semanticType": "dimension",
+                    "synonyms": [
+                      {
+                        "synonym": "settlement date"
+                      }
+                    ]
                   },
                   {
                     "name": "amount_pence",
                     "logicalType": "integer",
                     "physicalType": "bigint",
                     "required": true,
+                    "description": "Settled amount in whole pence.",
+                    "synonyms": [
+                      {
+                        "synonym": "settlement amount"
+                      }
+                    ],
                     "quality": [
                       {
-                        "rule": "nonNegative",
-                        "mustBeGreaterThanOrEqualTo": 0
+                        "type": "sql",
+                        "description": "Settled amounts are never negative.",
+                        "dimension": "conformity",
+                        "query": "SELECT COUNT(*) FROM payment_settled_events WHERE amount_pence < 0",
+                        "mustBe": 0
                       }
                     ]
                   }
@@ -1159,12 +1377,16 @@
                 "unit": "m"
               }
             ],
-            "team": [
-              {
-                "username": "team-payments",
-                "role": "owner"
-              }
-            ],
+            "team": {
+              "name": "Payments",
+              "description": "Owns payment settlement and everything published from it.",
+              "members": [
+                {
+                  "username": "team-payments",
+                  "role": "owner"
+                }
+              ]
+            },
             "support": [
               {
                 "channel": "#payments-support",
@@ -1172,7 +1394,7 @@
               }
             ]
           },
-          "er_mermaid": "erDiagram\n    payment_settled_events {\n        string event_id PK \"CloudEvents envelope id - the dedupe key.\"\n        string event_type \"CloudEvents type, e.g. com.hungovercoders.payments.settled.v2.\"\n        string event_source \"CloudEvents source of the producing service.\"\n        date event_time \"CloudEvents envelope time.\"\n        string payment_id UK\n        string order_id\n        date settled_at \"partition key\"\n        integer amount_pence\n    }"
+          "er_mermaid": "erDiagram\n    payment_settled_events {\n        string event_id PK \"CloudEvents envelope id - the dedupe key.\"\n        string event_type \"CloudEvents type, e.g. com.hungovercoders.payments.settled.v2.\"\n        string event_source \"CloudEvents source of the producing service.\"\n        date event_time \"CloudEvents envelope time.\"\n        string payment_id UK\n        string order_id \"The order this payment settles.\"\n        date settled_at \"partition key\"\n        integer amount_pence \"Settled amount in whole pence.\"\n    }\n    orders_events_order_placed_events {\n        key order_id \"in orders-events\"\n    }\n    orders_events_order_placed_events ||--o{ payment_settled_events : \"order_id \u00b7 external\""
         },
         {
           "kind": "feature",

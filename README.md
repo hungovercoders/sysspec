@@ -27,8 +27,9 @@ This repo is three things at once:
    (gates, lint, docs, mock orchestration for consumers, contract testing
    for implementations, `init` scaffold), and [`sysspec-mcp`](mcp/), the
    MCP server serving stdio locally and streamable HTTP behind a URL.
-   One ecosystem end to end; datacontract-cli (the ODCS linter) is
-   fetched on demand by uvx.
+   One ecosystem end to end; ODCS files are held to the standard's own
+   JSON Schema (ODCS 3.2, vendored) and to datacontract-cli, fetched on
+   demand by uvx.
 2. **The distribution** — reusable GitHub workflows
    (`.github/workflows/sysspec-*.yml`) and a Claude Code plugin (MCP tools
    + the three skills).
@@ -160,10 +161,10 @@ test pass — so they get the same protection as a schema.
 Every event is a CloudEvents 1.0 structured envelope with a
 `com.<org>.<service>.<event>.v<major>` type; the gates enforce that
 breaking changes take majors (`check:compat`) and that every schema
-element added to an OpenAPI or AsyncAPI contract is named in the service's
-features (`check:intent`, no escape hatch there; ODCS columns and enum
-values are covered by the version gate only). `task ci` is the definition
-of green — identical locally, in the pre-commit hook, and in CI.
+element added to a contract is named in the service's features
+(`check:intent`, no escape hatch there) — ODCS columns and enum values
+included, now that ODCS 3.2 makes every allowed value a first-class
+entry. `task ci` is the definition of green — identical locally, in the pre-commit hook, and in CI.
 
 ## Layout
 

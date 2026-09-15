@@ -7,9 +7,24 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { parse } from "yaml";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { asyncapiBad, parseAsyncapiDiff } from "../src/compat.js";
-import { asyncapiTokens, emptyBase, mentioned, openapiTokens, pathNames } from "../src/intent.js";
+import {
+  asyncapiBad,
+  normalizeOdcs,
+  odcsBreakingDetail,
+  parseAsyncapiDiff,
+} from "../src/compat.js";
+import { parseOdcsRef } from "../src/docs-gen.js";
+import { resolveOdcsTarget } from "../src/manifest-lint.js";
+import {
+  asyncapiTokens,
+  emptyBase,
+  mentioned,
+  odcsIndex,
+  openapiTokens,
+  pathNames,
+} from "../src/intent.js";
 import { runGate as surfaceGate, versionOf } from "../src/surface.js";
 import { manifestVersions, runGate as versionGate, serviceVersion } from "../src/versioning.js";
 
@@ -100,6 +115,100 @@ describe("compat asyncapi filter", () => {
       "remove /components/messages/OrderPlaced",
       "edit /channels/orderPlaced/address",
     ]);
+  });
+});
+
+describe("odcs data contracts", () => {
+  const contract = (reason: string) =>
+    [
+      "apiVersion: v3.2.0",
+      "kind: DataContract",
+      "id: orders-events",
+      "name: Order events",
+      "version: 1.0.0",
+      "schema:",
+      "  - name: order_placed_events",
+      "    properties:",
+      "      - name: order_id",
+      "      - name: reason",
+      reason,
+    ].join("\n");
+  const asEnum = ["        enum:", "          - value: customer_request", "          - value: out_of_stock"].join("\n");
+  const asQuality = [
+    "        quality:",
+    "          - rule: validValues",
+    "            validValues: [customer_request, out_of_stock]",
+  ].join("\n");
+
+  test("odcsIndex keys elements structurally and reads either vocabulary spelling", () => {
+    const fromEnum = odcsIndex(parse(contract(asEnum)));
+    const fromQuality = odcsIndex(parse(contract(asQuality)));
+    expect([...fromEnum.names.keys()]).toEqual([
+      "order_placed_events",
+      "order_placed_events/order_id",
+      "order_placed_events/reason",
+    ]);
+    expect(fromEnum.enums.get("order_placed_events/reason")).toEqual(
+      fromQuality.enums.get("order_placed_events/reason"),
+    );
+  });
+
+  test("normalizeOdcs turns a legacy validValues rule into the 3.2 enum", () => {
+    const normalized = parse(normalizeOdcs(contract(asQuality)));
+    const reason = normalized.schema[0].properties[1];
+    expect(reason.enum).toEqual([{ value: "customer_request" }, { value: "out_of_stock" }]);
+    expect(reason.quality).toBeUndefined();
+  });
+
+  test("odcsBreakingDetail reads the details table, not the summary rollup", () => {
+    const output = [
+      "Summary",
+      "│ ERROR │ Added │ schema.orders.properties.reason │",
+      "│ ERROR │ Removed │ schema.orders.properties.reason.enum.payment_failed │",
+      "Details",
+      "│ ERROR  │ Rem… │ schema.orders.properties.reason.enum.payment_failed.value │ payment_failed │  │ Removed allowed values at │",
+    ].join("\n");
+    expect(odcsBreakingDetail(output)).toEqual([
+      "schema.orders.properties.reason.enum.payment_failed.value (was payment_failed)",
+    ]);
+  });
+
+  test("emptyBase gives a data contract an empty schema to diff against", () => {
+    const skeleton = parse(emptyBase("data-contract", contract(asEnum)));
+    expect(skeleton.schema).toEqual([]);
+    expect(skeleton.apiVersion).toBe("v3.2.0");
+  });
+
+  test("resolveOdcsTarget resolves by name for shorthand and by id when qualified", () => {
+    const doc = {
+      schema: [
+        {
+          id: "placed",
+          name: "order_placed_events",
+          properties: [{ id: "oid", name: "order_id" }, { name: "customer_id" }],
+        },
+      ],
+    };
+    expect(resolveOdcsTarget(doc, "order_placed_events.order_id")).toBeNull();
+    expect(resolveOdcsTarget(doc, "/schema/placed/properties/oid")).toBeNull();
+    expect(resolveOdcsTarget(doc, "order_placed_events.nope")).toMatch(/does not exist/);
+    // Declared with a name but referenced by id: resolvable today, a trap
+    // the moment the name changes - so it is reported, not accepted.
+    expect(resolveOdcsTarget(doc, "/schema/placed/properties/customer_id")).toMatch(/add 'id:/);
+  });
+
+  test("parseOdcsRef splits shorthand, qualified and cross-file references", () => {
+    expect(parseOdcsRef("orders.order_id")).toEqual({
+      file: null,
+      object: "orders",
+      property: "order_id",
+    });
+    expect(parseOdcsRef("../other.odcs.yaml#/schema/placed/properties/oid")).toEqual({
+      file: "../other.odcs.yaml",
+      object: "placed",
+      property: "oid",
+    });
+    expect(parseOdcsRef("nonsense")).toBeNull();
   });
 });
 
