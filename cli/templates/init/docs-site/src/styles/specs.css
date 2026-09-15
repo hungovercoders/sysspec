@@ -197,6 +197,26 @@
 .sc-legend-key--sink { border-style: dashed; opacity: 0.8; }
 .sc-legend-key--call { height: 0; border: 0; border-top: 2px dotted var(--ss-text-3); border-radius: 0; }
 
+/* ---------- ODCS 3.2 extras ----------------------------------------- */
+/* Synonyms, semantic type and relationship targets ride under the cell
+   they qualify: present, but never competing with the field name. */
+.sc-odcs-synonyms { font-size: 0.75rem; color: var(--ss-text-3); line-height: 1.45; }
+.sc-odcs-synonyms code { font-size: 0.72rem; }
+.sc-odcs-enum { list-style: none; margin: 0 0 0.3rem !important; padding: 0; }
+.sc-odcs-enum li { margin: 0 !important; font-size: 0.8125rem; line-height: 1.5; }
+.sc-odcs-enum code { font-size: 0.75rem; }
+.sc-odcs-note {
+  font-size: 0.85rem; color: var(--ss-text-2); line-height: 1.6;
+  border-left: 2px solid var(--ss-hairline-strong); padding-left: 0.8rem; margin: 0.5rem 0 1rem;
+}
+/* The contract's own questions and answers - the part a person reads
+   before writing a query, and an agent reads before answering one. */
+.sc-odcs-qa { margin: 0.75rem 0 1.25rem; }
+.sc-odcs-qa dt { font-weight: 600; font-size: 0.9375rem; color: var(--ss-text); margin-top: 0.85rem; }
+.sc-odcs-qa dd { margin: 0.25rem 0 0; font-size: 0.875rem; line-height: 1.6; color: var(--ss-text-2); }
+.sc-odcs-constraints { margin: 0.5rem 0 1.5rem; padding-left: 1.1rem; }
+.sc-odcs-constraints li { font-size: 0.875rem; line-height: 1.6; color: var(--ss-text-2); }
+
 /* ---------- Ask these specs ----------------------------------------- */
 /* Starter questions: the question leads, the reason it is answerable
    sits under it in the quieter voice. */

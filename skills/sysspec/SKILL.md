@@ -69,7 +69,8 @@ and the scenario wins on behaviour. Raise the conflict either way.
   the data contract, and no consumer has to translate between them.
   Enforced, not advisory: Spectral rules over the specs
   (`contract-*-snake-case` in `.spectral.yaml`) and a Spectral ruleset over
-  the ODCS files, which `lint:datacontracts` runs alongside datacontract-cli.
+  the ODCS files, which `lint:datacontracts` runs alongside the vendored
+  ODCS 3.2 JSON Schema and datacontract-cli.
 - Document-local identifiers are *not* attributes and keep their own
   conventions: message names `PascalCase`, channel and operation keys and
   OpenAPI `operationId`s `camelCase`, channel addresses dotted lowercase.
@@ -113,7 +114,38 @@ and the scenario wins on behaviour. Raise the conflict either way.
   `implementationRepo: <owner>/<repo>` — optional metadata for docs and
   the specs graph, nothing more.
 - Every schema element you add — message, payload property, endpoint,
-  parameter — must be named in that service's feature files. The feature
-  change is part of the contract change, not an afterthought; `check:intent`
-  enforces this with no escape hatch. If it is not worth a scenario, it is
-  not worth adding to the contract yet.
+  parameter, ODCS column, ODCS `enum` value — must be named in that
+  service's feature files. The feature change is part of the contract
+  change, not an afterthought; `check:intent` enforces this with no escape
+  hatch. If it is not worth a scenario, it is not worth adding to the
+  contract yet.
+
+## Data contracts (ODCS 3.2)
+
+- `apiVersion: v3.2.0`. A controlled vocabulary is an `enum` with a
+  `label` and `description` per value, never a `validValues` quality rule
+  (the pre-3.2 workaround). Values stay `lower_snake_case`; labels and
+  synonyms are the human phrasing and are deliberately exempt.
+- Foreign keys are declared as `relationships`, not inferred from matching
+  column names. A reference may point into another contract file, which is
+  how lineage between two services' data products becomes explicit;
+  `lint:manifest` resolves every one. Fully qualified references resolve by
+  `id`, so give an `id` to any element another contract points at.
+- `context` carries reader guidance as part of the gated artifact:
+  `instructions`, `verifiedStatements` (curated questions *with* their
+  answers) and `constraints` (what must not be done with the data). Write
+  it as spec, not as prompt-engineering — it is versioned like the schema,
+  and it is what the catalog's *Ask these specs* page and the MCP server
+  serve when someone interrogates the domain.
+- `semanticType: measure` means an aggregate whose expression lives in
+  `transformLogic`; a raw per-row column stays the default `column`.
+  `dimension` suits the columns people group by.
+- Quality checks use the 3.2 flavours: a library `metric` (`rowCount`,
+  `nullValues`, `invalidValues`, `duplicateValues`, `missingValues`) with a
+  comparison operator, `type: sql` with a `query`, or `type: custom` with
+  an engine. The operator is `mustBeGreaterOrEqualTo`, not
+  `mustBeGreaterThanOrEqualTo` — that spelling never existed.
+- Removing a column or an allowed value is breaking and takes a major
+  (`check:compat` runs `datacontract breaking`); adding an allowed value is
+  a minor that still needs a scenario. Deprecate first (`deprecated: true`,
+  a minor), remove later.

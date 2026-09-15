@@ -32,6 +32,27 @@ interface Ask {
   why: string;
 }
 
+// Questions the data contracts answer for themselves. ODCS 3.2's context
+// block carries curated question/answer pairs, so where a suite has them
+// these beat anything derived: they were written by whoever owns the
+// data, and they come with the answer attached.
+const curated: Ask[] = services.flatMap((s) =>
+  s.artifacts
+    .filter((a) => a.kind === 'data-contract')
+    .flatMap((a) => {
+      const odcs = (a as { odcs?: Record<string, any> }).odcs ?? {};
+      const blocks = [odcs.context, ...(odcs.schema ?? []).map((o: Record<string, any>) => o.context)];
+      return blocks.flatMap((block: any) =>
+        (typeof block === 'string' ? [] : (block?.verifiedStatements ?? [])).map(
+          (v: Record<string, any>) => ({
+            q: String(v.question),
+            why: String(v.answer ?? `Answered by ${odcs.name ?? a.stem}.`),
+          }),
+        ),
+      );
+    }),
+);
+
 const understand: Ask[] = [
   first && {
     q: `What does ${first.title} do, and where does its responsibility stop?`,
@@ -156,6 +177,22 @@ const tools = [
   <p>
     Drawn from these specs, so they are answerable right now:
   </p>
+
+  {curated.length > 0 && (
+    <>
+      <h3>Already answered, in the specs themselves</h3>
+      <p class="sc-graph-hint">
+        Authored in the data contracts as verified statements — versioned
+        and gated like everything else here, and served over MCP with the
+        answer attached.
+      </p>
+      <ul class="sc-asks">
+        {curated.slice(0, 6).map((a) => (
+          <li><span class="sc-ask-q">{a.q}</span><span class="sc-ask-why">{a.why}</span></li>
+        ))}
+      </ul>
+    </>
+  )}
 
   <h3>Understand the domain</h3>
   <ul class="sc-asks">

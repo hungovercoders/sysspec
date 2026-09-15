@@ -26,6 +26,9 @@ test("npm pack ships templates, lockfile and rulesets; excludes build junk", { t
     "dist/cli.mjs",
     "templates/docker-compose.yml",
     "templates/spectral/datacontracts.yaml",
+    // The ODCS schema is a gate input, not a doc: without it in the
+    // tarball, `lint datacontracts` has nothing to validate against.
+    "templates/odcs/odcs-json-schema-v3.2.0.json",
     "templates/init/gitignore",
     "templates/init/githooks/pre-commit",
     "templates/init/mcp.json",

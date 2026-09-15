@@ -6,7 +6,7 @@
 export const SYSSPEC_MCP = "sysspec-mcp@1.0.3";
 
 export const ASYNCAPI_CLI = "@asyncapi/cli@5.0.7";
-export const DATACONTRACT_CLI = "datacontract-cli==1.1.1";
+export const DATACONTRACT_CLI = "datacontract-cli==1.2.0";
 export const SPECTRAL_CLI = "@stoplight/spectral-cli@6.16.3";
 export const GHERKIN_LINT = "gherkin-lint@4.2.4";
 export const MERMAID_CLI = "@mermaid-js/mermaid-cli@11.16.0";

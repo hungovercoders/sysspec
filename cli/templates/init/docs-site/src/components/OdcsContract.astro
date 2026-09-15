@@ -7,19 +7,60 @@ interface Props {
 }
 const { odcs, erMermaid } = Astro.props;
 const description = odcs.description ?? {};
+
+// ODCS 3.2's context block is either an object or a bare string, which the
+// standard treats as instructions alone.
+const context = typeof odcs.context === 'string' ? { instructions: odcs.context } : odcs.context ?? {};
+const statements = context.verifiedStatements ?? [];
+const constraints = context.constraints ?? [];
+
+// team became an object in 3.1 (members[]); the array form still appears in
+// contracts written against 3.0.
+const members = Array.isArray(odcs.team) ? odcs.team : odcs.team?.members ?? [];
+const teamName = Array.isArray(odcs.team) ? null : odcs.team?.name;
+// dataProduct is deprecated since 3.1 - the contract's own id names it.
+const product = odcs.dataProduct ?? odcs.id;
 ---
 <p class="sc-page-meta">
   <span class={`sc-chip ${odcs.status === 'active' ? 'sc-chip--ok' : ''}`}>{odcs.status}</span>
   <span class="sc-sep">·</span>
   <span>{odcs.domain}</span>
-  <span class="sc-sep">·</span>
-  <span>data product <code>{odcs.dataProduct}</code></span>
+  {product && <><span class="sc-sep">·</span><span>data product <code>{product}</code></span></>}
   {odcs.tenant && <><span class="sc-sep">·</span><span>tenant <code>{odcs.tenant}</code></span></>}
+  {odcs.apiVersion && <><span class="sc-sep">·</span><span>ODCS <code>{odcs.apiVersion}</code></span></>}
 </p>
 
 {description.purpose && <><h2>Purpose</h2><p>{description.purpose}</p></>}
 {description.usage && <><h2>Usage</h2><p>{description.usage}</p></>}
 {description.limitations && <><h2>Limitations</h2><p>{description.limitations}</p></>}
+
+{(context.instructions || statements.length > 0 || constraints.length > 0) && (
+  <>
+    <h2>Working with this data</h2>
+    {context.instructions && <p>{context.instructions}</p>}
+    {statements.length > 0 && (
+      <>
+        <p class="sc-graph-hint">
+          Questions this contract answers for itself — the same text an agent
+          reads over MCP.
+        </p>
+        <dl class="sc-odcs-qa">
+          {statements.map((s: Record<string, any>) => (
+            <>
+              <dt>{s.question}</dt>
+              {s.answer && <dd>{s.answer}</dd>}
+            </>
+          ))}
+        </dl>
+      </>
+    )}
+    {constraints.length > 0 && (
+      <ul class="sc-odcs-constraints">
+        {constraints.map((c: Record<string, any>) => <li>{c.constraint}</li>)}
+      </ul>
+    )}
+  </>
+)}
 
 <h2>Schema</h2>
 <OdcsSchema odcs={odcs} erMermaid={erMermaid} />
@@ -35,11 +76,12 @@ const description = odcs.description ?? {};
   </>
 )}
 
-{((odcs.team ?? []).length > 0 || (odcs.support ?? []).length > 0) && (
+{(members.length > 0 || (odcs.support ?? []).length > 0) && (
   <>
     <h2>Ownership &amp; support</h2>
     <ul>
-      {(odcs.team ?? []).map((t: Record<string, any>) => (
+      {teamName && <li>{teamName}{odcs.team?.description && <> — {odcs.team.description}</>}</li>}
+      {members.map((t: Record<string, any>) => (
         <li><code>{t.username}</code> ({t.role})</li>
       ))}
       {(odcs.support ?? []).map((s: Record<string, any>) => (

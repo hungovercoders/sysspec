@@ -15,7 +15,9 @@ linters (`lint:specs`, `lint:datacontracts`, `lint:manifest`), not advisory.
   enumerated value (`out_of_stock`, not `outOfStock`). A field is spelled the
   same in the AsyncAPI payload, the OpenAPI schema and the data contract, so
   no consumer translates between them. Spectral rules enforce this across
-  the specs and the ODCS files.
+  the specs and the ODCS files. The deliberately human parts of ODCS 3.2 are
+  exempt: a `synonym` is the business phrase ("settlement amount") and an
+  enum `label` is for display.
 - **Header parameters are the one exception**: they keep canonical HTTP
   casing (`Idempotency-Key`, not `idempotency_key`) — HTTP header names
   are case-insensitive hyphenated identifiers, not payload attributes, and
@@ -63,11 +65,32 @@ linters (`lint:specs`, `lint:datacontracts`, `lint:manifest`), not advisory.
 - Merges to main publish each changed service's contract surface as a
   lightweight tag `<service>/v<version>`.
 
+## Data contracts (ODCS 3.2)
+
+- Declare a controlled vocabulary as `enum`, with a `label` and a
+  `description` per value — not as a `validValues` quality rule, which is
+  how it had to be written before 3.2.
+- Declare foreign keys as `relationships` rather than leaving a reader to
+  infer them from matching column names. They may point into another
+  contract, which is how lineage between two services' data products
+  becomes explicit; `lint:manifest` resolves every one, and the catalog
+  draws them as ER edges.
+- Put reader guidance in `context` — `instructions`, `verifiedStatements`
+  (curated questions with their answers) and `constraints` (what must not
+  be done with the data). It is part of the gated artifact, so it is
+  versioned like the schema, and the catalog's *Ask these specs* page and
+  the MCP server both serve it.
+- `synonyms` and `semanticType` are for vocabulary, not decoration:
+  `semanticType: measure` means an aggregate whose expression lives in
+  `transformLogic`, so a raw per-row column stays the default `column`.
+- Deprecate before removing: `deprecated: true` is a minor, the removal
+  that follows is a major, and `check:compat` will hold you to it.
+
 ## Intent
 
-Every schema element you add to an OpenAPI or AsyncAPI contract — message,
-payload property, endpoint, parameter — must be named in that service's
-feature files. The feature change is part of the contract change, not an
-afterthought; `check:intent` enforces this with no escape hatch there
-(ODCS columns and enum values are covered by the version gate only). If it
-is not worth a scenario, it is not worth adding to the contract yet.
+Every schema element you add to a contract — message, payload property,
+endpoint, parameter, ODCS column, ODCS `enum` value — must be named in
+that service's feature files. The feature change is part of the contract
+change, not an afterthought; `check:intent` enforces this with no escape
+hatch. If it is not worth a scenario, it is not worth adding to the
+contract yet.

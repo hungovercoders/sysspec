@@ -52,6 +52,18 @@ Feature: Placing an order
     Then an "OrderCancelled" event is published on "orders.cancelled.v2"
     And its data carries the order_id, cancelled_at and reason
 
+  Scenario Outline: An order is only cancelled for a declared reason
+    Given the customer placed an order
+    When the order is cancelled because "<reason>"
+    Then the cancellation is accepted and records that reason
+    And a reason outside this list is rejected
+
+    Examples:
+      | reason           | meaning                                          |
+      | customer_request | the customer asked for the order to be cancelled |
+      | payment_failed   | no payment settled inside the window             |
+      | out_of_stock     | the order cannot be fulfilled from stock         |
+
   Scenario: A settled payment marks the order paid
     Given the customer placed an order
     When a "PaymentSettled" event arrives on "payments.settled.v2" for that order_id

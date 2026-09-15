@@ -24,7 +24,7 @@ artifacts:
 
   - kind: data-contract
     path: data-contracts/payments-events.odcs.yaml
-    version: 1.2.0
+    version: 1.3.0
     gated: true
     summary: Append-only historical record of the settlement events.
 
