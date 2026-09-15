@@ -7756,6 +7756,9 @@ function systemEntry(manifests, raw) {
     domain: text(raw?.domain),
     org: text(raw?.org),
     summary: text(raw?.summary) ?? "",
+    // Where these specs can be asked questions, if they are served
+    // anywhere. Null just means the catalog offers the local route.
+    mcp: text(raw?.mcp),
     domains
   };
 }
@@ -20639,6 +20642,7 @@ function channelOps(doc) {
   return [sent, received];
 }
 var ORG_RE = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/;
+var MCP_URL_RE = /^https?:\/\/[^\s]+$/;
 function lintSystem(specsDir) {
   const file = path7.join(specsDir, "system.yaml");
   if (!isFile4(file)) return [];
@@ -20665,6 +20669,12 @@ function lintSystem(specsDir) {
   const org = manifest.org;
   if (org !== void 0 && org !== null && !ORG_RE.test(String(org))) {
     problems.push(`${where}: org must be reverse-DNS (e.g. com.acme), got ${pyRepr(String(org))}`);
+  }
+  const mcp = manifest.mcp;
+  if (mcp !== void 0 && mcp !== null && !MCP_URL_RE.test(String(mcp).trim())) {
+    problems.push(
+      `${where}: mcp must be the http(s) URL of the MCP endpoint, got ${pyRepr(String(mcp))}`
+    );
   }
   return problems;
 }

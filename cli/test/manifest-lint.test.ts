@@ -92,6 +92,21 @@ test("a system manifest with a non-reverse-DNS org is drift", () => {
   expect(errs.join("\n")).toContain("org must be reverse-DNS");
 });
 
+test("a system manifest with a non-URL mcp endpoint is drift", () => {
+  const errs = captureErr();
+  const f = path.join(specs, "system.yaml");
+  writeFileSync(f, readFileSync(f, "utf-8").replace(/^mcp:.*$/m, "mcp: specs.example.com/mcp"));
+  expect(runLint(null, specs)).toBe(1);
+  expect(errs.join("\n")).toContain("mcp must be the http(s) URL");
+});
+
+test("no mcp endpoint is fine - it is the one optional field", () => {
+  captureErr();
+  const f = path.join(specs, "system.yaml");
+  writeFileSync(f, readFileSync(f, "utf-8").replace(/^mcp:.*$/m, ""));
+  expect(runLint(null, specs)).toBe(0);
+});
+
 test("no system manifest at all is fine - the catalog just reads generically", () => {
   captureErr();
   unlinkSync(path.join(specs, "system.yaml"));

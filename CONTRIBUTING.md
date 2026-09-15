@@ -72,9 +72,11 @@ one deliberately:
    `.spectral-datacontracts.yaml` at the repo root.
 
 `specs/system.yaml` sits alongside the services and describes the suite
-itself — title, business domain, event namespace. It is ungated (no version
-ceremony), but `lint:manifest` holds it to being complete, and the generated
-catalog reads it for its title and annotations, so keep it honest.
+itself — title, business domain, event namespace, and the optional `mcp:`
+endpoint the specs are served on for anyone who wants to ask them
+questions. It is ungated (no version ceremony), but `lint:manifest` holds
+it to being complete, and the generated catalog reads it for its title,
+annotations and its *Ask these specs* page, so keep it honest.
 
 On merge to main, each changed service is published as a lightweight git tag
 `<service>/v<version>`. Implementation and consumer repos pin those tags

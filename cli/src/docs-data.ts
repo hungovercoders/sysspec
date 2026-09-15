@@ -362,6 +362,9 @@ function parseYamlLines(lines: string[]): unknown {
  *
  * `<specs>/system.yaml` is optional, so every field degrades to a
  * neutral default - a repo without one still renders, just generically.
+ * `mcp` carries the suite's hosted MCP endpoint when it has one, which
+ * is what turns the catalog's "ask these specs" page into a URL a
+ * reader can paste rather than a local command they must run.
  * `domains` is derived, never authored: the distinct domains the
  * services declare, which is what the catalog groups and colours by.
  */
@@ -376,6 +379,9 @@ export function systemEntry(manifests: Dict[], raw: Dict | null): Dict {
     domain: text(raw?.domain),
     org: text(raw?.org),
     summary: text(raw?.summary) ?? "",
+    // Where these specs can be asked questions, if they are served
+    // anywhere. Null just means the catalog offers the local route.
+    mcp: text(raw?.mcp),
     domains,
   };
 }

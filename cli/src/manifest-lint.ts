@@ -117,12 +117,15 @@ export function channelOps(doc: Record<string, any>): [Set<string>, Set<string>]
 }
 
 const ORG_RE = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/;
+const MCP_URL_RE = /^https?:\/\/[^\s]+$/;
 
 /** The optional suite-level system manifest.
  *
  * Absent is fine (the catalog falls back to generic wording), but a
  * half-filled one is not: an instance that claims a system must say
  * which one, in which domain, so its catalog is unmistakably its own.
+ * `mcp` is the one genuinely optional field: the hosted endpoint these
+ * specs answer questions on, checked for shape when it is there.
  */
 export function lintSystem(specsDir: string): string[] {
   const file = path.join(specsDir, "system.yaml");
@@ -150,6 +153,15 @@ export function lintSystem(specsDir: string): string[] {
   const org = manifest.org;
   if (org !== undefined && org !== null && !ORG_RE.test(String(org))) {
     problems.push(`${where}: org must be reverse-DNS (e.g. com.acme), got ${pyRepr(String(org))}`);
+  }
+  // Optional: where these specs answer questions over MCP. Absent means
+  // the catalog shows the local stdio route only; present, it hands
+  // readers a URL they can paste into a client.
+  const mcp = manifest.mcp;
+  if (mcp !== undefined && mcp !== null && !MCP_URL_RE.test(String(mcp).trim())) {
+    problems.push(
+      `${where}: mcp must be the http(s) URL of the MCP endpoint, got ${pyRepr(String(mcp))}`,
+    );
   }
   return problems;
 }

@@ -112,6 +112,16 @@
 .ss-duo-card p { color: var(--ss-text-2); margin: 0 0 1rem; line-height: 1.6; }
 .ss-duo-card .expressive-code { margin: 0; }
 
+/* Starter questions in the "domain expert" section: prose, not code -
+   the point is that you ask in your own words. */
+.ss-asks { list-style: none; margin: 0 0 1rem; padding: 0; display: grid; gap: 0.5rem; }
+.ss-asks li {
+  margin: 0; padding: 0.55rem 0.8rem; font-size: 0.9375rem; line-height: 1.5; color: var(--ss-text);
+  border: 1px solid var(--ss-hairline); border-radius: var(--ss-radius); background: var(--ss-surface-2);
+}
+.ss-asks code { font-size: 0.85em; }
+.ss-note { font-size: 0.875rem; color: var(--ss-text-2); margin: 0 !important; line-height: 1.6; }
+
 .ss-steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; counter-reset: step; }
 .ss-steps li { margin: 0; position: relative; padding: 1.5rem 1.5rem 1.5rem; border: 1px solid var(--ss-hairline); border-radius: var(--ss-radius-lg); background: var(--ss-surface); }
 .ss-step-n { font-family: var(--ss-font-mono); font-size: 0.75rem; color: var(--ss-accent); font-weight: 600; letter-spacing: 0.08em; }

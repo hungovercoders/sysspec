@@ -83,6 +83,9 @@ export default defineConfig({
       },
       sidebar: [
         { label: 'Overview', link: '/' },
+        // Asking comes before building: the specs answer questions for
+        // anyone, agents included, and that is the cheapest way in.
+        { label: 'Ask these specs', link: '/ask/' },
         { label: 'Drive an implementation', link: '/implementing/' },
         { label: 'Build a consumer', link: '/consuming/' },
         ...serviceGroups,

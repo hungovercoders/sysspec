@@ -197,6 +197,29 @@
 .sc-legend-key--sink { border-style: dashed; opacity: 0.8; }
 .sc-legend-key--call { height: 0; border: 0; border-top: 2px dotted var(--ss-text-3); border-radius: 0; }
 
+/* ---------- Ask these specs ----------------------------------------- */
+/* Starter questions: the question leads, the reason it is answerable
+   sits under it in the quieter voice. */
+.sc-asks { list-style: none; margin: 0.75rem 0 1.5rem; padding: 0; display: grid; gap: 0.5rem; }
+.sc-asks li {
+  display: grid; gap: 0.2rem; margin: 0 !important; padding: 0.7rem 0.95rem;
+  border: 1px solid var(--ss-hairline); border-radius: var(--ss-radius); background: var(--ss-surface);
+}
+.sc-ask-q { font-size: 0.9375rem; color: var(--ss-text); font-weight: 550; }
+.sc-ask-why { font-size: 0.8125rem; color: var(--ss-text-3); }
+
+/* The overview's pointer to that page: the one card that is an
+   invitation rather than a link to a document. */
+.sc-ask-card {
+  display: block; margin: 1.5rem 0; padding: 1.05rem 1.25rem; text-decoration: none;
+  border: 1px solid var(--ss-hairline-strong); border-radius: var(--ss-radius-lg);
+  background: var(--ss-accent-soft); box-shadow: var(--ss-shadow-sm);
+}
+.sc-ask-card:hover { box-shadow: var(--ss-shadow-md); transform: translateY(-1px); }
+.sc-ask-card strong { display: block; font-size: 1rem; letter-spacing: -0.01em; color: var(--ss-text); }
+.sc-ask-card span { display: block; margin-top: 0.3rem; font-size: 0.875rem; line-height: 1.55; color: var(--ss-text-2); }
+.sc-ask-card em { font-style: normal; color: var(--ss-accent-high); font-weight: 600; }
+
 /* ---------- Changelog ----------------------------------------------- */
 .sc-release-meta { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; font-size: 0.8125rem; color: var(--ss-text-3); margin: -0.25rem 0 0.75rem; }
 .sc-release-meta a { color: var(--ss-text-2); }
@@ -205,7 +228,7 @@
 /* ---------- Starlight prose-rule overrides ------------------------- */
 /* Starlight adds margin-top to every sibling inside markdown content;
    grids, rows and meta strips lay out their own children. */
-.sl-markdown-content :is(.sc-loop, .sc-artifacts, .sc-stats, .sc-rows, .sc-page-meta, .sc-artifact-meta, .sc-release-meta, .sc-system-meta, .sc-graph-legend) > * + * { margin-top: 0; }
+.sl-markdown-content :is(.sc-loop, .sc-artifacts, .sc-stats, .sc-rows, .sc-page-meta, .sc-artifact-meta, .sc-release-meta, .sc-system-meta, .sc-graph-legend, .sc-asks, .sc-asks li) > * + * { margin-top: 0; }
 .sl-markdown-content .sc-artifact-card > * + * { margin-top: 0; }
 /* Starlight renders tables as scrollable blocks; inside .sc-table-wrap the
    wrapper scrolls and the table spans the frame. */

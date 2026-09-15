@@ -9,6 +9,9 @@ domain: Commerce
 # Every event type in this system is prefixed with it, e.g.
 # com.hungovercoders.orders.placed.v2.
 org: com.hungovercoders
+# Where these specs answer questions over MCP - the catalog's "Ask these
+# specs" page hands readers this URL instead of a local command.
+mcp: https://demo.sysspec.dev/mcp
 summary: >
   A small commerce system specified end to end: orders accepted over
   HTTP, order lifecycle and payment settlement carried as events, and
