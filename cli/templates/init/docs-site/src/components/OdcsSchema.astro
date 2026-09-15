@@ -44,7 +44,10 @@ const qualityRules = (p: Record<string, any>) =>
         const metric = String(q.metric).replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();
         return [metric, op].filter(Boolean).join(' ');
       }
-      if (q.type === 'sql' || q.query) return [q.description ?? 'sql check', op].filter(Boolean).join(' · ');
+      // The operator on a SQL check compares the query's result, not the
+      // column, so showing it beside the field would read as a bound on
+      // the value ("= 0"). The description is the part that means something here.
+      if (q.type === 'sql' || q.query) return q.description ?? 'sql check';
       if (q.engine) return `${q.engine} check`;
       // Pre-3.2 shorthand, still readable if a suite has not migrated.
       if (q.validValues) return 'one of ' + q.validValues.join(', ');
