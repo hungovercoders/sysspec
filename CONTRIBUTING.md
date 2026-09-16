@@ -4,8 +4,8 @@ This applies to humans and coding agents equally: the checks are the
 contract, and they are identical locally, in the git hooks, and in CI.
 
 This repo is both the `sysspec` toolkit and its living example
-(orders/payments). Contributions here change the product; adopters running
-their own spec suites never edit this repo — they pin the CLI, the reusable
+(orders/payments). Contributions here change the product. Adopters running
+their own spec suites never edit this repo; they pin the CLI, the reusable
 workflows and the plugin, per the README's "Start your own spec suite".
 
 ## Setup
@@ -41,8 +41,8 @@ Exactly what CI runs. It composes, in order:
 | `docs:diagrams` | every mermaid diagram in the generated site parses (mermaid-cli, headless Chromium) |
 | `site:build` | the sysspec website (`website/`, the tool's own docs) builds |
 | `check:commits` | conventional commit messages |
-| `check:compat` | breaking contract changes carry major bumps (artifact and service) — OpenAPI via oasdiff, AsyncAPI structurally, ODCS via `datacontract breaking` |
-| `check:intent` | every schema element added to a contract is named in the service's feature files — no escape hatch; ODCS columns and enum values included |
+| `check:compat` | breaking contract changes carry major bumps (artifact and service): OpenAPI via oasdiff, AsyncAPI structurally, ODCS via `datacontract breaking` |
+| `check:intent` | every schema element added to a contract is named in the service's feature files, with no escape hatch; ODCS columns and enum values included |
 | `check:init` | the init scaffold passes its own lint, version, and docs gates |
 | `check:null` | the falsifiability gate self-test: a hollow suite goes red, an honest all-failing one green |
 | `mocks:load` / `contract:test` / `mocks:test` | Microcks mocks load, contract-test, and smoke-test green |
@@ -51,23 +51,23 @@ Scope most tasks to one service with `SERVICE=<name>`.
 
 ## Changing the specs
 
-Gated artifacts — AsyncAPI, OpenAPI, ODCS data contracts, feature files —
-are the spec of record — the system intent. Never edit one to make an implementation or a
-test pass; that direction is always a finding, not a fix. When you do change
-one deliberately:
+Gated artifacts (AsyncAPI, OpenAPI, ODCS data contracts, feature files)
+are the spec of record, the system intent. Never edit one to make an
+implementation or a test pass; that direction is a finding, not a fix. When
+you do change one deliberately:
 
 1. Bump the artifact's version in `specs/<service>/service.yaml` (and
-   `info.version` in the spec — they must match).
+   `info.version` in the spec, which must match).
 2. Bump the service's top-level `version:`. Breaking change ⇒ major on both.
 3. If you added a schema element, name it in a scenario in that service's
-   `features/` — `check:intent` fails otherwise, deliberately without an
-   escape hatch. That includes an ODCS column and an ODCS `enum` value: a
-   new allowed value is a new case a consumer has to handle, so it gets a
+   `features/`, or `check:intent` fails; there is deliberately no escape
+   hatch. That includes an ODCS column and an ODCS `enum` value: a new
+   allowed value is a new case a consumer has to handle, so it gets a
    sentence like everything else.
 4. Conventions (channel naming, payload rules, money, idempotency) live in
-   `skills/sysspec/SKILL.md`. Attribute names and enumerated values
-   are `lower_snake_case` everywhere — `.spectral.yaml` holds the rules for
-   the specs, and `lint:datacontracts` applies the equivalent ruleset to the
+   `skills/sysspec/SKILL.md`. Attribute names and enumerated values are
+   `lower_snake_case` everywhere. `.spectral.yaml` holds the rules for the
+   specs, and `lint:datacontracts` applies the equivalent ruleset to the
    ODCS files (neither the JSON Schema nor datacontract-cli has a hook for
    house rules, so Spectral does that third). A spec suite that wants a
    different rule for its data contracts overrides the bundled ruleset with
@@ -75,13 +75,13 @@ one deliberately:
 5. Data contracts are ODCS **3.2** (`apiVersion: v3.2.0`). Declare a
    controlled vocabulary as `enum`, never as a `validValues` quality rule;
    declare foreign keys as `relationships`, which `lint:manifest` resolves
-   and the catalog draws; put reader guidance in `context` — it is part of
-   the gated artifact, not a comment. Removing a column or an allowed value
-   is breaking and takes a major; adding an allowed value is a minor that
-   needs a scenario.
+   and the catalog draws; put reader guidance in `context`, which is part
+   of the gated artifact rather than a comment. Removing a column or an
+   allowed value is breaking and takes a major; adding an allowed value is
+   a minor that needs a scenario.
 
 `specs/system.yaml` sits alongside the services and describes the suite
-itself — title, business domain, event namespace, and the optional `mcp:`
+itself: title, business domain, event namespace, and the optional `mcp:`
 endpoint the specs are served on for anyone who wants to ask them
 questions. It is ungated (no version ceremony), but `lint:manifest` holds
 it to being complete, and the generated catalog reads it for its title,
@@ -89,15 +89,15 @@ annotations and its *Ask these specs* page, so keep it honest.
 
 On merge to main, each changed service is published as a lightweight git tag
 `<service>/v<version>`. Implementation and consumer repos pin those tags
-via a `contracts.lock` and pull updates through Renovate — see
+via a `contracts.lock` and pull updates through Renovate; see
 `skills/implement-service/SKILL.md` and `skills/consume-service/SKILL.md`.
 The specs never push work at them.
 
 ## Pull requests
 
 One Linear ticket per PR, branch named from the ticket, conventional
-commits (`feat:`, `fix:`, `chore:`, …— the hooks enforce this). Open PRs as
-drafts; keep `task ci` green.
+commits (`feat:`, `fix:`, `chore:` and so on, which the hooks enforce).
+Open PRs as drafts, and keep `task ci` green.
 
 Agent sessions that arrive with a pre-assigned `claude/<slug>` branch may
 push it as-is (`check:branch` accepts the prefix); the preferred flow is
@@ -108,12 +108,12 @@ still to create the Linear ticket first and push to its generated
 
 This repo doubles as a Claude Code plugin (`.claude-plugin/plugin.json`):
 the MCP server (`mcp/`) plus the skills are the installed surface. If a
-change alters that surface — server behaviour, any skill, the bundled
-templates — bump the plugin `version` in the same PR (semver:
+change alters that surface (server behaviour, any skill, the bundled
+templates), bump the plugin `version` in the same PR (semver:
 breaking/feature/fix). `task check:plugin` enforces this. The plugin runs
 the committed server bundle (`mcp/dist/stdio.mjs`) directly, so a server
-change also means rebuilding it (`npm run build` in `mcp/`) —
-`task check:mcp:dist` fails when the bundle is stale; the CLI bundle
+change also means rebuilding it (`npm run build` in `mcp/`);
+`task check:mcp:dist` fails when the bundle is stale. The CLI bundle
 (`cli/dist/cli.mjs`, which the Taskfile itself runs) has the same rule via
 `task check:cli:dist`.
 
@@ -124,9 +124,9 @@ The CLI (gates, mocks, docs, `init` scaffold) is published to npm as
 version (`check:cli` forces this whenever `cli/` changes), then tag the
 merge commit `v<version>` and push the tag. `release.yml` verifies the tag
 matches the package version, builds and tests, publishes via npm trusted
-publishing (OIDC — provenance attached, no token stored), and force-moves
-the floating `v<major>` tag that adopter workflows reference. Product `v*`
-tags live alongside the `<service>/v*` contract tags.
+publishing (OIDC, so provenance is attached and no token is stored), and
+force-moves the floating `v<major>` tag that adopter workflows reference.
+Product `v*` tags live alongside the `<service>/v*` contract tags.
 
 One-time setup: publish the first version manually (`npm publish` from
 `cli/`, so the package exists), then on npmjs.com add a *trusted
@@ -142,7 +142,7 @@ release: make sure `mcp/package.json` carries the new version
 scaffolded repos should pin, then tag the merge commit `mcp-v<version>`
 and push the tag. `mcp-release.yml` verifies the tag matches the package
 version, builds and tests, and publishes via npm trusted publishing
-(OIDC — provenance attached, no token stored).
+(OIDC, so provenance is attached and no token is stored).
 
 One-time setup: publish the first version manually (`npm publish` from
 `mcp/`, so the package exists), then on npmjs.com add a *trusted
@@ -151,5 +151,5 @@ publisher* for `sysspec-mcp` pointing at this repository and workflow
 
 The hosted-URL image needs no release: `mcp-image.yml` republishes
 `ghcr.io/hungovercoders/sysspec-mcp` (server + this repo's specs) on
-every push to main, and any container host serves it — see
+every push to main, and any container host serves it. See
 [mcp/README.md](mcp/README.md).

@@ -54,7 +54,7 @@ const lastRelease = services
     ) : (
       <>These are specs of what the system</>
     )}{' '}
-    <strong>should be</strong> — not documentation of what exists.
+    <strong>should be</strong>, rather than documentation of what exists.
     Implementations converge on them; they never bend to an implementation.
   </p>
 
@@ -64,16 +64,16 @@ const lastRelease = services
       <strong>Specify intent</strong>
       <p>
         Contracts and acceptance criteria, gated and versioned. Changing one
-        is a deliberate, versioned act — CI rejects anything else.
+        is a deliberate, versioned act, and CI rejects anything else.
       </p>
     </div>
     <div class="sc-loop-step">
       <span class="sc-loop-n">2</span>
       <strong>Ask and build with context</strong>
       <p>
-        Anyone can interrogate these specs over MCP (the
-        <code>sysspec</code> server) — people in plain language, agents at
-        implementation time — never from a remembered or vendored copy.
+        Anyone can question these specs over MCP (the
+        <code>sysspec</code> server): people in plain language, agents at
+        implementation time, never from a remembered or vendored copy.
       </p>
     </div>
     <div class="sc-loop-step">
@@ -91,7 +91,7 @@ const lastRelease = services
     <strong>Ask these specs anything →</strong>
     <span>
       Connect an MCP client{system.mcp ? <> (<em>{system.mcp}</em>)</> : null} and
-      interview this system in plain language: what a service is for, what an
+      ask about this system in plain language: what a service is for, what an
       event carries, how something should behave, who breaks if it changes.
       Same answers for people as for the agents building against it.
     </span>

@@ -1,8 +1,8 @@
 // Every external URL the site links to, in one place.
 //
-// Both deployments now have permanent homes of their own — this site at
+// Both deployments now have permanent homes of their own, this site at
 // sysspec.dev, the demo Worker (generated spec catalog at /, MCP at /mcp)
-// at demo.sysspec.dev — so the URLs are committed here rather than
+// at demo.sysspec.dev, so the URLs are committed here rather than
 // arriving as build-time configuration. The environment variables survive
 // as overrides for preview deployments, which serve the same pages from a
 // *.workers.dev alias; the deploy workflows pass them through when the

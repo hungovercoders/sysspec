@@ -24,12 +24,12 @@ reinstall (or `/reload-plugins` after an auto-update).
 claude --plugin-dir /path/to/sysspec
 ```
 
-Same result, scoped to that session — useful when iterating on specs.
+Same result, scoped to that session, which helps when iterating on specs.
 
-**3. Register just the MCP server** — tools only, no skills. See
+**3. Register just the MCP server**: tools only, no skills. See
 [the MCP server page](/mcp/).
 
-**4. Connect to a hosted URL** — tools only, no local process at all. Also
+**4. Connect to a hosted URL**: tools only, no local process at all. Also
 on [the MCP server page](/mcp/).
 
 Whichever route, verify with `/mcp` and then `list_services()`.
@@ -43,8 +43,8 @@ process: same steps, same commands, whether a human or an agent is driving.
 | --- | --- |
 | [`sysspec`](https://github.com/hungovercoders/sysspec/blob/main/skills/sysspec/SKILL.md) | Working against specs: the gated/ungated distinction, the order of operations across the seven tools, implementing from Gherkin, and the full [conventions](/conventions/) list. |
 | [`implement-service`](https://github.com/hungovercoders/sysspec/blob/main/skills/implement-service/SKILL.md) | Building the real thing: a new repo pinning a released `<service>/v<version>` tag in `contracts.lock`, verified end to end with `task contracts:verify`. |
-| [`consume-service`](https://github.com/hungovercoders/sysspec/blob/main/skills/consume-service/SKILL.md) | Building a consumer — a UI, client, or downstream system — against the pinned mocks, before or without the real service existing. |
+| [`consume-service`](https://github.com/hungovercoders/sysspec/blob/main/skills/consume-service/SKILL.md) | Building a consumer (a UI, client, or downstream system) against the pinned mocks, before or without the real service existing. |
 
-With the plugin installed, just ask — "implement orders", "build a UI
-against payments" — and the matching skill drives the whole loop. See
+With the plugin installed, ask for what you want ("implement orders",
+"build a UI against payments") and the matching skill drives the loop. See
 [Implement or consume a service](/implement-and-consume/).

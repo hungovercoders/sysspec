@@ -102,7 +102,7 @@ const headings = [
   {service.ahead && (
     <p class="sc-notice">
       This spec is at <strong>v{service.version}</strong>, ahead of the last
-      release{pin && <> (<code>{pin.tag}</code>)</>} — it is the surface the
+      release{pin && <> (<code>{pin.tag}</code>)</>}, so it is the surface the
       next implementation change converges on.
     </p>
   )}
@@ -152,8 +152,8 @@ const headings = [
 
   <h2 id="drive-an-implementation">Drive an implementation</h2>
   <p>
-    These specs are packaged for consumption — an implementation proves it
-    satisfies them; it never redefines them.
+    These specs are packaged for consumption: an implementation proves it
+    satisfies them, and never redefines them.
     {service.implementation_repo && (
       <>
         {' '}Current implementation:{' '}
@@ -173,14 +173,14 @@ const headings = [
 version: ${pin.tag}
 sha: ${pin.sha}`}</code></pre>
       <p>
-        The full loop — fetch, strict binding, verification, staying
-        converged via Renovate — is on{' '}
+        The full loop, covering fetch, strict binding, verification and
+        staying converged via Renovate, is on{' '}
         <a href={withBase('/implementing/')}>Drive an implementation</a>.
       </p>
     </>
   ) : (
     <p>
-      No release tag yet — the first merge to main publishes
+      No release tag yet; the first merge to main publishes
       <code> {service.name}/v{service.version}</code> for implementations to
       pin. The loop it feeds is on{' '}
       <a href={withBase('/implementing/')}>Drive an implementation</a>.

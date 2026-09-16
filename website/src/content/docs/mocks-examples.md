@@ -1,9 +1,9 @@
 ---
 title: Mock example files
-description: The Microcks APIExamples fixtures that make the mocks answer — format, matching rules, and dispatch limits.
+description: The Microcks APIExamples fixtures that make the mocks answer, with their format, matching rules and dispatch limits.
 ---
 
-The gated specs carry no example payloads — fixtures live beside them in
+The gated specs carry no example payloads. Fixtures live beside them in
 `mocks/*.examples.yaml` (Microcks `APIExamples` documents), uploaded as
 secondary artifacts by `task mocks:load`. One file per service and surface:
 `<service>.rest.examples.yaml`, `<service>.events.examples.yaml`.
@@ -11,7 +11,7 @@ secondary artifacts by `task mocks:load`. One file per service and surface:
 ## The matching rule that bites
 
 `metadata.name` and `metadata.version` **must match the spec's
-`info.title` and `info.version`** — Microcks joins examples to services on
+`info.title` and `info.version`**. Microcks joins examples to services on
 that pair, so a mismatched upload silently lands on the wrong (or a
 phantom) service. `lint:manifest` keeps the spec side honest
 (`info.version` equals the manifest artifact version), which is why a spec
@@ -60,14 +60,14 @@ operations:
           { "specversion": "1.0", "id": "…", "type": "…", "data": { … } }
 ```
 
-The async minion publishes each example on its channel every few seconds —
-that ambient stream is what consumers build against.
+The async minion publishes each example on its channel every few seconds,
+and that ambient stream is what consumers build against.
 
 ## Dispatch limits for error cases
 
 Error examples dispatch by URI, not body. A path-parameterized GET can
 carry a happy and an error case side by side (distinct parameter values
-dispatch to distinct responses — this is how the orders `404` example
+dispatch to distinct responses, which is how the orders `404` example
 works). POST error cases (e.g. a `400` for an invalid body) would need a
 body-aware dispatcher on the operation to coexist with the happy-path
 example, so the smoke suite replays error surfaces only where URI dispatch
@@ -79,5 +79,5 @@ reaches them.
   (spaces in the title become `+`).
 - Event channels: `ws://localhost:8081/api/ws/<info.title>/<version>/<operation>`.
 - Implementations replay the same REST cases **verbatim against the real
-  service** in `contract test` — the example fixtures are contract, not
-  decoration.
+  service** in `contract test`, so the example fixtures are contract rather
+  than decoration.
