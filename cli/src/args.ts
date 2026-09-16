@@ -47,6 +47,14 @@ export class Args {
     return n;
   }
 
+  /** A bare `--flag`, carrying no value. */
+  has(name: string): boolean {
+    const v = this.flags.get(name);
+    if (v === undefined) return false;
+    if (v !== true) throw new Exit(`${this.usage}: --${name} takes no value`);
+    return true;
+  }
+
   /** A typo'd flag must not silently fall back to a default. */
   only(...names: string[]): void {
     for (const name of this.flags.keys()) {

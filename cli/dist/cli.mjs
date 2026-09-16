@@ -59,8 +59,8 @@ function git(...args) {
   }
   return res.stdout;
 }
-function blob(ref, path9) {
-  const res = run(["git", "show", `${ref}:${path9}`]);
+function blob(ref, path10) {
+  const res = run(["git", "show", `${ref}:${path10}`]);
   return res.status === 0 ? res.stdout : null;
 }
 function mergeBase(base) {
@@ -194,17 +194,17 @@ var require_visit = __commonJS({
     visit.BREAK = BREAK;
     visit.SKIP = SKIP2;
     visit.REMOVE = REMOVE;
-    function visit_(key, node, visitor, path9) {
-      const ctrl = callVisitor(key, node, visitor, path9);
+    function visit_(key, node, visitor, path10) {
+      const ctrl = callVisitor(key, node, visitor, path10);
       if (identity.isNode(ctrl) || identity.isPair(ctrl)) {
-        replaceNode(key, path9, ctrl);
-        return visit_(key, ctrl, visitor, path9);
+        replaceNode(key, path10, ctrl);
+        return visit_(key, ctrl, visitor, path10);
       }
       if (typeof ctrl !== "symbol") {
         if (identity.isCollection(node)) {
-          path9 = Object.freeze(path9.concat(node));
+          path10 = Object.freeze(path10.concat(node));
           for (let i = 0; i < node.items.length; ++i) {
-            const ci = visit_(i, node.items[i], visitor, path9);
+            const ci = visit_(i, node.items[i], visitor, path10);
             if (typeof ci === "number")
               i = ci - 1;
             else if (ci === BREAK)
@@ -215,13 +215,13 @@ var require_visit = __commonJS({
             }
           }
         } else if (identity.isPair(node)) {
-          path9 = Object.freeze(path9.concat(node));
-          const ck = visit_("key", node.key, visitor, path9);
+          path10 = Object.freeze(path10.concat(node));
+          const ck = visit_("key", node.key, visitor, path10);
           if (ck === BREAK)
             return BREAK;
           else if (ck === REMOVE)
             node.key = null;
-          const cv = visit_("value", node.value, visitor, path9);
+          const cv = visit_("value", node.value, visitor, path10);
           if (cv === BREAK)
             return BREAK;
           else if (cv === REMOVE)
@@ -242,17 +242,17 @@ var require_visit = __commonJS({
     visitAsync.BREAK = BREAK;
     visitAsync.SKIP = SKIP2;
     visitAsync.REMOVE = REMOVE;
-    async function visitAsync_(key, node, visitor, path9) {
-      const ctrl = await callVisitor(key, node, visitor, path9);
+    async function visitAsync_(key, node, visitor, path10) {
+      const ctrl = await callVisitor(key, node, visitor, path10);
       if (identity.isNode(ctrl) || identity.isPair(ctrl)) {
-        replaceNode(key, path9, ctrl);
-        return visitAsync_(key, ctrl, visitor, path9);
+        replaceNode(key, path10, ctrl);
+        return visitAsync_(key, ctrl, visitor, path10);
       }
       if (typeof ctrl !== "symbol") {
         if (identity.isCollection(node)) {
-          path9 = Object.freeze(path9.concat(node));
+          path10 = Object.freeze(path10.concat(node));
           for (let i = 0; i < node.items.length; ++i) {
-            const ci = await visitAsync_(i, node.items[i], visitor, path9);
+            const ci = await visitAsync_(i, node.items[i], visitor, path10);
             if (typeof ci === "number")
               i = ci - 1;
             else if (ci === BREAK)
@@ -263,13 +263,13 @@ var require_visit = __commonJS({
             }
           }
         } else if (identity.isPair(node)) {
-          path9 = Object.freeze(path9.concat(node));
-          const ck = await visitAsync_("key", node.key, visitor, path9);
+          path10 = Object.freeze(path10.concat(node));
+          const ck = await visitAsync_("key", node.key, visitor, path10);
           if (ck === BREAK)
             return BREAK;
           else if (ck === REMOVE)
             node.key = null;
-          const cv = await visitAsync_("value", node.value, visitor, path9);
+          const cv = await visitAsync_("value", node.value, visitor, path10);
           if (cv === BREAK)
             return BREAK;
           else if (cv === REMOVE)
@@ -296,23 +296,23 @@ var require_visit = __commonJS({
       }
       return visitor;
     }
-    function callVisitor(key, node, visitor, path9) {
+    function callVisitor(key, node, visitor, path10) {
       if (typeof visitor === "function")
-        return visitor(key, node, path9);
+        return visitor(key, node, path10);
       if (identity.isMap(node))
-        return visitor.Map?.(key, node, path9);
+        return visitor.Map?.(key, node, path10);
       if (identity.isSeq(node))
-        return visitor.Seq?.(key, node, path9);
+        return visitor.Seq?.(key, node, path10);
       if (identity.isPair(node))
-        return visitor.Pair?.(key, node, path9);
+        return visitor.Pair?.(key, node, path10);
       if (identity.isScalar(node))
-        return visitor.Scalar?.(key, node, path9);
+        return visitor.Scalar?.(key, node, path10);
       if (identity.isAlias(node))
-        return visitor.Alias?.(key, node, path9);
+        return visitor.Alias?.(key, node, path10);
       return void 0;
     }
-    function replaceNode(key, path9, node) {
-      const parent = path9[path9.length - 1];
+    function replaceNode(key, path10, node) {
+      const parent = path10[path10.length - 1];
       if (identity.isCollection(parent)) {
         parent.items[key] = node;
       } else if (identity.isPair(parent)) {
@@ -922,10 +922,10 @@ var require_Collection = __commonJS({
     var createNode = require_createNode();
     var identity = require_identity();
     var Node = require_Node();
-    function collectionFromPath(schema, path9, value) {
+    function collectionFromPath(schema, path10, value) {
       let v = value;
-      for (let i = path9.length - 1; i >= 0; --i) {
-        const k = path9[i];
+      for (let i = path10.length - 1; i >= 0; --i) {
+        const k = path10[i];
         if (typeof k === "number" && Number.isInteger(k) && k >= 0) {
           const a = [];
           a[k] = v;
@@ -944,7 +944,7 @@ var require_Collection = __commonJS({
         sourceObjects: /* @__PURE__ */ new Map()
       });
     }
-    var isEmptyPath = (path9) => path9 == null || typeof path9 === "object" && !!path9[Symbol.iterator]().next().done;
+    var isEmptyPath = (path10) => path10 == null || typeof path10 === "object" && !!path10[Symbol.iterator]().next().done;
     var Collection = class extends Node.NodeBase {
       constructor(type, schema) {
         super(type);
@@ -974,11 +974,11 @@ var require_Collection = __commonJS({
        * be a Pair instance or a `{ key, value }` object, which may not have a key
        * that already exists in the map.
        */
-      addIn(path9, value) {
-        if (isEmptyPath(path9))
+      addIn(path10, value) {
+        if (isEmptyPath(path10))
           this.add(value);
         else {
-          const [key, ...rest] = path9;
+          const [key, ...rest] = path10;
           const node = this.get(key, true);
           if (identity.isCollection(node))
             node.addIn(rest, value);
@@ -992,8 +992,8 @@ var require_Collection = __commonJS({
        * Removes a value from the collection.
        * @returns `true` if the item was found and removed.
        */
-      deleteIn(path9) {
-        const [key, ...rest] = path9;
+      deleteIn(path10) {
+        const [key, ...rest] = path10;
         if (rest.length === 0)
           return this.delete(key);
         const node = this.get(key, true);
@@ -1007,8 +1007,8 @@ var require_Collection = __commonJS({
        * scalar values from their surrounding node; to disable set `keepScalar` to
        * `true` (collections are always returned intact).
        */
-      getIn(path9, keepScalar) {
-        const [key, ...rest] = path9;
+      getIn(path10, keepScalar) {
+        const [key, ...rest] = path10;
         const node = this.get(key, true);
         if (rest.length === 0)
           return !keepScalar && identity.isScalar(node) ? node.value : node;
@@ -1026,8 +1026,8 @@ var require_Collection = __commonJS({
       /**
        * Checks if the collection includes a value with the key `key`.
        */
-      hasIn(path9) {
-        const [key, ...rest] = path9;
+      hasIn(path10) {
+        const [key, ...rest] = path10;
         if (rest.length === 0)
           return this.has(key);
         const node = this.get(key, true);
@@ -1037,8 +1037,8 @@ var require_Collection = __commonJS({
        * Sets a value in this collection. For `!!set`, `value` needs to be a
        * boolean to add/remove the item from the set.
        */
-      setIn(path9, value) {
-        const [key, ...rest] = path9;
+      setIn(path10, value) {
+        const [key, ...rest] = path10;
         if (rest.length === 0) {
           this.set(key, value);
         } else {
@@ -1242,27 +1242,27 @@ var require_stringifyString = __commonJS({
       return true;
     }
     function doubleQuotedString(value, ctx) {
-      const json = JSON.stringify(value);
+      const json2 = JSON.stringify(value);
       if (ctx.options.doubleQuotedAsJSON)
-        return json;
+        return json2;
       const { implicitKey } = ctx;
       const minMultiLineLength = ctx.options.doubleQuotedMinMultiLineLength;
       const indent = ctx.indent || (containsDocumentMarker(value) ? "  " : "");
       let str = "";
       let start = 0;
-      for (let i = 0, ch = json[i]; ch; ch = json[++i]) {
-        if (ch === " " && json[i + 1] === "\\" && json[i + 2] === "n") {
-          str += json.slice(start, i) + "\\ ";
+      for (let i = 0, ch = json2[i]; ch; ch = json2[++i]) {
+        if (ch === " " && json2[i + 1] === "\\" && json2[i + 2] === "n") {
+          str += json2.slice(start, i) + "\\ ";
           i += 1;
           start = i;
           ch = "\\";
         }
         if (ch === "\\")
-          switch (json[i + 1]) {
+          switch (json2[i + 1]) {
             case "u":
               {
-                str += json.slice(start, i);
-                const code = json.substr(i + 2, 4);
+                str += json2.slice(start, i);
+                const code = json2.substr(i + 2, 4);
                 switch (code) {
                   case "0000":
                     str += "\\0";
@@ -1292,23 +1292,23 @@ var require_stringifyString = __commonJS({
                     if (code.substr(0, 2) === "00")
                       str += "\\x" + code.substr(2);
                     else
-                      str += json.substr(i, 6);
+                      str += json2.substr(i, 6);
                 }
                 i += 5;
                 start = i + 1;
               }
               break;
             case "n":
-              if (implicitKey || json[i + 2] === '"' || json.length < minMultiLineLength) {
+              if (implicitKey || json2[i + 2] === '"' || json2.length < minMultiLineLength) {
                 i += 1;
               } else {
-                str += json.slice(start, i) + "\n\n";
-                while (json[i + 2] === "\\" && json[i + 3] === "n" && json[i + 4] !== '"') {
+                str += json2.slice(start, i) + "\n\n";
+                while (json2[i + 2] === "\\" && json2[i + 3] === "n" && json2[i + 4] !== '"') {
                   str += "\n";
                   i += 2;
                 }
                 str += indent;
-                if (json[i + 2] === " ")
+                if (json2[i + 2] === " ")
                   str += "\\";
                 i += 1;
                 start = i + 1;
@@ -1318,7 +1318,7 @@ var require_stringifyString = __commonJS({
               i += 1;
           }
       }
-      str = start ? str + json.slice(start) : json;
+      str = start ? str + json2.slice(start) : json2;
       return implicitKey ? str : foldFlowLines.foldFlowLines(str, indent, foldFlowLines.FOLD_QUOTED, getFoldOptions(ctx, false));
     }
     function singleQuotedString(value, ctx) {
@@ -3553,9 +3553,9 @@ var require_Document = __commonJS({
           this.contents.add(value);
       }
       /** Adds a value to the document. */
-      addIn(path9, value) {
+      addIn(path10, value) {
         if (assertCollection(this.contents))
-          this.contents.addIn(path9, value);
+          this.contents.addIn(path10, value);
       }
       /**
        * Create a new `Alias` node, ensuring that the target `node` has the required anchor.
@@ -3630,14 +3630,14 @@ var require_Document = __commonJS({
        * Removes a value from the document.
        * @returns `true` if the item was found and removed.
        */
-      deleteIn(path9) {
-        if (Collection.isEmptyPath(path9)) {
+      deleteIn(path10) {
+        if (Collection.isEmptyPath(path10)) {
           if (this.contents == null)
             return false;
           this.contents = null;
           return true;
         }
-        return assertCollection(this.contents) ? this.contents.deleteIn(path9) : false;
+        return assertCollection(this.contents) ? this.contents.deleteIn(path10) : false;
       }
       /**
        * Returns item at `key`, or `undefined` if not found. By default unwraps
@@ -3652,10 +3652,10 @@ var require_Document = __commonJS({
        * scalar values from their surrounding node; to disable set `keepScalar` to
        * `true` (collections are always returned intact).
        */
-      getIn(path9, keepScalar) {
-        if (Collection.isEmptyPath(path9))
+      getIn(path10, keepScalar) {
+        if (Collection.isEmptyPath(path10))
           return !keepScalar && identity.isScalar(this.contents) ? this.contents.value : this.contents;
-        return identity.isCollection(this.contents) ? this.contents.getIn(path9, keepScalar) : void 0;
+        return identity.isCollection(this.contents) ? this.contents.getIn(path10, keepScalar) : void 0;
       }
       /**
        * Checks if the document includes a value with the key `key`.
@@ -3666,10 +3666,10 @@ var require_Document = __commonJS({
       /**
        * Checks if the document includes a value at `path`.
        */
-      hasIn(path9) {
-        if (Collection.isEmptyPath(path9))
+      hasIn(path10) {
+        if (Collection.isEmptyPath(path10))
           return this.contents !== void 0;
-        return identity.isCollection(this.contents) ? this.contents.hasIn(path9) : false;
+        return identity.isCollection(this.contents) ? this.contents.hasIn(path10) : false;
       }
       /**
        * Sets a value in this document. For `!!set`, `value` needs to be a
@@ -3686,13 +3686,13 @@ var require_Document = __commonJS({
        * Sets a value in this document. For `!!set`, `value` needs to be a
        * boolean to add/remove the item from the set.
        */
-      setIn(path9, value) {
-        if (Collection.isEmptyPath(path9)) {
+      setIn(path10, value) {
+        if (Collection.isEmptyPath(path10)) {
           this.contents = value;
         } else if (this.contents == null) {
-          this.contents = Collection.collectionFromPath(this.schema, Array.from(path9), value);
+          this.contents = Collection.collectionFromPath(this.schema, Array.from(path10), value);
         } else if (assertCollection(this.contents)) {
-          this.contents.setIn(path9, value);
+          this.contents.setIn(path10, value);
         }
       }
       /**
@@ -3740,11 +3740,11 @@ var require_Document = __commonJS({
           throw new Error(`With a null YAML version, the { schema: Schema } option is required`);
       }
       // json & jsonArg are only used from toJSON()
-      toJS({ json, jsonArg, mapAsMap, maxAliasCount, onAnchor, reviver } = {}) {
+      toJS({ json: json2, jsonArg, mapAsMap, maxAliasCount, onAnchor, reviver } = {}) {
         const ctx = {
           anchors: /* @__PURE__ */ new Map(),
           doc: this,
-          keep: !json,
+          keep: !json2,
           mapAsMap: mapAsMap === true,
           mapKeyWarned: false,
           maxAliasCount: typeof maxAliasCount === "number" ? maxAliasCount : 100
@@ -5652,9 +5652,9 @@ var require_cst_visit = __commonJS({
     visit.BREAK = BREAK;
     visit.SKIP = SKIP2;
     visit.REMOVE = REMOVE;
-    visit.itemAtPath = (cst, path9) => {
+    visit.itemAtPath = (cst, path10) => {
       let item = cst;
-      for (const [field, index] of path9) {
+      for (const [field, index] of path10) {
         const tok = item?.[field];
         if (tok && "items" in tok) {
           item = tok.items[index];
@@ -5663,23 +5663,23 @@ var require_cst_visit = __commonJS({
       }
       return item;
     };
-    visit.parentCollection = (cst, path9) => {
-      const parent = visit.itemAtPath(cst, path9.slice(0, -1));
-      const field = path9[path9.length - 1][0];
+    visit.parentCollection = (cst, path10) => {
+      const parent = visit.itemAtPath(cst, path10.slice(0, -1));
+      const field = path10[path10.length - 1][0];
       const coll = parent?.[field];
       if (coll && "items" in coll)
         return coll;
       throw new Error("Parent collection not found");
     };
-    function _visit(path9, item, visitor) {
-      let ctrl = visitor(item, path9);
+    function _visit(path10, item, visitor) {
+      let ctrl = visitor(item, path10);
       if (typeof ctrl === "symbol")
         return ctrl;
       for (const field of ["key", "value"]) {
         const token = item[field];
         if (token && "items" in token) {
           for (let i = 0; i < token.items.length; ++i) {
-            const ci = _visit(Object.freeze(path9.concat([[field, i]])), token.items[i], visitor);
+            const ci = _visit(Object.freeze(path10.concat([[field, i]])), token.items[i], visitor);
             if (typeof ci === "number")
               i = ci - 1;
             else if (ci === BREAK)
@@ -5690,10 +5690,10 @@ var require_cst_visit = __commonJS({
             }
           }
           if (typeof ctrl === "function" && field === "key")
-            ctrl = ctrl(item, path9);
+            ctrl = ctrl(item, path10);
         }
       }
-      return typeof ctrl === "function" ? ctrl(item, path9) : ctrl;
+      return typeof ctrl === "function" ? ctrl(item, path10) : ctrl;
     }
     exports.visit = visit;
   }
@@ -7344,7 +7344,7 @@ var require_public_api = __commonJS({
       }
       return doc;
     }
-    function parse9(src, reviver, options) {
+    function parse10(src, reviver, options) {
       let _reviver = void 0;
       if (typeof reviver === "function") {
         _reviver = reviver;
@@ -7385,7 +7385,7 @@ var require_public_api = __commonJS({
         return value.toString(options);
       return new Document.Document(value, _replacer, options).toString(options);
     }
-    exports.parse = parse9;
+    exports.parse = parse10;
     exports.parseAllDocuments = parseAllDocuments;
     exports.parseDocument = parseDocument;
     exports.stringify = stringify4;
@@ -11562,8 +11562,8 @@ var require_utils = __commonJS({
       }
       return ind;
     }
-    function removeDotSegments(path9) {
-      let input = path9;
+    function removeDotSegments(path10) {
+      let input = path10;
       const output = [];
       let nextSlash = -1;
       let len = 0;
@@ -11972,8 +11972,8 @@ var require_schemes = __commonJS({
       }
       if (wsComponent.resourceName) {
         const queryIndex = wsComponent.resourceName.indexOf("?");
-        const path9 = queryIndex === -1 ? wsComponent.resourceName : wsComponent.resourceName.slice(0, queryIndex);
-        wsComponent.path = path9 && path9 !== "/" ? path9 : void 0;
+        const path10 = queryIndex === -1 ? wsComponent.resourceName : wsComponent.resourceName.slice(0, queryIndex);
+        wsComponent.path = path10 && path10 !== "/" ? path10 : void 0;
         wsComponent.query = queryIndex === -1 ? void 0 : wsComponent.resourceName.slice(queryIndex + 1);
         wsComponent.resourceName = void 0;
       }
@@ -12137,7 +12137,7 @@ var require_fast_uri = __commonJS({
         normalizeString(uri, options);
       } else if (typeof uri === "object") {
         uri = /** @type {T} */
-        parse9(serialize(uri, options), options);
+        parse10(serialize(uri, options), options);
       }
       return uri;
     }
@@ -12177,8 +12177,8 @@ var require_fast_uri = __commonJS({
     function resolveComponent(base, relative, options, skipNormalization) {
       const target = {};
       if (!skipNormalization) {
-        base = parse9(serialize(base, options), options);
-        relative = parse9(serialize(relative, options), options);
+        base = parse10(serialize(base, options), options);
+        relative = parse10(serialize(relative, options), options);
       }
       options = options || {};
       if (!options.tolerant && relative.scheme) {
@@ -12476,7 +12476,7 @@ var require_fast_uri = __commonJS({
       }
       return { parsed, malformedAuthorityOrPort, malformedPercentEncoding, malformedSchemeSpecific, malformedHost, malformedScheme };
     }
-    function parse9(uri, opts) {
+    function parse10(uri, opts) {
       return parseWithStatus(uri, opts).parsed;
     }
     function normalizeString(uri, opts) {
@@ -12513,7 +12513,7 @@ var require_fast_uri = __commonJS({
       resolveComponent,
       equal,
       serialize,
-      parse: parse9
+      parse: parse10
     };
     module.exports = fastUri;
     module.exports.default = fastUri;
@@ -17815,7 +17815,7 @@ var require_extension = __commonJS({
       if (dest[name] === void 0) dest[name] = [elem];
       else dest[name].push(elem);
     }
-    function parse9(header) {
+    function parse10(header) {
       const offers = /* @__PURE__ */ Object.create(null);
       let params = /* @__PURE__ */ Object.create(null);
       let mustUnescape = false;
@@ -17955,7 +17955,7 @@ var require_extension = __commonJS({
         }).join(", ");
       }).join(", ");
     }
-    module.exports = { format, parse: parse9 };
+    module.exports = { format, parse: parse10 };
   }
 });
 
@@ -17989,7 +17989,7 @@ var require_websocket = __commonJS({
     var {
       EventTarget: { addEventListener, removeEventListener }
     } = require_event_target();
-    var { format, parse: parse9 } = require_extension();
+    var { format, parse: parse10 } = require_extension();
     var { toBuffer } = require_buffer_util();
     var kAborted = /* @__PURE__ */ Symbol("kAborted");
     var protocolVersions = [8, 13];
@@ -18666,7 +18666,7 @@ var require_websocket = __commonJS({
           }
           let extensions;
           try {
-            extensions = parse9(secWebSocketExtensions);
+            extensions = parse10(secWebSocketExtensions);
           } catch (err) {
             const message = "Invalid Sec-WebSocket-Extensions header";
             abortHandshake(websocket, socket, message);
@@ -18958,7 +18958,7 @@ var require_subprotocol = __commonJS({
   "node_modules/ws/lib/subprotocol.js"(exports, module) {
     "use strict";
     var { tokenChars } = require_validation3();
-    function parse9(header) {
+    function parse10(header) {
       const protocols = /* @__PURE__ */ new Set();
       let start = -1;
       let end = -1;
@@ -18994,7 +18994,7 @@ var require_subprotocol = __commonJS({
       protocols.add(protocol);
       return protocols;
     }
-    module.exports = { parse: parse9 };
+    module.exports = { parse: parse10 };
   }
 });
 
@@ -20202,6 +20202,13 @@ var Args = class {
     if (Number.isNaN(n)) throw new Exit(`${this.usage}: --${name} needs an integer, got '${v}'`);
     return n;
   }
+  /** A bare `--flag`, carrying no value. */
+  has(name) {
+    const v = this.flags.get(name);
+    if (v === void 0) return false;
+    if (v !== true) throw new Exit(`${this.usage}: --${name} takes no value`);
+    return true;
+  }
   /** A typo'd flag must not silently fall back to a default. */
   only(...names) {
     for (const name of this.flags.keys()) {
@@ -20324,8 +20331,8 @@ function runGate(base, specsDir) {
 ${checked} gated artifact(s) changed, all versioned correctly.`);
   return 0;
 }
-function readFileText(path9) {
-  return readFileSync(path9, "utf-8");
+function readFileText(path10) {
+  return readFileSync(path10, "utf-8");
 }
 
 // src/compat.ts
@@ -20385,10 +20392,10 @@ function odcsBreakingDetail(output) {
     if (!inDetails || !/│\s*ERROR\s*│/.test(line)) continue;
     const cells = line.split("\u2502").map((c) => c.trim());
     const severity = cells.indexOf("ERROR");
-    const path9 = cells[severity + 2];
+    const path10 = cells[severity + 2];
     const oldValue = cells[severity + 3];
-    if (!path9) continue;
-    const detail = oldValue ? `${path9} (was ${oldValue})` : path9;
+    if (!path10) continue;
+    const detail = oldValue ? `${path10} (was ${oldValue})` : path10;
     if (!seen.has(detail)) seen.add(detail);
   }
   return [...seen];
@@ -21565,13 +21572,471 @@ function runLint(only, specsDir) {
   return 0;
 }
 
+// src/mocks-serve.ts
+var import_yaml9 = __toESM(require_dist(), 1);
+import { readdirSync as readdirSync6, readFileSync as readFileSync9, writeFileSync as writeFileSync4 } from "fs";
+import { createServer } from "http";
+import path8 from "path";
+
+// src/mock-engine.ts
+function decodeSegment(segment) {
+  let decoded = segment;
+  try {
+    decoded = decodeURIComponent(segment);
+  } catch {
+  }
+  return decoded.replaceAll("+", " ");
+}
+function encodeTitle(title) {
+  return title.replaceAll(" ", "+");
+}
+function restBase(service) {
+  return `/rest/${encodeTitle(service.title)}/${service.version}`;
+}
+function wsPath(service, channel) {
+  return `/api/ws/${encodeTitle(service.title)}/${service.version}/${channel.operation}`;
+}
+var PUBLISH_INTERVAL_MS = 3e3;
+function replay(channel) {
+  let next = 0;
+  return () => {
+    if (channel.messages.length === 0) return null;
+    return channel.messages[next++ % channel.messages.length];
+  };
+}
+var JSON_HEADERS = { "Content-Type": "application/json" };
+var CORS_HEADERS = {
+  // The mocks exist to be called from a consumer being built against them,
+  // a browser UI included; a mock nothing may call is not a mock.
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS",
+  "Access-Control-Allow-Headers": "*",
+  "Access-Control-Max-Age": "86400"
+};
+function json(status, body) {
+  return {
+    status,
+    headers: { ...JSON_HEADERS, ...CORS_HEADERS },
+    body: JSON.stringify(body, null, 2)
+  };
+}
+function splitPath(pathname) {
+  return pathname.split("/").filter((s) => s.length > 0);
+}
+function matchService(bundle, segments) {
+  if (segments.length < 3 || segments[0] !== "rest") return null;
+  const title = decodeSegment(segments[1]);
+  const version = decodeSegment(segments[2]);
+  const service = bundle.services.find(
+    (s) => s.kind === "rest" && s.title === title && s.version === version
+  );
+  if (!service) return null;
+  const rest = segments.slice(3).map(decodeSegment);
+  return [service, `/${rest.join("/")}`];
+}
+function matchRoute(service, method, opSegments) {
+  for (const route of service.routes) {
+    if (route.method !== method) continue;
+    if (route.segments.length !== opSegments.length) continue;
+    const captured = {};
+    let ok = true;
+    for (let i = 0; i < route.segments.length; i++) {
+      const spec = route.segments[i];
+      if (spec.startsWith("{") && spec.endsWith("}")) {
+        captured[spec.slice(1, -1)] = opSegments[i];
+      } else if (spec !== opSegments[i]) {
+        ok = false;
+        break;
+      }
+    }
+    if (ok) return [route, captured];
+  }
+  return null;
+}
+function selectCase(route, captured, query) {
+  let best = null;
+  let bestScore = -1;
+  for (const c of route.cases) {
+    let score = 0;
+    let ok = true;
+    for (const [name, want] of Object.entries(c.pathParams)) {
+      if (captured[name] !== want) {
+        ok = false;
+        break;
+      }
+      score += 1;
+    }
+    if (!ok) continue;
+    for (const [name, want] of Object.entries(c.query)) {
+      if (query[name] !== want) {
+        ok = false;
+        break;
+      }
+      score += 1;
+    }
+    if (!ok) continue;
+    if (score > bestScore) {
+      best = c;
+      bestScore = score;
+    }
+  }
+  return best;
+}
+function caseResponse(c) {
+  const headers = { ...CORS_HEADERS };
+  if (c.body !== null) headers["Content-Type"] = c.mediaType;
+  return { status: c.status, headers, body: c.body ?? "" };
+}
+function describe(bundle) {
+  return {
+    name: "sysspec-mocks",
+    ...bundle.source ? { source: bundle.source } : {},
+    services: bundle.services.map((s) => ({
+      service: s.service,
+      title: s.title,
+      version: s.version,
+      ...s.kind === "rest" ? {
+        rest: restBase(s),
+        operations: s.routes.map((r) => `${r.method} ${r.path}`)
+      } : {
+        events: s.channels.map((c) => wsPath(s, c))
+      }
+    }))
+  };
+}
+function dispatch(bundle, method, pathname, query = {}) {
+  if (method === "OPTIONS") return { status: 204, headers: { ...CORS_HEADERS }, body: "" };
+  const segments = splitPath(pathname);
+  if (segments.length === 0) return json(200, describe(bundle));
+  if (segments.length === 1 && segments[0] === "health") return json(200, { status: "ok" });
+  const matched = matchService(bundle, segments);
+  if (!matched) {
+    return json(404, {
+      error: `No mock service at ${pathname}`,
+      mock: "sysspec",
+      rest: bundle.services.filter((s) => s.kind === "rest").map(restBase)
+    });
+  }
+  const [service, opPath] = matched;
+  const route = matchRoute(service, method, splitPath(opPath));
+  if (!route) {
+    return json(404, {
+      error: `${service.title} ${service.version} has no mocked operation ${method} ${opPath}`,
+      mock: "sysspec",
+      operations: service.routes.map((r) => `${r.method} ${r.path}`)
+    });
+  }
+  const [matchedRoute, captured] = route;
+  const selected = selectCase(matchedRoute, captured, query);
+  if (!selected) {
+    return json(404, {
+      error: `No example of ${method} ${matchedRoute.path} dispatches this request. Mock cases dispatch by URI, so the path and query parameters must match an example exactly.`,
+      mock: "sysspec",
+      cases: matchedRoute.cases.map((c) => ({
+        name: c.name,
+        ...c.pathParams,
+        ...c.query
+      }))
+    });
+  }
+  return caseResponse(selected);
+}
+function matchChannel(bundle, pathname) {
+  const segments = splitPath(pathname);
+  if (segments.length !== 5 || segments[0] !== "api" || segments[1] !== "ws") return null;
+  const title = decodeSegment(segments[2]);
+  const version = decodeSegment(segments[3]);
+  const operation = decodeSegment(segments[4]);
+  const service = bundle.services.find(
+    (s) => s.kind === "events" && s.title === title && s.version === version
+  );
+  if (!service) return null;
+  const channel = service.channels.find((c) => c.operation === operation);
+  return channel ? [service, channel] : null;
+}
+
+// src/mocks-serve.ts
+init_util();
+function templated(value, where) {
+  if (value.includes("{{")) {
+    throw new Exit(
+      `${where}: mock templating is not supported by the served mocks - the example must hold a literal payload, or the mock would serve something the Microcks stack does not`
+    );
+  }
+}
+var specKey = (title, version) => JSON.stringify([title, version]);
+function examplesFor(mocksDir, service) {
+  let files = [];
+  try {
+    files = readdirSync6(mocksDir).filter((f) => f.startsWith(`${service}.`) && f.endsWith(".examples.yaml")).sort().map((f) => path8.join(mocksDir, f));
+  } catch {
+    files = [];
+  }
+  const index = /* @__PURE__ */ new Map();
+  for (const file of files) {
+    const doc = (0, import_yaml9.parse)(readFileSync9(file, "utf-8")) ?? {};
+    const meta = doc.metadata ?? {};
+    if (!meta.name || !meta.version) {
+      throw new Exit(`${file}: metadata.name and metadata.version are required`);
+    }
+    index.set(specKey(String(meta.name), String(meta.version)), [file, doc]);
+  }
+  return index;
+}
+function splitParams(params, routePath) {
+  const pathParams = {};
+  const query = {};
+  for (const [name, value] of Object.entries(params)) {
+    if (routePath.includes(`{${name}}`)) pathParams[name] = String(value);
+    else query[name] = String(value);
+  }
+  return [pathParams, query];
+}
+function restRoutes(doc, examples, file) {
+  const paths = doc.paths ?? {};
+  const routes = [];
+  for (const [op, rawCases] of Object.entries(examples.operations ?? {})) {
+    const spaceAt = op.indexOf(" ");
+    if (spaceAt === -1) {
+      throw new Exit(`${file}: '${op}' is not a REST operation ('<METHOD> <path>')`);
+    }
+    const method = op.slice(0, spaceAt).toUpperCase();
+    const opPath = op.slice(spaceAt + 1);
+    const pathItem = paths[opPath] ?? {};
+    if (!(method.toLowerCase() in pathItem)) {
+      throw new Exit(
+        `${file}: '${op}' is not in the contract - the specs are the authority, so an example cannot introduce an operation the OpenAPI document does not declare`
+      );
+    }
+    const cases = [];
+    for (const [name, body] of Object.entries(rawCases ?? {})) {
+      const request = body?.request ?? {};
+      const response = body?.response ?? {};
+      const payload = response.body === void 0 || response.body === null ? null : String(response.body);
+      if (payload !== null) templated(payload, `${file}: '${op}' [${name}]`);
+      const [pathParams, query] = splitParams(request.parameters ?? {}, opPath);
+      cases.push({
+        name,
+        pathParams,
+        query,
+        status: parseInt(String(response.status ?? 200), 10),
+        mediaType: String(response.mediaType ?? "application/json"),
+        body: payload
+      });
+    }
+    if (cases.length > 1) {
+      const seen = /* @__PURE__ */ new Set();
+      for (const c of cases) {
+        const key = JSON.stringify([c.pathParams, c.query]);
+        if (key === "[{},{}]" || seen.has(key)) {
+          throw new Exit(
+            `${file}: '${op}' has cases that dispatch identically ([${c.name}]) - cases on one operation must differ by path or query parameter`
+          );
+        }
+        seen.add(key);
+      }
+    }
+    routes.push({
+      method,
+      path: opPath,
+      segments: opPath.split("/").filter((s) => s.length > 0),
+      cases
+    });
+  }
+  return routes;
+}
+function sendOperationNames(doc) {
+  return Object.entries(doc.operations ?? {}).filter(([, op]) => op?.action === "send").map(([name]) => name);
+}
+function eventChannels(doc, examples, file) {
+  const sends = new Set(sendOperationNames(doc));
+  const channels = [];
+  for (const [op, rawCases] of Object.entries(examples.operations ?? {})) {
+    if (!op.startsWith("SEND ")) {
+      throw new Exit(`${file}: '${op}' is not an event operation ('SEND <operation>')`);
+    }
+    const operation = op.slice(5);
+    if (!sends.has(operation)) {
+      throw new Exit(
+        `${file}: '${op}' is not in the contract - the AsyncAPI document declares no send operation by that name`
+      );
+    }
+    const messages = [];
+    for (const [name, body] of Object.entries(rawCases ?? {})) {
+      const payload = body?.eventMessage?.payload;
+      if (payload === void 0 || payload === null) {
+        throw new Exit(`${file}: '${op}' [${name}] has no eventMessage.payload`);
+      }
+      templated(String(payload), `${file}: '${op}' [${name}]`);
+      messages.push(String(payload));
+    }
+    channels.push({ operation, messages });
+  }
+  return channels;
+}
+function buildBundle(only, specsDir, mocksDir, source) {
+  const services = [];
+  const gaps = [];
+  for (const dir of serviceDirs(specsDir, only)) {
+    const name = path8.basename(dir);
+    const examples = examplesFor(mocksDir, name);
+    const used = /* @__PURE__ */ new Set();
+    const take = (title, version) => {
+      const key = specKey(title, version);
+      const hit = examples.get(key);
+      if (hit) used.add(key);
+      return hit ?? null;
+    };
+    for (const [specFile, doc] of specDocs(dir, "openapi")) {
+      const [title, version] = info(doc);
+      const hit = take(title, version);
+      if (!hit) {
+        gaps.push(`${specFile}: no REST examples for ${title} ${version}`);
+        continue;
+      }
+      const [file, examplesDoc] = hit;
+      services.push({
+        title,
+        version,
+        kind: "rest",
+        service: name,
+        routes: restRoutes(doc, examplesDoc, file),
+        channels: []
+      });
+    }
+    for (const [specFile, doc] of specDocs(dir, "asyncapi")) {
+      const [title, version] = info(doc);
+      const hit = take(title, version);
+      if (!hit) {
+        gaps.push(`${specFile}: no event examples for ${title} ${version}`);
+        continue;
+      }
+      const [file, examplesDoc] = hit;
+      const channels = eventChannels(doc, examplesDoc, file);
+      for (const op of sendOperationNames(doc)) {
+        if (!channels.some((c) => c.operation === op)) {
+          gaps.push(`${file}: no example for SEND ${op}`);
+        }
+      }
+      services.push({ title, version, kind: "events", service: name, routes: [], channels });
+    }
+    for (const [key, [file]] of examples) {
+      if (used.has(key)) continue;
+      const [title, version] = JSON.parse(key);
+      throw new Exit(
+        `${file}: metadata names '${title}' ${version}, which no spec in ${dir} declares - examples belong to a contract, so the name and version must match a spec's info.title and info.version`
+      );
+    }
+  }
+  if (services.length === 0) {
+    throw new Exit(`no mockable specs found under ${specsDir}/ - nothing to serve`);
+  }
+  return { bundle: { version: 1, ...source ? { source } : {}, services }, gaps };
+}
+function drain(req) {
+  req.resume();
+}
+async function serve(bundle, port, host, intervalMs = PUBLISH_INTERVAL_MS) {
+  const { WebSocketServer: WebSocketServer2 } = await Promise.resolve().then(() => (init_wrapper(), wrapper_exports));
+  const wss = new WebSocketServer2({ noServer: true });
+  const server = createServer((req, res) => {
+    drain(req);
+    const url = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
+    const query = {};
+    for (const [k, v] of url.searchParams) query[k] = v;
+    const out = dispatch(bundle, (req.method ?? "GET").toUpperCase(), url.pathname, query);
+    res.writeHead(out.status, {
+      ...out.headers,
+      "Content-Length": String(Buffer.byteLength(out.body))
+    });
+    res.end(req.method === "HEAD" ? void 0 : out.body);
+  });
+  server.on("upgrade", (req, socket, head) => {
+    const url = new URL(req.url ?? "/", "http://localhost");
+    const matched = matchChannel(bundle, url.pathname);
+    if (!matched) {
+      socket.write("HTTP/1.1 404 Not Found\r\n\r\n");
+      socket.destroy();
+      return;
+    }
+    const [, channel] = matched;
+    wss.handleUpgrade(req, socket, head, (ws) => {
+      const next = replay(channel);
+      const publish = () => {
+        const message = next();
+        if (message !== null) ws.send(message);
+      };
+      publish();
+      const timer = setInterval(publish, intervalMs);
+      ws.on("close", () => clearInterval(timer));
+      ws.on("error", () => clearInterval(timer));
+    });
+  });
+  await new Promise((resolve, reject) => {
+    server.on("error", reject);
+    server.listen(port, host, () => resolve());
+  });
+  return server;
+}
+function banner(bundle, origin, gaps) {
+  console.log(`sysspec mocks serving on ${origin}`);
+  for (const s of bundle.services) {
+    if (s.kind === "rest") {
+      console.log(`  REST   ${origin}${restBase(s)} (${s.routes.length} operations)`);
+      for (const r of s.routes) console.log(`         ${r.method} ${r.path}`);
+    } else {
+      for (const c of s.channels) {
+        console.log(`  EVENT  ${origin.replace(/^http/, "ws")}${wsPath(s, c)}`);
+      }
+    }
+  }
+  for (const gap of gaps) console.log(`  note: ${gap}`);
+}
+async function runServe(only, specsDir, mocksDir, port, host) {
+  const { bundle, gaps } = buildBundle(only, specsDir, mocksDir);
+  const server = await serve(bundle, port, host);
+  const shown = host === "0.0.0.0" || host === "::" ? "localhost" : host;
+  banner(bundle, `http://${shown}:${port}`, gaps);
+  console.log("Ctrl-C to stop");
+  await new Promise((resolve) => {
+    const stop = () => {
+      server.close(() => resolve());
+      server.closeAllConnections?.();
+    };
+    process.on("SIGINT", stop);
+    process.on("SIGTERM", stop);
+  });
+  return 0;
+}
+async function runParity(only, specsDir, mocksDir, port) {
+  const { bundle, gaps } = buildBundle(only, specsDir, mocksDir);
+  const server = await serve(bundle, port, "127.0.0.1");
+  const origin = `http://127.0.0.1:${server.address().port}`;
+  console.log(`mocks parity: the example suite, against the served bundle at ${origin}`);
+  for (const gap of gaps) console.log(`  note: ${gap}`);
+  try {
+    return await test(only, specsDir, mocksDir, origin, origin);
+  } finally {
+    server.closeAllConnections();
+    await new Promise((resolve) => server.close(() => resolve()));
+  }
+}
+function runBundle(only, specsDir, mocksDir, out, source) {
+  const { bundle, gaps } = buildBundle(only, specsDir, mocksDir, source ?? void 0);
+  writeFileSync4(out, `${JSON.stringify(bundle, null, 2)}
+`);
+  console.log(`wrote ${out} (${describe(bundle).services.length} mock services)`);
+  for (const gap of gaps) console.log(`  note: ${gap}`);
+  return 0;
+}
+
 // src/nullsvc.ts
 import { spawn } from "child_process";
-import { readFileSync as readFileSync9, rmSync as rmSync4 } from "fs";
-import { createServer } from "http";
-function serve(port) {
+import { readFileSync as readFileSync10, rmSync as rmSync4 } from "fs";
+import { createServer as createServer2 } from "http";
+function serve2(port) {
   return new Promise((resolve, reject) => {
-    const server = createServer((req, res) => {
+    const server = createServer2((req, res) => {
       req.resume();
       const body = "{}";
       res.writeHead(200, {
@@ -21606,7 +22071,7 @@ function passedScenarios(doc) {
 function check(results) {
   let text;
   try {
-    text = readFileSync9(results, "utf-8");
+    text = readFileSync10(results, "utf-8");
   } catch {
     console.log(
       `null run: ${results} was not written - the suite command must emit cucumber-format JSON there (e.g. --format json:<file>); a missing result is never a pass`
@@ -21651,7 +22116,7 @@ async function runNull(port, results, timeout, cmd) {
   rmSync4(results, { force: true });
   let server;
   try {
-    server = await serve(port);
+    server = await serve2(port);
   } catch {
     return 1;
   }
@@ -21691,8 +22156,8 @@ async function runNull(port, results, timeout, cmd) {
 // src/scaffold.ts
 init_pins();
 init_util();
-import { chmodSync, mkdirSync as mkdirSync3, readdirSync as readdirSync6, readFileSync as readFileSync10, statSync as statSync5, writeFileSync as writeFileSync4 } from "fs";
-import path8 from "path";
+import { chmodSync, mkdirSync as mkdirSync3, readdirSync as readdirSync7, readFileSync as readFileSync11, statSync as statSync5, writeFileSync as writeFileSync5 } from "fs";
+import path9 from "path";
 import { fileURLToPath as fileURLToPath3 } from "url";
 var RENAMES = {
   gitignore: ".gitignore",
@@ -21718,29 +22183,29 @@ var SKIP = /* @__PURE__ */ new Set([
   "docs-site/public/specs"
 ]);
 function templatesRoot() {
-  return path8.join(path8.dirname(fileURLToPath3(import.meta.url)), "..", "templates", "init");
+  return path9.join(path9.dirname(fileURLToPath3(import.meta.url)), "..", "templates", "init");
 }
 function ownVersion() {
-  const pkg = path8.join(path8.dirname(fileURLToPath3(import.meta.url)), "..", "package.json");
-  return JSON.parse(readFileSync10(pkg, "utf-8")).version;
+  const pkg = path9.join(path9.dirname(fileURLToPath3(import.meta.url)), "..", "package.json");
+  return JSON.parse(readFileSync11(pkg, "utf-8")).version;
 }
 function copy(node, target, subs, rel = "") {
   const written = [];
-  for (const child of readdirSync6(node, { withFileTypes: true })) {
+  for (const child of readdirSync7(node, { withFileTypes: true })) {
     const childRel = rel ? `${rel}/${child.name}` : child.name;
     if (SKIP.has(childRel)) continue;
-    const out = path8.join(target, RENAMES[child.name] ?? child.name);
-    const source = path8.join(node, child.name);
+    const out = path9.join(target, RENAMES[child.name] ?? child.name);
+    const source = path9.join(node, child.name);
     if (child.isDirectory()) {
       mkdirSync3(out, { recursive: true });
       written.push(...copy(source, out, subs, childRel));
     } else {
-      let text = readFileSync10(source, "utf-8");
+      let text = readFileSync11(source, "utf-8");
       for (const [key, value] of Object.entries(subs)) {
         text = text.replaceAll(key, value);
       }
-      mkdirSync3(path8.dirname(out), { recursive: true });
-      writeFileSync4(out, text);
+      mkdirSync3(path9.dirname(out), { recursive: true });
+      writeFileSync5(out, text);
       chmodSync(out, statSync5(source).mode & 511);
       written.push(out);
     }
@@ -21754,7 +22219,7 @@ function runInit(targetDir, org, sysspecRepo, system = null, domain = null) {
   const target = targetDir;
   let existing = [];
   try {
-    existing = readdirSync6(target);
+    existing = readdirSync7(target);
   } catch {
     existing = [];
   }
@@ -21781,7 +22246,7 @@ function runInit(targetDir, org, sysspecRepo, system = null, domain = null) {
   };
   const written = copy(templatesRoot(), target, subs);
   for (const p of written.sort()) {
-    console.log(`  ${path8.relative(target, p)}`);
+    console.log(`  ${path9.relative(target, p)}`);
   }
   console.log(
     `
@@ -21800,7 +22265,7 @@ Next steps:
 }
 
 // src/surface.ts
-import { readFileSync as readFileSync11 } from "fs";
+import { readFileSync as readFileSync12 } from "fs";
 
 // node_modules/smol-toml/dist/date.js
 var DATE_TIME_RE = /^(\d{4}-\d{2}-\d{2})?[T ]?(?:(\d{2}):\d{2}(?::\d{2}(?:\.\d+)?)?)?(Z|[-+]\d{2}:\d{2})?$/i;
@@ -22380,7 +22845,7 @@ function peekTable(key, table, meta, type) {
   }
   return [k, t, state.c];
 }
-function parse8(toml, { maxDepth = 1e3, integersAsBigInt } = {}) {
+function parse9(toml, { maxDepth = 1e3, integersAsBigInt } = {}) {
   let ctx = { s: toml, p: 0, d: maxDepth };
   let res = {};
   let meta = {};
@@ -22451,7 +22916,7 @@ function parse8(toml, { maxDepth = 1e3, integersAsBigInt } = {}) {
 init_util();
 function versionOf(text, versionFile, key) {
   if (text === null) return null;
-  let doc = versionFile.endsWith(".toml") ? parse8(text) : JSON.parse(text);
+  let doc = versionFile.endsWith(".toml") ? parse9(text) : JSON.parse(text);
   for (const part of key.split(".")) doc = doc[part];
   return String(doc).split(".").map((p) => parseInt(p, 10));
 }
@@ -22476,7 +22941,7 @@ function runGate4(base, versionFile, jsonKey, paths) {
     return 0;
   }
   const before = versionOf(blob(mb, versionFile), versionFile, jsonKey);
-  const now = versionOf(readFileSync11(versionFile, "utf-8"), versionFile, jsonKey);
+  const now = versionOf(readFileSync12(versionFile, "utf-8"), versionFile, jsonKey);
   if (before === null) {
     console.log(`new surface manifest @ ${dotted(now)}`);
     return 0;
@@ -22504,7 +22969,7 @@ commands:
   lint manifest|specs|features|datacontracts
   docs data|diagrams
   init <dir> --org <reverse-dns> [--system <title>] [--domain <name>]
-  mocks up|down|load|test|watch
+  mocks up|down|load|test|watch|serve|bundle
   contract test
   null run --results <file> -- <suite command>`;
 async function main(argv = process.argv.slice(2)) {
@@ -22574,6 +23039,35 @@ async function main(argv = process.argv.slice(2)) {
     }
   }
   if (command === "mocks") {
+    if (sub === "serve") {
+      args.only("service", "specs-dir", "mocks-dir", "port", "host");
+      return runServe(
+        args.get("service"),
+        args.get("specs-dir", "specs"),
+        args.get("mocks-dir", "mocks"),
+        args.int("port", 8686),
+        args.get("host", "127.0.0.1")
+      );
+    }
+    if (sub === "bundle") {
+      args.only("service", "specs-dir", "mocks-dir", "out", "source");
+      return runBundle(
+        args.get("service"),
+        args.get("specs-dir", "specs"),
+        args.get("mocks-dir", "mocks"),
+        args.require("out"),
+        args.get("source")
+      );
+    }
+    if (sub === "test" && args.has("serve")) {
+      args.only("serve", "service", "specs-dir", "mocks-dir", "port");
+      return runParity(
+        args.get("service"),
+        args.get("specs-dir", "specs"),
+        args.get("mocks-dir", "mocks"),
+        args.int("port", 0)
+      );
+    }
     if (sub === "watch") {
       args.only("channel", "async-minion-url");
       return watch(

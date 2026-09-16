@@ -15,7 +15,7 @@ commands:
   lint manifest|specs|features|datacontracts
   docs data|diagrams
   init <dir> --org <reverse-dns> [--system <title>] [--domain <name>]
-  mocks up|down|load|test|watch
+  mocks up|down|load|test|watch|serve|bundle
   contract test
   null run --results <file> -- <suite command>
 ```
@@ -98,6 +98,15 @@ can be edited there afterwards. See [Getting started](/getting-started/).
 your contracts; `contract test` holds a real implementation (or, with no
 endpoint overrides, the mocks themselves) to the contracts.
 
+`mocks serve` and `mocks bundle` are the same mocks without the stack:
+`serve` reads the contracts and example artifacts and answers on Microcks'
+own URL shapes with no Docker, and `bundle` bakes that into a JSON file a
+Worker or any other runtime can serve (the engine ships as
+`sysspec/mock-engine`). Because the shapes match, `mocks test --serve`
+holds the served mocks to the same example suite the stack answers, and
+`mocks test --microcks-url <url> --async-minion-url <url>` does the same
+for a deployed one.
+
 | Flag | Applies to | Default |
 | --- | --- | --- |
 | `--compose-file <file>` | `mocks *` | `mocks/docker-compose.yml`, else the bundled stack |
@@ -106,6 +115,9 @@ endpoint overrides, the mocks themselves) to the contracts.
 | `--microcks-url <url>` | `load`, `test`, `contract test` | `http://localhost:8585` |
 | `--async-minion-url <url>` | `load`, `test`, `watch` | `http://localhost:8081` |
 | `--channel <Title/version/operation>` | `watch` | required |
+| `--serve` | `test` | off; runs the suite against a bundle this process serves |
+| `--port` / `--host` | `serve`, `test --serve` | `8686` / `127.0.0.1` (`0` picks a free port) |
+| `--out <file>` / `--source <ref>` | `bundle` | required / none |
 | `--rest-endpoint` / `--async-endpoint` | `contract test` | the mocks themselves |
 
 ### The falsifiability gate (`null run`)

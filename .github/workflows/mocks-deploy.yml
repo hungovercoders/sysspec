@@ -1,0 +1,52 @@
+# Deploy the demo mocks (mocks.sysspec.dev) on every main push that changes
+# what they serve - the specs, the example artifacts, the engine or the
+# Worker. The bundle is baked from the spec commit, so the deployed mocks
+# can never be newer or staler than the contracts they came from.
+#
+# Secrets: CLOUDFLARE_API_TOKEN (Workers Scripts:Edit), CLOUDFLARE_ACCOUNT_ID
+# (shared with the other Cloudflare workflows).
+name: mocks-deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "specs/**"
+      - "mocks/**"
+      - "cli/**"
+      - "deploy/cloudflare-mocks/**"
+      - ".github/workflows/mocks-deploy.yml"
+  # First deploy bootstraps the Worker that preview versions target.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mocks-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v2
+      - name: The served mocks must answer the example suite
+        run: task mocks:parity
+      - name: Bake the mock bundle the Worker serves
+        run: |
+          node cli/dist/cli.mjs mocks bundle \
+            --out deploy/cloudflare-mocks/src/generated/mocks-bundle.json \
+            --source "$GITHUB_SHA"
+      - run: npm ci --no-audit --no-fund
+        working-directory: deploy/cloudflare-mocks
+      - run: npx wrangler deploy
+        working-directory: deploy/cloudflare-mocks
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Hold the deployed mocks to the same example suite
+        run: |
+          url="${{ vars.SYSSPEC_DEMO_MOCKS_URL || 'https://mocks.sysspec.dev' }}"
+          node cli/dist/cli.mjs mocks test --microcks-url "$url" --async-minion-url "$url"

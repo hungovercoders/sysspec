@@ -1,9 +1,9 @@
 // Every external URL the site links to, in one place.
 //
-// Both deployments now have permanent homes of their own, this site at
+// Every deployment has a permanent home of its own: this site at
 // sysspec.dev, the demo Worker (generated spec catalog at /, MCP at /mcp)
-// at demo.sysspec.dev, so the URLs are committed here rather than
-// arriving as build-time configuration. The environment variables survive
+// at demo.sysspec.dev, and the demo's mocks at mocks.sysspec.dev, so the
+// URLs are committed here rather than arriving as build-time configuration. The environment variables survive
 // as overrides for preview deployments, which serve the same pages from a
 // *.workers.dev alias; the deploy workflows pass them through when the
 // corresponding repository variables are set.
@@ -12,6 +12,10 @@ const trim = (url: string | undefined) => (url ? url.replace(/\/$/, '') : '');
 export const SITE_URL = trim(process.env.SYSSPEC_SITE_URL) || 'https://sysspec.dev';
 export const DEMO_SITE_URL = trim(process.env.SYSSPEC_DEMO_URL) || 'https://demo.sysspec.dev';
 export const DEMO_MCP_URL = trim(process.env.SYSSPEC_DEMO_MCP_URL) || `${DEMO_SITE_URL}/mcp`;
+// The demo's mocks are a Worker of their own: they answer on Microcks' URL
+// shapes, which the catalog Worker's asset routing has no business owning.
+export const DEMO_MOCKS_URL =
+  trim(process.env.SYSSPEC_DEMO_MOCKS_URL) || 'https://mocks.sysspec.dev';
 
 // Source, packages and issues still live on GitHub; everything a reader
 // is meant to *use* lives on the two domains above.

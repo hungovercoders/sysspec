@@ -24,6 +24,9 @@ test("npm pack ships templates, lockfile and rulesets; excludes build junk", { t
 
   for (const wanted of [
     "dist/cli.mjs",
+    // The engine a hosted mock imports; without it in the tarball an
+    // adopter's Worker has no dispatch to share with `mocks serve`.
+    "dist/mock-engine.mjs",
     "templates/docker-compose.yml",
     "templates/spectral/datacontracts.yaml",
     // The ODCS schema is a gate input, not a doc: without it in the

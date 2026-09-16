@@ -1,17 +1,58 @@
 # Mocks
 
-Microcks serves every specified service from one stack: REST mocks from the
-OpenAPI contracts, ambient WebSocket events from the AsyncAPI contracts.
+Every specified service is mocked from its contracts and its example
+artifacts: REST mocks from the OpenAPI contracts, ambient WebSocket events
+from the AsyncAPI contracts. Two engines serve them, and they answer the
+same example suite.
 
 ```sh
-task mocks:load             # start the stack and load all services
-task mocks:test             # smoke-test the mocks
+task mocks:load             # Microcks: start the stack and load all services
+task mocks:test             # smoke-test the Microcks mocks
+task mocks:serve            # the same mocks, no Docker, on :8686
+task mocks:parity           # the suite, run against the served mocks
 task mocks:load SERVICE=orders
 ```
 
 REST mocks: `http://localhost:8585/rest/<info.title>/<version>/...` (spaces
 in the title become `+`). Event channels:
 `ws://localhost:8081/api/ws/<info.title>/<version>/<operationName>`.
+
+## The served mocks (`mocks serve`)
+
+`sysspec mocks serve` reads the specs and the example artifacts directly
+and answers on Microcks' own URL shapes, with no stack to start and no
+state to load. It exists for two reasons: developing a consumer without
+Docker, and hosting the mocks somewhere - `sysspec mocks bundle` bakes the
+same data into a JSON file a Worker or any other runtime serves (see
+[deploy/README.md](../deploy/README.md), and `mocks.sysspec.dev` for this
+repo's own deployment).
+
+Because the URL shapes are Microcks', the smoke suite is the gate:
+
+```sh
+sysspec mocks test --serve                              # task mocks:parity
+sysspec mocks test --microcks-url https://mocks.sysspec.dev \
+                   --async-minion-url https://mocks.sysspec.dev
+```
+
+That is the same suite `task mocks:test` runs against Microcks. Agreement
+between the two engines is proven on every push and every preview, never
+asserted.
+
+What the served mocks deliberately do not do, because Microcks does it and
+this engine will not guess at it:
+
+- **Body-aware dispatch and templating.** Cases dispatch by URI only, and
+  an example whose payload is templated is a build error rather than a
+  payload the two engines would disagree about. Same for two cases on one
+  operation that a URI cannot tell apart.
+- **Anything not in a contract.** An example naming an operation the
+  OpenAPI or AsyncAPI document does not declare is refused: examples
+  describe a contract's surface, they never extend it.
+- **State.** `POST /orders` returns its example 201; a later `GET` still
+  returns the example. That is true of the Microcks mocks too.
+- **The Microcks UI and test runner.** Contract tests
+  (`task contract:test`) stay with the stack.
 
 ## Conventions Microcks imposes
 

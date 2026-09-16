@@ -46,6 +46,7 @@ Exactly what CI runs. It composes, in order:
 | `check:init` | the init scaffold passes its own lint, version, and docs gates |
 | `check:null` | the falsifiability gate self-test: a hollow suite goes red, an honest all-failing one green |
 | `mocks:load` / `contract:test` / `mocks:test` | Microcks mocks load, contract-test, and smoke-test green |
+| `mocks:parity` | the served mocks (`mocks serve`, and so the hosted ones) answer the same example suite as the Microcks stack |
 
 Scope most tasks to one service with `SERVICE=<name>`.
 

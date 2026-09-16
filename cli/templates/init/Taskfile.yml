@@ -19,6 +19,7 @@ tasks:
       - task: check
       - task: contract:test
       - task: mocks:test
+      - task: mocks:parity
 
   check:
     desc: Diff gates and the docs build
@@ -119,6 +120,21 @@ tasks:
     run: once
     cmds:
       - npx -y {{.SYSSPEC}} mocks load {{if .SERVICE}}--service {{.SERVICE}}{{end}}
+
+  mocks:serve:
+    desc: Serve the mocks straight from the specs and examples, no Docker (PORT=, HOST=)
+    cmds:
+      - npx -y {{.SYSSPEC}} mocks serve {{if .SERVICE}}--service {{.SERVICE}}{{end}} {{if .PORT}}--port {{.PORT}}{{end}} {{if .HOST}}--host {{.HOST}}{{end}}
+
+  mocks:bundle:
+    desc: Bake the mocks into a bundle a Worker or other runtime can serve (OUT=)
+    cmds:
+      - npx -y {{.SYSSPEC}} mocks bundle --out {{.OUT | default "mocks-bundle.json"}} --source "$(git rev-parse HEAD)" {{if .SERVICE}}--service {{.SERVICE}}{{end}}
+
+  mocks:parity:
+    desc: The served mocks must answer the example suite exactly as the Microcks stack does
+    cmds:
+      - npx -y {{.SYSSPEC}} mocks test --serve {{if .SERVICE}}--service {{.SERVICE}}{{end}}
 
   mocks:watch:
     desc: 'Watch a mock event channel (CHANNEL=<Title>/<version>/<operation>)'

@@ -99,7 +99,7 @@ export function serviceDirs(specsDir: string, only: string | null): string[] {
   return dirs;
 }
 
-function specDocs(serviceDir: string, kind: string): [string, Dict][] {
+export function specDocs(serviceDir: string, kind: string): [string, Dict][] {
   const dir = path.join(serviceDir, kind);
   let files: string[] = [];
   try {
