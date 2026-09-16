@@ -10,15 +10,15 @@ linters (`lint:specs`, `lint:datacontracts`, `lint:manifest`), not advisory.
 
 ## Naming
 
-- **Attributes and their values are `lower_snake_case`**: every payload
-  property, schema property, path and query parameter, ODCS column, and
-  enumerated value (`out_of_stock`, not `outOfStock`). A field is spelled the
+- **Attributes and their values are `lower_snake_case`.** That covers
+  every payload property, schema property, path and query parameter, ODCS
+  column, and enumerated value (`out_of_stock`, not `outOfStock`). A field is spelled the
   same in the AsyncAPI payload, the OpenAPI schema and the data contract, so
   no consumer translates between them. Spectral rules enforce this across
   the specs and the ODCS files. The deliberately human parts of ODCS 3.2 are
   exempt: a `synonym` is the business phrase ("settlement amount") and an
   enum `label` is for display.
-- **Header parameters are the one exception**: they keep canonical HTTP
+- **Header parameters are the one exception.** They keep canonical HTTP
   casing (`Idempotency-Key`, not `idempotency_key`). HTTP header names are
   case-insensitive hyphenated identifiers rather than payload attributes,
   so the Spectral snake_case rule is scoped to path and query parameters
@@ -75,9 +75,9 @@ linters (`lint:specs`, `lint:datacontracts`, `lint:manifest`), not advisory.
   contract, which is how lineage between two services' data products
   becomes explicit; `lint:manifest` resolves every one, and the catalog
   draws them as ER edges.
-- Put reader guidance in `context`: `instructions`, `verifiedStatements`
-  (curated questions with their answers) and `constraints` (what must not
-  be done with the data). It is part of the gated artifact, so it is
+- Put reader guidance in `context`, which holds `instructions`,
+  `verifiedStatements` (curated questions with their answers) and
+  `constraints` (what must not be done with the data). It is part of the gated artifact, so it is
   versioned like the schema, and the catalog's *Ask these specs* page and
   the MCP server both serve it.
 - `synonyms` and `semanticType` are for vocabulary, not decoration:

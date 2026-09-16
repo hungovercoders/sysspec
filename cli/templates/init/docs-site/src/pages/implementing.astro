@@ -15,7 +15,7 @@ const sysspecRepo = slug.startsWith('__') ? 'hungovercoders/sysspec' : slug;
 // boundary: the spec repo publishes a release, everything else happens in
 // the implementation, and the verify gate is the only way out.
 const flow = `flowchart TD
-  subgraph specs["Spec repo: the specs of record"]
+  subgraph specs["Spec repo (the specs of record)"]
     tag["merge to main cuts<br/>&lt;service&gt;/vX.Y.Z"]
   end
   subgraph impl["Implementation repo"]
@@ -34,8 +34,8 @@ const flow = `flowchart TD
 ---
 <StarlightPage frontmatter={{ title: 'Drive an implementation' }}>
   <p>
-    These specs are packaged for consumption: an implementation proves it
-    satisfies them, and never redefines them. Agents do the building; the
+    These specs are packaged for consumption. An implementation proves it
+    satisfies them; it never redefines them. Agents do the building; the
     specs supply their context and their gates. The same loop applies to
     every service; each service overview carries its own current pin.
   </p>
@@ -90,7 +90,8 @@ sha: <commit sha of that tag>`}</code></pre>
     <code> get_message_schema</code>, <code>get_artifact</code>);
     <code> trace_channel(address)</code> shows who a change would break. CI
     and anything needing reproducible file paths read the same surface from
-    <code> .contracts/</code>: one source, two access routes. The
+    <code> .contracts/</code>, which is one source with two access routes.
+    The
     <code> implement-service</code> and <code>consume-service</code> skills
     (<a href={`https://github.com/${sysspecRepo}`}>{sysspecRepo}</a>) carry
     the deeper process the agent follows, written to be read as
@@ -99,30 +100,30 @@ sha: <commit sha of that tag>`}</code></pre>
 
   <h2>4. Bind the acceptance criteria, strict</h2>
   <p>
-    The feature files run from <code>.contracts/</code> as-is: the specs own
-    the sentences, the implementation owns the step definitions. Strict mode
+    The feature files run from <code>.contracts/</code> as-is, so the specs
+    keep the sentences and the implementation owns the step definitions. Strict mode
     is mandatory, because an unbound or pending scenario fails the build and
     an unbound scenario is a spec obligation silently dropped. Strict mode
     has one blind spot, a bound-but-empty step that passes, which is exactly
     what the negative control in the next section exists to catch.
   </p>
 
-  <h2>5. Verify: the definition of done</h2>
+  <h2>5. Verify (the definition of done)</h2>
   <p>
     One task, <code>contracts:verify</code>, run with the implementation
     up. It chains four checks:
   </p>
   <ol>
     <li>
-      <strong>Contract tests</strong>:
-      <code> task -d .contracts contract:test SERVICE=&lt;name&gt; REST_ENDPOINT=… ASYNC_ENDPOINT=…</code>,
-      where Microcks replays every spec operation against the running
+      <strong>Contract tests.</strong>
+      <code> task -d .contracts contract:test SERVICE=&lt;name&gt; REST_ENDPOINT=… ASYNC_ENDPOINT=…</code>
+      has Microcks replay every spec operation against the running
       implementation and validates the real responses and emitted events
       against the schemas.
     </li>
     <li><strong>The bound scenario suite</strong> against the running implementation.</li>
     <li>
-      <strong>The negative control</strong>:
+      <strong>The negative control.</strong>
       <code> task -d .contracts null:run …</code> replays the same suite
       against a null service the CLI serves, answering <code>200 {'{}'}</code>
       to every request and emitting no events; red unless zero scenarios
@@ -133,7 +134,7 @@ sha: <commit sha of that tag>`}</code></pre>
       beyond a status code get flagged too.
     </li>
     <li>
-      <strong>Schema fuzz</strong>:
+      <strong>Schema fuzz.</strong>
       <code> uvx schemathesis run .contracts/specs/&lt;name&gt;/openapi/*.yaml --url …</code>
       for declared-but-unexampled paths.
     </li>

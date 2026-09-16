@@ -41,7 +41,7 @@ Exactly what CI runs. It composes, in order:
 | `docs:diagrams` | every mermaid diagram in the generated site parses (mermaid-cli, headless Chromium) |
 | `site:build` | the sysspec website (`website/`, the tool's own docs) builds |
 | `check:commits` | conventional commit messages |
-| `check:compat` | breaking contract changes carry major bumps (artifact and service): OpenAPI via oasdiff, AsyncAPI structurally, ODCS via `datacontract breaking` |
+| `check:compat` | breaking contract changes carry major bumps on both artifact and service, checked with oasdiff for OpenAPI, structurally for AsyncAPI, and `datacontract breaking` for ODCS |
 | `check:intent` | every schema element added to a contract is named in the service's feature files, with no escape hatch; ODCS columns and enum values included |
 | `check:init` | the init scaffold passes its own lint, version, and docs gates |
 | `check:null` | the falsifiability gate self-test: a hollow suite goes red, an honest all-failing one green |
@@ -61,8 +61,8 @@ you do change one deliberately:
 2. Bump the service's top-level `version:`. Breaking change ⇒ major on both.
 3. If you added a schema element, name it in a scenario in that service's
    `features/`, or `check:intent` fails; there is deliberately no escape
-   hatch. That includes an ODCS column and an ODCS `enum` value: a new
-   allowed value is a new case a consumer has to handle, so it gets a
+   hatch. That includes an ODCS column and an ODCS `enum` value, because a
+   new allowed value is a new case a consumer has to handle, so it gets a
    sentence like everything else.
 4. Conventions (channel naming, payload rules, money, idempotency) live in
    `skills/sysspec/SKILL.md`. Attribute names and enumerated values are
@@ -81,9 +81,9 @@ you do change one deliberately:
    a minor that needs a scenario.
 
 `specs/system.yaml` sits alongside the services and describes the suite
-itself: title, business domain, event namespace, and the optional `mcp:`
-endpoint the specs are served on for anyone who wants to ask them
-questions. It is ungated (no version ceremony), but `lint:manifest` holds
+itself, naming its title, its business domain, its event namespace, and
+the optional `mcp:` endpoint the specs are served on for anyone who wants
+to ask them questions. It is ungated (no version ceremony), but `lint:manifest` holds
 it to being complete, and the generated catalog reads it for its title,
 annotations and its *Ask these specs* page, so keep it honest.
 

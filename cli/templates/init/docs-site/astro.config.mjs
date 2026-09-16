@@ -15,7 +15,7 @@ const specs = existsSync(dataFile)
 const system = specs.system ?? {};
 const siteTitle = system.title || 'System specs';
 const siteDescription = system.summary
-  ? `${siteTitle}${system.domain ? ` (${system.domain})` : ''}: ${system.summary}`
+  ? `${siteTitle}${system.domain ? ` (${system.domain})` : ''}. ${system.summary}`
   : 'Specs of record: contracts and acceptance criteria, gated and versioned.';
 
 // Reading order: contract → events → data → acceptance criteria → context → changelog.

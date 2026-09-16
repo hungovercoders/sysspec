@@ -9,7 +9,7 @@ skills and MCP tools are in your session, then ask for what you want
 ("implement orders", "build a UI against payments") and the matching skill
 drives the loop.
 
-## implement-service: build the real thing
+## implement-service builds the real thing
 
 A new repo that:
 
@@ -22,7 +22,7 @@ A new repo that:
 4. Proves itself with one command, `task contracts:verify`, the same
    locally and in CI.
 
-## consume-service: build against mocks
+## consume-service builds against mocks
 
 A consumer (a UI, client, or downstream system) built against the pinned
 Microcks mocks, before or without the real service existing. The mocks are
@@ -32,7 +32,7 @@ the consumer already speaks its language.
 ## Staying in sync
 
 Both journeys start by asking about the things the contract leaves open
-(language, storage, transport), and both end wired for pull-based sync:
+(language, storage, transport), and both end wired for pull-based sync, so
 new release tags arrive as Renovate pin-bump PRs, green minors auto-merge
 untouched, and an agent only gets involved when the gates show code changes
 are needed. The specs never push work at implementations.

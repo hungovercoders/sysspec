@@ -12,10 +12,10 @@ const sysspecRepo = slug.startsWith('__') ? 'hungovercoders/sysspec' : slug;
 // Same boundary as the implementation loop, one lane wider: a consumer
 // never builds the service, it builds against the pinned mocks.
 const flow = `flowchart TD
-  subgraph specs["Spec repo: the specs of record"]
+  subgraph specs["Spec repo (the specs of record)"]
     tag["merge to main cuts<br/>&lt;service&gt;/vX.Y.Z"]
   end
-  subgraph consumer["Consumer repo: UI, client, downstream system"]
+  subgraph consumer["Consumer repo (UI, client, downstream system)"]
     lock["contracts.lock<br/>pins the tag + its commit sha"]
     fetch["task contracts:fetch<br/>read-only .contracts/ (specs + mocks + cli)"]
     mocks["task -d .contracts mocks:load<br/>pinned mocks up, fixtures included"]
@@ -71,15 +71,15 @@ task -d .contracts mocks:down`}</code></pre>
   </p>
   <ul>
     <li>
-      <strong>REST</strong>:
+      <strong>REST</strong> mocks answer at
       <code> http://localhost:8585/rest/&lt;Title&gt;/&lt;version&gt;/…</code>
       with fixture data included, so list and detail screens render
       real-looking aggregates.
     </li>
     <li>
-      <strong>Events</strong>:
-      <code> ws://localhost:8081/api/ws/&lt;Title&gt;/&lt;version&gt;/&lt;operation&gt;</code>
-      emits the example CloudEvents on a schedule.
+      <strong>Events</strong> arrive on
+      <code> ws://localhost:8081/api/ws/&lt;Title&gt;/&lt;version&gt;/&lt;operation&gt;</code>,
+      which emits the example CloudEvents on a schedule.
     </li>
   </ul>
 
@@ -93,24 +93,24 @@ task -d .contracts mocks:down`}</code></pre>
     because a minor bump must never break a consumer.
   </p>
 
-  <h2>4. Verify: the consumer's definition of done</h2>
+  <h2>4. Verify (the consumer's definition of done)</h2>
   <ol>
     <li>
-      <strong>Client flows against the REST mocks</strong>: every call the
-      consumer makes, responses parsed through the generated types.
+      <strong>Client flows against the REST mocks.</strong> Every call the
+      consumer makes, with responses parsed through the generated types.
     </li>
     <li>
-      <strong>Event handling against real envelopes</strong>: feed the
+      <strong>Event handling against real envelopes.</strong> Feed the
       handler from the WS mock or the pinned example files, validating each
       payload against the AsyncAPI schema before acting on it.
     </li>
     <li>
-      <strong>Idempotence</strong>: replaying the same envelope
+      <strong>Idempotence.</strong> Replaying the same envelope
       <code> id</code> must not double-apply. The features promise
       at-least-once delivery, so this is contract rather than hygiene.
     </li>
     <li>
-      <strong>Falsifiability</strong>: prove the suite can fail by running it
+      <strong>Falsifiability.</strong> Prove the suite can fail by running it
       once against the CLI's null service
       (<code>task -d .contracts null:run …</code>) or, minimally, with the
       mock stack down, and require zero passes. A check that stays green

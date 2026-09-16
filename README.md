@@ -7,8 +7,8 @@ Gherkin acceptance criteria), and those specs then do three jobs:
 1. **Context to build from.** Engineers and AI agents read the specs (over
    MCP, at implementation time) instead of guessing from code.
 2. **A domain expert anyone can interrogate.** The same MCP tools answer
-   questions in plain language: what a service is for, what an event
-   carries, who breaks if it changes. Product, analysts, architects,
+   plain-language questions about what a service is for, what an event
+   carries and who breaks if it changes, so product, analysts, architects,
    support and new joiners get the system's intent without opening a file.
 3. **Deterministic gates.** The same specs are packaged and consumed by
    implementations for local and CI testing. They cannot be quietly
@@ -16,26 +16,26 @@ Gherkin acceptance criteria), and those specs then do three jobs:
    separately from every implementation.
 
 Specs written next to an implementation drift toward whatever the code
-happens to do. sysspec works the other way round: intent is authored once,
-versioned deliberately, reached only through tools, and enforced by the
-gates, so the implementation conforms to the spec rather than the reverse.
+happens to do. sysspec works the other way round. Intent is authored once,
+versioned deliberately and reached only through tools, and the gates hold
+the implementation to it rather than the reverse.
 
-The repo holds three things:
+The repo holds three things.
 
-1. **The toolkit**: two npm packages. [`sysspec`](cli/) is the CLI (gates,
+1. **The toolkit.** Two npm packages. [`sysspec`](cli/) is the CLI (gates,
    lint, docs, mock orchestration for consumers, contract testing for
    implementations, `init` scaffold), and [`sysspec-mcp`](mcp/) is the MCP
    server, serving stdio locally and streamable HTTP behind a URL. ODCS
    files are held to the standard's own JSON Schema (ODCS 3.2, vendored)
    and to datacontract-cli, fetched on demand by uvx.
-2. **The distribution**: reusable GitHub workflows
-   (`.github/workflows/sysspec-*.yml`) and a Claude Code plugin (MCP tools
-   plus the three skills).
-3. **The living example**: **sysspec demo**, the `orders`/`payments` spec
-   suite (`specs/system.yaml` names it), which doubles as the toolkit's
-   regression suite, so every toolkit change has to keep it green. It is
-   published as a live catalog at **<https://demo.sysspec.dev>**, with its
-   MCP endpoint at `/mcp`.
+2. **The distribution.** Reusable GitHub workflows
+   (`.github/workflows/sysspec-*.yml`) and a Claude Code plugin carrying
+   the MCP tools and the three skills.
+3. **The living example.** **sysspec demo** is the `orders`/`payments`
+   spec suite that `specs/system.yaml` names, and it doubles as the
+   toolkit's regression suite, so every toolkit change has to keep it
+   green. It is published as a live catalog at
+   **<https://demo.sysspec.dev>**, with its MCP endpoint at `/mcp`.
 
 Docs for the tool itself (CLI, MCP server, plugin and the spec model) live
 at **<https://sysspec.dev>** (source in [website/](website/)) and deploy to
@@ -92,9 +92,9 @@ Then ask in your own words:
 - "Where is 'settled' defined, and does payments mean the same by it as
   orders?"
 
-Answers come from the specs of record: versioned, gated, and the same
-surface implementations are held to, rather than from anyone's memory or
-from code that may have drifted. That makes the suite worth having for
+Answers come from the specs of record. They are versioned, gated, and the
+same surface implementations are held to, so nobody is relying on memory
+or on code that may have drifted. That makes the suite worth having for
 people who will never open the repo.
 
 Point it at your own specs with `SPECS_DIR` (route 3 below), or host the
@@ -127,12 +127,12 @@ against payments") and the matching skill drives the loop:
   existing.
 
 Both start by asking about the things the contract leaves open (language,
-storage, transport), and both end wired for pull-based sync: new release
-tags arrive as Renovate pin-bump PRs, green minors auto-merge untouched,
-and an agent only gets involved when the gates show code changes are
-needed.
+storage, transport), and both end wired for pull-based sync, so new
+release tags arrive as Renovate pin-bump PRs, green minors auto-merge
+untouched, and an agent only gets involved when the gates show code
+changes are needed.
 
-The full walkthroughs live in the skills themselves:
+The full walkthroughs live in the skills themselves,
 [`skills/implement-service/SKILL.md`](skills/implement-service/SKILL.md)
 and [`skills/consume-service/SKILL.md`](skills/consume-service/SKILL.md).
 They are written to be read as documentation and executed as agent
@@ -221,8 +221,10 @@ Then ask things like:
 
 - "What fields are on OrderPlaced?"
 - "Who consumes payments.settled.v2?"
-- "Implement the order placement handler": it should pull the Gherkin first
-- "Change OrderPlaced to drop customer_id": it should refuse and cite consumers
+- Ask it to implement the order placement handler, and it should pull the
+  Gherkin first
+- Ask it to drop `customer_id` from OrderPlaced, and it should refuse and
+  cite the consumers
 
 Requires `node` on PATH (the plugin runs the committed server bundle
 directly, so there is no install step).

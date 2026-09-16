@@ -8,8 +8,9 @@ import { DEMO_MCP_URL } from '../../lib/links';
 The [`sysspec-mcp` package](https://www.npmjs.com/package/sysspec-mcp) gives
 read-only MCP access to a spec tree, both to agents building against it and
 to anyone who would rather ask the system a question than go looking for
-the file. One TypeScript implementation sits behind every route in: stdio
-for local clients, stateless streamable HTTP for a hosted URL. There is no
+the file. One TypeScript implementation sits behind every route in,
+whether that is stdio for a local client or stateless streamable HTTP for a
+hosted URL. There is no
 write tool, and reads are confined to artifacts a service manifest
 declares, so dropping a file into the tree does not silently expose it.
 
@@ -18,8 +19,8 @@ with `SPECS_DIR`.
 
 :::tip[Useful before you build anything]
 Connected to a client, these tools let anyone question a spec suite in
-plain language: "who consumes this event?", "what does a customer have to
-supply?", "what would this change break?".
+plain language. Who consumes this event? What does a customer have to
+supply? What would this change break?
 [Ask the specs](/ask-the-specs/) covers that use, which is most people's
 first one.
 :::
@@ -68,12 +69,12 @@ HTTP mode is stateless. There is no session affinity, so it works behind
 any load balancer or scale-to-zero platform. The MCP endpoint is `/mcp`;
 `/` answers with a small info document. Deployment is host-agnostic:
 
-- **Any Docker host / VPS / Coolify**: deploy the
+- **Any Docker host, VPS or Coolify.** Deploy the
   `ghcr.io/hungovercoders/sysspec-mcp` image CI keeps current with the
   example specs, or build from `mcp/Dockerfile` with your own.
-- **AWS**: App Runner or ECS pulling the image, port 8080.
-- **Cloudflare**: Containers can run the same image, or a free-tier Worker
-  adapter bundles the specs at deploy time:
+- **AWS.** App Runner or ECS pulling the image, port 8080.
+- **Cloudflare.** Containers can run the same image, or a free-tier Worker
+  adapter bundles the specs at deploy time with
   `cd mcp && npx wrangler deploy --config adapters/cloudflare/wrangler.jsonc`.
 
 Connect from anywhere that can't spawn a local process (remote sessions, CI):

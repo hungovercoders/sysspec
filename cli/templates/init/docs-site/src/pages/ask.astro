@@ -111,20 +111,20 @@ const tools = [
 <StarlightPage
   frontmatter={{
     title: 'Ask these specs',
-    description: `Ask ${system.title} questions in plain language: connect an MCP client and query the specs of record directly.`,
+    description: `Ask ${system.title} questions in plain language by connecting an MCP client to the specs of record.`,
   }}
 >
   <p>
     This catalog is written to be read, and the same specs behind it are
     also written to be <strong>asked</strong>. Connect an MCP client to
     them and you can question {system.name ? system.title : 'this system'}{' '}
-    in plain language: what a service is for, what an event carries, how
-    something is meant to behave, who breaks if it changes.
+    in plain language, from what a service is for to what an event carries,
+    how something is meant to behave, and who breaks if it changes.
   </p>
   <p>
-    The answers come from the specs of record: versioned, gated, and the
-    same surface implementations are held to, rather than from anyone's
-    memory of how the system works or from code that may have drifted. That
+    The answers come from the specs of record. They are versioned, gated,
+    and the same surface implementations are held to, rather than anyone's
+    memory of how the system works or code that may have drifted. That
     makes this useful well beyond building, for product and delivery people,
     analysts, support, architects and new joiners alike. Agents use exactly
     the same tools to build against the specs, which is why the answers
@@ -238,7 +238,7 @@ const tools = [
   <p>
     One boundary worth stating: these are specs of <em>intent</em>. They
     say what the system is meant to do, not what a running instance did
-    last Tuesday: no traffic, no incidents, no data. If an implementation
+    last Tuesday. There is no traffic, no incidents and no data. If an implementation
     disagrees with an answer here, that is a bug in the implementation,
     and its gates should already be red.
   </p>
