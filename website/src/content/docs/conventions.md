@@ -1,6 +1,6 @@
 ---
 title: Conventions
-description: The house rules every spec suite follows — enforced by the linters, not advisory.
+description: The house rules every spec suite follows, enforced by the linters rather than advisory.
 ---
 
 These conventions come from the `sysspec` skill
@@ -10,7 +10,7 @@ linters (`lint:specs`, `lint:datacontracts`, `lint:manifest`), not advisory.
 
 ## Naming
 
-- **Attributes and their values are `lower_snake_case`** — every payload
+- **Attributes and their values are `lower_snake_case`**: every payload
   property, schema property, path and query parameter, ODCS column, and
   enumerated value (`out_of_stock`, not `outOfStock`). A field is spelled the
   same in the AsyncAPI payload, the OpenAPI schema and the data contract, so
@@ -19,10 +19,10 @@ linters (`lint:specs`, `lint:datacontracts`, `lint:manifest`), not advisory.
   exempt: a `synonym` is the business phrase ("settlement amount") and an
   enum `label` is for display.
 - **Header parameters are the one exception**: they keep canonical HTTP
-  casing (`Idempotency-Key`, not `idempotency_key`) — HTTP header names
-  are case-insensitive hyphenated identifiers, not payload attributes, and
-  the Spectral snake_case rule is deliberately scoped to path and query
-  parameters only.
+  casing (`Idempotency-Key`, not `idempotency_key`). HTTP header names are
+  case-insensitive hyphenated identifiers rather than payload attributes,
+  so the Spectral snake_case rule is scoped to path and query parameters
+  only.
 - Document-local identifiers keep their own conventions: message names
   `PascalCase` and past tense (`OrderPlaced`, `PaymentSettled`), channel and
   operation keys and OpenAPI `operationId`s `camelCase`, channel addresses
@@ -46,8 +46,8 @@ linters (`lint:specs`, `lint:datacontracts`, `lint:manifest`), not advisory.
 - Ordering holds only within a partition key (the aggregate id), never
   across channels.
 - AsyncAPI channels carry a `ws` binding (the mock transport) and every
-  operation lists explicit `messages` refs — the Microcks async runner
-  cannot validate without them.
+  operation lists explicit `messages` refs, without which the Microcks
+  async runner cannot validate them.
 
 ## Values
 
@@ -56,10 +56,10 @@ linters (`lint:specs`, `lint:datacontracts`, `lint:manifest`), not advisory.
 
 ## Versions
 
-- Spec `info.version` always equals the manifest version — mock URLs and
+- Spec `info.version` always equals the manifest version. Mock URLs and
   rendered docs surface `info.version`, and `lint:manifest` enforces the
   match.
-- Every manifest carries a top-level `version:` — the version of the
+- Every manifest carries a top-level `version:`, the version of the
   service's whole contract surface, which is what consumers pin. Any gated
   artifact bump bumps it; a breaking change bumps its major.
 - Merges to main publish each changed service's contract surface as a
@@ -68,14 +68,14 @@ linters (`lint:specs`, `lint:datacontracts`, `lint:manifest`), not advisory.
 ## Data contracts (ODCS 3.2)
 
 - Declare a controlled vocabulary as `enum`, with a `label` and a
-  `description` per value — not as a `validValues` quality rule, which is
-  how it had to be written before 3.2.
+  `description` per value, rather than as a `validValues` quality rule,
+  which is how it had to be written before 3.2.
 - Declare foreign keys as `relationships` rather than leaving a reader to
   infer them from matching column names. They may point into another
   contract, which is how lineage between two services' data products
   becomes explicit; `lint:manifest` resolves every one, and the catalog
   draws them as ER edges.
-- Put reader guidance in `context` — `instructions`, `verifiedStatements`
+- Put reader guidance in `context`: `instructions`, `verifiedStatements`
   (curated questions with their answers) and `constraints` (what must not
   be done with the data). It is part of the gated artifact, so it is
   versioned like the schema, and the catalog's *Ask these specs* page and
@@ -88,8 +88,8 @@ linters (`lint:specs`, `lint:datacontracts`, `lint:manifest`), not advisory.
 
 ## Intent
 
-Every schema element you add to a contract — message, payload property,
-endpoint, parameter, ODCS column, ODCS `enum` value — must be named in
+Every schema element you add to a contract (message, payload property,
+endpoint, parameter, ODCS column, ODCS `enum` value) must be named in
 that service's feature files. The feature change is part of the contract
 change, not an afterthought; `check:intent` enforces this with no escape
 hatch. If it is not worth a scenario, it is not worth adding to the

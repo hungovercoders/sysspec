@@ -1,6 +1,6 @@
 ---
 title: Gates and CI
-description: task ci is the definition of green — identical locally, in the git hooks, and in CI.
+description: task ci is the definition of green, identical locally, in the git hooks, and in CI.
 ---
 
 Everything runs through [Task](https://taskfile.dev). If a command is not a
@@ -21,7 +21,7 @@ In a spec repo it composes, in order:
 | `lint:manifest` | manifests ⇄ contracts ⇄ spec graph consistency, semver versions, feature references resolve to real messages and channels, and `specs/system.yaml` is complete when present |
 | `check:version` | any gated artifact change bumps its manifest version *and* the service's top-level version; artifact major ⇒ service major |
 | `check:compat` | breaking contract changes carry major bumps (artifact and service) |
-| `check:intent` | every schema element added to a contract is named in the service's feature files — no escape hatch; ODCS columns and enum values included |
+| `check:intent` | every schema element added to a contract is named in the service's feature files, with no escape hatch; ODCS columns and enum values included |
 | `docs:build` | the generated docs site builds `--strict` |
 | `docs:diagrams` | every mermaid diagram in the generated site parses |
 | `contract:test` / `mocks:test` | Microcks mocks load, contract-test, and smoke-test green (needs a running Docker daemon) |
@@ -36,13 +36,13 @@ against a service that proves nothing before its green means anything.
 ## A red gate is information
 
 Gated artifacts are the spec of record. Never edit one to make an
-implementation, a check, or a test pass — that direction is always a
-finding, not a fix. Changing one deliberately is a versioned act with its
+implementation, a check, or a test pass; that direction is a finding, not
+a fix. Changing one deliberately is a versioned act with its
 own gates ([the model](/model/) walks through it).
 
 ## Reusable workflows
 
-Scaffolded repos don't copy CI — they reference it. The sysspec repo
+Scaffolded repos don't copy CI, they reference it. The sysspec repo
 publishes reusable GitHub workflows, pinned by floating major tag:
 
 ```yaml

@@ -10,11 +10,11 @@ touches DNS.
 The demo is one deployable unit built from the same spec commit: the
 generated docs site and the read-only spec MCP server. Anything that can
 serve static files and run the stateless streamable-HTTP MCP server can
-host it — the server keeps no session state and reads specs from a baked
+host it. The server keeps no session state and reads specs from a baked
 bundle (`mcp/scripts/bundle-specs.mjs`), so there is no filesystem or
 database dependency.
 
-## Cloudflare (implemented — this repo's demo)
+## Cloudflare (implemented, and what this repo's demo runs on)
 
 One Worker (`deploy/cloudflare/`): the docs site as static assets at `/`,
 the MCP server at `/mcp` via `nodejs_compat` (the unchanged `node:http`
@@ -22,7 +22,7 @@ server behind `httpServerHandler`).
 
 - `cloudflare-deploy.yml` deploys on every main push.
 - `cloudflare-preview.yml` uploads a version per PR with a stable
-  `pr-<number>` preview alias and comments the URL — the preview is the
+  `pr-<number>` preview alias and comments the URL. The preview is the
   *whole system* (docs + live MCP) at that PR's spec commit.
 - Repo secrets: `CLOUDFLARE_API_TOKEN` (Workers Scripts:Edit) and
   `CLOUDFLARE_ACCOUNT_ID`.
@@ -33,8 +33,9 @@ imports the baked specs bundle), then `npm run dev` in `deploy/cloudflare/`.
 
 ## The sysspec website (second Worker)
 
-The tool's own website ([`website/`](../website/) — docs for the CLI, MCP
-server, plugin and the spec model, not the generated spec catalog) deploys
+The tool's own website ([`website/`](../website/), which documents the
+CLI, MCP server, plugin and the spec model rather than rendering a spec
+catalog) deploys
 as a separate static-assets-only Worker, `sysspec-site`, with the same
 pattern: `site-deploy.yml` on main pushes touching `website/`,
 `site-preview.yml` for per-PR `pr-<number>` preview aliases, the same two
@@ -52,11 +53,11 @@ Local run: `task site:serve`.
 
 The same two halves map directly:
 
-- **Site** — upload `site/` (built with `DOCS_SITE_BASE=/`) to S3 behind
+- **Site**: upload `site/` (built with `DOCS_SITE_BASE=/`) to S3 behind
   CloudFront. PR previews: a bucket prefix or a per-PR CloudFront
   Function-routed path, or AWS Amplify Hosting, which has built-in PR
   previews.
-- **MCP server** — the published container image
+- **MCP server**: the published container image
   (`ghcr.io/hungovercoders/sysspec-mcp`, built by `mcp-image.yml`) runs
   as-is on App Runner, Lambda (with the web adapter), or Fargate: it is a
   plain stateless HTTP server configured by `PORT`/`HOST` env vars, so

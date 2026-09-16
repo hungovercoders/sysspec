@@ -71,7 +71,7 @@ const understand: Ask[] = [
 const dig: Ask[] = [
   namedMessage && {
     q: `What information does ${namedMessage} carry, and which parts are required?`,
-    why: 'One message schema — the cheapest question there is.',
+    why: 'One message schema, the cheapest question there is.',
   },
   namedOperation && {
     q: `What can ${namedOperation.op_id} return, and what does each response mean?`,
@@ -111,24 +111,24 @@ const tools = [
 <StarlightPage
   frontmatter={{
     title: 'Ask these specs',
-    description: `Interview ${system.title} in plain language: connect an MCP client and ask the specs of record directly.`,
+    description: `Ask ${system.title} questions in plain language: connect an MCP client and query the specs of record directly.`,
   }}
 >
   <p>
-    This catalog is written to be read — and the same specs behind it are
+    This catalog is written to be read, and the same specs behind it are
     also written to be <strong>asked</strong>. Connect an MCP client to
-    them and you can interview {system.name ? system.title : 'this system'}{' '}
+    them and you can question {system.name ? system.title : 'this system'}{' '}
     in plain language: what a service is for, what an event carries, how
     something is meant to behave, who breaks if it changes.
   </p>
   <p>
-    The answers come from the specs of record — versioned, gated, the same
-    surface implementations are held to — not from anyone's memory of how
-    the system works or from code that may have drifted. That makes this
-    useful well beyond building: product and delivery people, analysts,
-    support, architects and new joiners get a domain expert that is never
-    too busy and never out of date. Agents use exactly the same tools to
-    build against the specs, which is why the answers agree.
+    The answers come from the specs of record: versioned, gated, and the
+    same surface implementations are held to, rather than from anyone's
+    memory of how the system works or from code that may have drifted. That
+    makes this useful well beyond building, for product and delivery people,
+    analysts, support, architects and new joiners alike. Agents use exactly
+    the same tools to build against the specs, which is why the answers
+    agree.
   </p>
 
   <h2>Connect in one line</h2>
@@ -136,7 +136,7 @@ const tools = [
     <>
       <p>
         These specs are served live at <a href={hosted}>{hosted}</a>. Point
-        a client at that URL — nothing to install, nothing to clone:
+        a client at that URL, with nothing to install and nothing to clone:
       </p>
       <pre><code>{`claude mcp add ${system.name ?? 'sysspec'} --scope project \\
   --transport http ${hosted}`}</code></pre>
@@ -151,7 +151,7 @@ const tools = [
   ) : (
     <>
       <p>
-        Point a client at a checkout of the spec repo — the server is
+        Point a client at a checkout of the spec repo. The server is
         read-only and needs nothing but the specs directory:
       </p>
       <pre><code>{`claude mcp add ${system.name ?? 'sysspec'} --scope project \\
@@ -182,7 +182,7 @@ const tools = [
     <>
       <h3>Already answered, in the specs themselves</h3>
       <p class="sc-graph-hint">
-        Authored in the data contracts as verified statements — versioned
+        Authored in the data contracts as verified statements, versioned
         and gated like everything else here, and served over MCP with the
         answer attached.
       </p>
@@ -238,7 +238,7 @@ const tools = [
   <p>
     One boundary worth stating: these are specs of <em>intent</em>. They
     say what the system is meant to do, not what a running instance did
-    last Tuesday — no traffic, no incidents, no data. If an implementation
+    last Tuesday: no traffic, no incidents, no data. If an implementation
     disagrees with an answer here, that is a bug in the implementation,
     and its gates should already be red.
   </p>

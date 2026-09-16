@@ -40,7 +40,7 @@ in the title become `+`). Event channels:
   operations use a `body:` key and a quoted `status:`; event messages use
   `eventMessage.payload`. The `metadata.name`/`version` must match the
   spec's `info.title`/`info.version` or the upload lands on the wrong
-  service — the manifest/spec version lint keeps that honest.
+  service; the manifest/spec version lint keeps that honest.
 - **Error examples dispatch by URI, not body.** A path-parameterized GET
   can carry a happy and an error case side by side (distinct parameter
   values dispatch to distinct responses). POST error cases (e.g. a 400 for

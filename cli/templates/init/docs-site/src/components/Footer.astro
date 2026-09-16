@@ -12,7 +12,7 @@ const repo = process.env.DOCS_SITE_REPO ?? process.env.GITHUB_REPOSITORY ?? null
     Specs of record{system.name && <> · {system.title}</>}{system.domain && <> ({system.domain})</>}
     {repo && <> · <a href={`https://github.com/${repo}`}>{repo}</a></>}
   </span>
-  <span>Rendered by <a href="https://sysspec.dev">sysspec</a> — intent authored once, versioned deliberately, enforced mechanically.</span>
+  <span>Rendered by <a href="https://sysspec.dev">sysspec</a>. Intent authored once, versioned deliberately, enforced by the gates.</span>
 </footer>
 <style>
   .ss-pagination { margin-top: 2rem; }

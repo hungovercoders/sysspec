@@ -15,7 +15,7 @@ const sysspecRepo = slug.startsWith('__') ? 'hungovercoders/sysspec' : slug;
 // boundary: the spec repo publishes a release, everything else happens in
 // the implementation, and the verify gate is the only way out.
 const flow = `flowchart TD
-  subgraph specs["Spec repo — the specs of record"]
+  subgraph specs["Spec repo: the specs of record"]
     tag["merge to main cuts<br/>&lt;service&gt;/vX.Y.Z"]
   end
   subgraph impl["Implementation repo"]
@@ -34,17 +34,17 @@ const flow = `flowchart TD
 ---
 <StarlightPage frontmatter={{ title: 'Drive an implementation' }}>
   <p>
-    These specs are packaged for consumption — an implementation proves it
-    satisfies them; it never redefines them. Agents do the building; the
+    These specs are packaged for consumption: an implementation proves it
+    satisfies them, and never redefines them. Agents do the building; the
     specs supply their context and their gates. The same loop applies to
     every service; each service overview carries its own current pin.
   </p>
   <p>
     The loop below is carried end-to-end by the
     <code> implement-service</code> skill (and <code>consume-service</code>
-    for UIs and clients building against the mocks). Install the plugin —
-    <code> /plugin marketplace add {sysspecRepo}</code>, then
-    <code> /plugin install</code> — and ask to implement a service; the
+    for UIs and clients building against the mocks). Install the plugin
+    (<code> /plugin marketplace add {sysspecRepo}</code>, then
+    <code> /plugin install</code>) and ask to implement a service; the
     skill runs everything on this page, from interview to verified
     definition of done. What follows is the shape of that loop, so you can
     recognise it, review it, or run it by hand.
@@ -65,20 +65,19 @@ sha: <commit sha of that tag>`}</code></pre>
   <h2>2. Fetch read-only, never vendor</h2>
   <p>
     A <code>contracts:fetch</code> task sparse-checks-out
-    <code> specs/&lt;service&gt;</code> — plus the spec repo's
-    <code> mocks/</code> and <code>cli/</code>, so the whole toolchain is
-    versioned by the pin — at the pinned <em>sha</em> into a
-    write-protected <code>.contracts/</code> directory. Every run re-fetches,
-    so a local edit cannot survive — and the sha, not the tag, is what gets
-    checked out, so a re-cut tag cannot silently change what you build
-    against. The Microcks mock stack then runs straight from the pin:
+    <code> specs/&lt;service&gt;</code> at the pinned <em>sha</em> into a
+    write-protected <code>.contracts/</code> directory, along with the spec
+    repo's <code>mocks/</code> and <code>cli/</code>, so the whole toolchain
+    is versioned by the pin. Every run re-fetches, so a local edit cannot
+    survive, and the sha rather than the tag is what gets checked out, so a
+    re-cut tag cannot silently change what you build against. The Microcks mock stack then runs straight from the pin:
     <code> task -d .contracts mocks:load</code>, nothing copied or
     installed.
   </p>
 
   <h2>3. Build with the specs in context, over MCP</h2>
   <p>
-    The agent implementing the service reads these specs as it works — never
+    The agent implementing the service reads these specs as it works, never
     from a remembered or vendored copy. Interactive sessions use the
     <code> sysspec</code> MCP server:
   </p>
@@ -91,39 +90,39 @@ sha: <commit sha of that tag>`}</code></pre>
     <code> get_message_schema</code>, <code>get_artifact</code>);
     <code> trace_channel(address)</code> shows who a change would break. CI
     and anything needing reproducible file paths read the same surface from
-    <code> .contracts/</code> — one source, two access routes. The
+    <code> .contracts/</code>: one source, two access routes. The
     <code> implement-service</code> and <code>consume-service</code> skills
     (<a href={`https://github.com/${sysspecRepo}`}>{sysspecRepo}</a>) carry
-    the deeper process the agent follows — written to be read as
+    the deeper process the agent follows, written to be read as
     documentation and executed as agent process.
   </p>
 
   <h2>4. Bind the acceptance criteria, strict</h2>
   <p>
-    The feature files run from <code>.contracts/</code> as-is — the specs own
+    The feature files run from <code>.contracts/</code> as-is: the specs own
     the sentences, the implementation owns the step definitions. Strict mode
-    is mandatory: an unbound or pending scenario fails the build, because an
-    unbound scenario is a spec obligation silently dropped. Strict mode has
-    one blind spot — a bound-but-empty step passes — which is exactly what
-    the negative control in the next section exists to catch.
+    is mandatory, because an unbound or pending scenario fails the build and
+    an unbound scenario is a spec obligation silently dropped. Strict mode
+    has one blind spot, a bound-but-empty step that passes, which is exactly
+    what the negative control in the next section exists to catch.
   </p>
 
-  <h2>5. Verify — the definition of done</h2>
+  <h2>5. Verify: the definition of done</h2>
   <p>
     One task, <code>contracts:verify</code>, run with the implementation
     up. It chains four checks:
   </p>
   <ol>
     <li>
-      <strong>Contract tests</strong> —
-      <code> task -d .contracts contract:test SERVICE=&lt;name&gt; REST_ENDPOINT=… ASYNC_ENDPOINT=…</code>
-      — Microcks replays every spec operation against the running
+      <strong>Contract tests</strong>:
+      <code> task -d .contracts contract:test SERVICE=&lt;name&gt; REST_ENDPOINT=… ASYNC_ENDPOINT=…</code>,
+      where Microcks replays every spec operation against the running
       implementation and validates the real responses and emitted events
       against the schemas.
     </li>
     <li><strong>The bound scenario suite</strong> against the running implementation.</li>
     <li>
-      <strong>The negative control</strong> —
+      <strong>The negative control</strong>:
       <code> task -d .contracts null:run …</code> replays the same suite
       against a null service the CLI serves, answering <code>200 {'{}'}</code>
       to every request and emitting no events; red unless zero scenarios
@@ -134,7 +133,7 @@ sha: <commit sha of that tag>`}</code></pre>
       beyond a status code get flagged too.
     </li>
     <li>
-      <strong>Schema fuzz</strong> —
+      <strong>Schema fuzz</strong>:
       <code> uvx schemathesis run .contracts/specs/&lt;name&gt;/openapi/*.yaml --url …</code>
       for declared-but-unexampled paths.
     </li>
@@ -142,26 +141,26 @@ sha: <commit sha of that tag>`}</code></pre>
   <p>
     One trap worth knowing: the endpoint overrides in check 1 resolve from
     <em>inside</em> the Microcks containers, so an implementation on your
-    host is <code>host.docker.internal</code>, never <code>localhost</code>
-    — while checks 2 and 3 run on the host and use the local URL. Two views
-    of the same running service.
+    host is <code>host.docker.internal</code> rather than
+    <code>localhost</code>, while checks 2 and 3 run on the host and use the
+    local URL. Two views of the same running service.
   </p>
   <p>
-    These gates are deterministic and live with the specs, not the
-    implementation — they cannot be softened to make failing code pass.
+    These gates are deterministic and live with the specs rather than the
+    implementation, so they cannot be softened to make failing code pass.
     Mocking is deliberately not on this page: the <code>mocks:*</code>
     tasks serve consumers and the spec repo's own conformance checks, and
-    have their own loop — see <a href={withBase('/consuming/')}>Build a consumer</a>.
+    have their own loop, covered in <a href={withBase('/consuming/')}>Build a consumer</a>.
   </p>
 
   <h2>6. Stay converged</h2>
   <p>
     The specs never push work at implementations; they pull. When a new
     release tag lands, Renovate opens a pin-bump PR on the implementation and
-    the gates above run against the new surface. Green — typical for additive
-    minors — auto-merges with no human and no agent. Red, or a major bump,
-    means the gates have proven code changes are needed — and only then does
-    an agent wake to converge the implementation, with the failing checks as
-    its scope.
+    the gates above run against the new surface. A green run, typical for
+    additive minors, auto-merges with no human and no agent. A red run, or a
+    major bump, means the gates have proven code changes are needed, and
+    only then does an agent wake to converge the implementation, with the
+    failing checks as its scope.
   </p>
 </StarlightPage>

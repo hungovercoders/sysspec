@@ -1,17 +1,17 @@
 ---
 name: consume-service
-description: Build a consumer of a spec suite service — a UI, client app, or downstream system that calls its API or subscribes to its events — against mocks, before or without the real service existing. Use when asked to build a frontend or client against orders or payments, integrate with a service's API or events from outside, generate a client from the contracts, or develop against mock data.
+description: Build a consumer of a spec suite service (a UI, client app, or downstream system that calls its API or subscribes to its events) against mocks, before or without the real service existing. Use when asked to build a frontend or client against orders or payments, integrate with a service's API or events from outside, generate a client from the contracts, or develop against mock data.
 ---
 
 # Consume a spec suite service
 
-You are building something that *uses* a service — you implement none of its
-contracts, you rely on them. The mock stack stands in for the real service,
+You are building something that *uses* a service. You implement none of its
+contracts; you rely on them. The mock stack stands in for the real service,
 so the consumer can be built and verified end-to-end before an
 implementation exists. Every path below is parameterized by the consumed
 service's name; a consumer may pin more than one.
 
-## Phase 0 — locate the contracts and mocks
+## Phase 0: locate the contracts and mocks
 
 - **Interactive sessions**: the `sysspec` MCP tools. `get_service(<name>)`
   for the surface, `get_acceptance_criteria(<name>)` for what the service
@@ -19,7 +19,7 @@ service's name; a consumer may pin more than one.
   `trace_channel(<address>)` for who else is on a channel.
 - **CI and anything needing reproducible paths**: pin a released surface in
   `contracts.lock`, exactly as an implementation repo does (see
-  `skills/implement-service/SKILL.md` step 2 — how to pick the tag, write
+  `skills/implement-service/SKILL.md` step 2 for how to pick the tag, write
   the lock, and fetch). The fetch is identical, mock stack included:
 
   ```yaml
@@ -38,7 +38,7 @@ service's name; a consumer may pin more than one.
   ```
 
   Root files (`Taskfile.yml`) ride along with a cone-mode sparse checkout,
-  so the specs's own mock tasks run from the pin — no copies:
+  so the specs' own mock tasks run from the pin, with no copies:
 
   ```sh
   task -d .contracts mocks:load SERVICE=<service>   # start stack, load pinned specs + examples
@@ -48,93 +48,96 @@ service's name; a consumer may pin more than one.
 ## Ground rules
 
 - The contracts bind the *service*; you inherit them read-only. Never edit
-  anything under `.contracts/` — if a contract blocks you, that is a spec suite
-  change to propose, not a local fix.
+  anything under `.contracts/`. If a contract blocks you, that is a spec
+  suite change to propose, not a local fix.
 - The feature files are the behavioural contract to **rely on**, not
-  scenarios to bind — the service's implementers own the step definitions.
+  scenarios to bind: the service's implementers own the step definitions.
   Read them to learn what a 409 means, when an order becomes `paid`, what
   delivery guarantees hold; test *your* behaviour on top of those promises.
 - Generate client types from the fetched specs; never hand-model a payload
   from memory or from observed mock traffic.
 - Honour the event conventions the features state: dedupe on the CloudEvents
   envelope `id`, expect at-least-once delivery, assume ordering only within
-  an aggregate, and tolerate additive change — a minor bump must never break
-  you.
+  an aggregate, and tolerate additive change, because a minor bump must
+  never break you.
 
-## Phase 1 — interview
+## Phase 1: interview
 
 1. **Which service(s)** are consumed, if not already stated.
-2. **What kind of consumer** — UI, service, batch job, agent.
+2. **What kind of consumer**: UI, service, batch job, agent.
 3. **Language and framework**, and the type-generation tool that fits it.
-4. **Event transport in production** — mocks emit over WebSocket; the real
-   subscription (Kafka, MQTT, AMQP, SSE…) is the consumer's choice and only
-   changes the adapter, never the envelope handling.
-5. **Where the consumer lives** — its own repository, as with
+4. **Event transport in production**. Mocks emit over WebSocket; the real
+   subscription (Kafka, MQTT, AMQP, SSE and so on) is the consumer's choice
+   and only changes the adapter, never the envelope handling.
+5. **Where the consumer lives**: its own repository, as with
    implementations.
 
 Do **not** interview about anything the contract decides: endpoints, status
 codes, payload shapes, event semantics.
 
-## Phase 2 — build against the mocks
+## Phase 2: build against the mocks
 
 - `task -d .contracts mocks:load SERVICE=<service>`, then point the client at
   the pinned mocks (title and version come from the spec's `info` block):
-  - REST: `http://localhost:8585/rest/<Title>/<version>/...` — fixture data
+  - REST: `http://localhost:8585/rest/<Title>/<version>/...`, fixture data
     included, so list/detail screens render real-looking aggregates.
-  - Events: `ws://localhost:8081/api/ws/<Title>/<version>/<operation>` — the
-    async-minion emits the example CloudEvents on a schedule;
+  - Events: `ws://localhost:8081/api/ws/<Title>/<version>/<operation>`,
+    where the async-minion emits the example CloudEvents on a schedule;
     `task -d .contracts mocks:watch CHANNEL=<Title>/<version>/<operation>`
     to eyeball them.
 - Generate types from `.contracts/specs/<service>/openapi/*.yaml` and the
   message payload schemas in the AsyncAPI file; wire the client through
   them.
-- A UI built this way is demonstrable — with data — before any backend
+- A UI built this way is demonstrable, with data, before any backend
   exists.
 
-## Phase 3 — verify (the consumer's definition of done)
+## Phase 3: verify (the consumer's definition of done)
 
 The suite must run headlessly against the mock stack (this is also the
 `contracts:verify` task the sync loop calls):
 
-1. **Client flows against the REST mocks** — every call the consumer makes,
+1. **Client flows against the REST mocks**: every call the consumer makes,
    exercised against Microcks, responses parsed through the generated types.
-2. **Event handling against real envelopes** — feed the handler from the WS
+2. **Event handling against real envelopes**: feed the handler from the WS
    mock or directly from `.contracts/mocks/<service>.events.examples.yaml`, and
    validate each consumed payload against the AsyncAPI schema before acting
    on it.
-3. **Idempotence** — replaying the same envelope `id` must not double-apply;
-   the features promise at-least-once delivery, so this is contract, not
-   hygiene.
-4. **Falsifiability** — prove the suite *can* fail: a verify suite whose
+3. **Idempotence**: replaying the same envelope `id` must not double-apply.
+   The features promise at-least-once delivery, so this is contract rather
+   than hygiene.
+4. **Falsifiability**: prove the suite *can* fail. A verify suite whose
    checks are empty shells passes forever and verifies nothing. Run it once
-   against the CLI's null service — `200 {}` to every request, no events —
-   and require zero passes (when the runner emits cucumber-format JSON:
+   against the CLI's null service, which answers `200 {}` to every request
+   and emits no events, and require zero passes (when the runner emits
+   cucumber-format JSON:
    `BASE_URL=http://localhost:9099 task -d .contracts null:run
    RESULTS=<file> -- <suite cmd>`); or, minimally, run it with the mock
    stack down and confirm everything fails. Anything that stays green
    against a service answering `200 {}` to everything is not a check.
 
 Green here proves the consumer satisfies the pinned surface's examples and
-schemas — the lock records exactly which surface that was. It does not prove
-the real service behaves; that is the *service's* verification loop.
+schemas, and the lock records exactly which surface that was. It does not
+prove the real service behaves; that is the *service's* verification loop.
 
-## Phase 4 — wire the consumer's CI
+## Phase 4: wire the consumer's CI
 
-mise-action → `task contracts:fetch` → `task -d .contracts mocks:load
-SERVICE=<service>` → the phase 3 suite → `task -d .contracts mocks:down`.
-Everything resolves against `.contracts/`, so CI verifies exactly the
-surface the lock names.
+Run mise-action, then `task contracts:fetch`, then
+`task -d .contracts mocks:load SERVICE=<service>`, then the phase 3 suite,
+then `task -d .contracts mocks:down`. Everything resolves against
+`.contracts/`, so CI verifies exactly the surface the lock names.
 
-## Phase 5 — stay current
+## Phase 5: stay current
 
 Identical machinery to implementations: the specs publishes
 `<service>/v<version>` tags, Renovate bumps `contracts.lock`, and the
 templates in `skills/implement-service/templates/` (`renovate.json`,
-`contract-converge.yml`) drive the loop — copy them in and substitute the
-service name and specs owner/repo (`__SERVICE__`, `__SPECS_REPO__`). Define `contracts:verify` as the phase 3 suite. Additive
-minors go green and auto-merge — new mocks, new fixtures, no human. A red
-run or a major bump means the surface moved under you, and only then does an
-agent wake to converge the consumer, with the failing suite as its scope.
+`contract-converge.yml`) drive the loop. Copy them in and substitute the
+service name and specs owner/repo (`__SERVICE__`, `__SPECS_REPO__`), then
+define `contracts:verify` as the phase 3 suite. Additive minors go green
+and auto-merge, bringing new mocks and new fixtures with no human involved.
+A red run or a major bump means the surface moved under you, and only then
+does an agent wake to converge the consumer, with the failing suite as its
+scope.
 
 ## Done when
 
@@ -143,8 +146,8 @@ agent wake to converge the consumer, with the failing suite as its scope.
 - [ ] every call and handler runs against the pinned mocks, responses and
       payloads validated through the generated types and schemas
 - [ ] replaying an envelope `id` does not double-apply
-- [ ] the suite is falsifiable — zero checks pass against the null service
+- [ ] the suite is falsifiable: zero checks pass against the null service
       (or with the mock stack down)
-- [ ] CI runs fetch → mocks up → the phase 3 suite → mocks down on every push
+- [ ] CI runs fetch, mocks up, the phase 3 suite and mocks down on every push
 - [ ] `renovate.json` + `contract-converge.yml` installed with the
       placeholders substituted

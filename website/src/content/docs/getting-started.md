@@ -30,22 +30,22 @@ reference and stays current without you copying anything:
 | Agent skills | Claude Code plugin | `/plugin marketplace update` |
 
 Merges to main publish each changed service as a `<service>/v<version>` git
-tag — the release hook the [implement/consume journeys](/implement-and-consume/)
-pin against.
+tag, which is the release hook the
+[implement/consume journeys](/implement-and-consume/) pin against.
 
 ## What you get
 
 - A `specs/` tree with a starter service (manifest, AsyncAPI contract and
-  feature file) that already passes every gate — swap it for your first
-  real service.
-- A `specs/system.yaml` naming the system those services add up to — its
+  feature file) that already passes every gate. Swap it for your first real
+  service.
+- A `specs/system.yaml` naming the system those services add up to: its
   title, business domain, event namespace and (optionally) the `mcp:`
   endpoint your specs are served on. It annotates every page of your
   catalog, so the site is unmistakably yours rather than a generic
-  "System specs"; `--system` and `--domain` seed it, and you edit it in
+  "System specs". `--system` and `--domain` seed it, and you edit it in
   place from there.
 - A generated docs site (Astro/Starlight) rendering your services, contracts
-  and system graph — deployable to GitHub Pages out of the box. It carries
+  and system graph, deployable to GitHub Pages out of the box. It carries
   an **Ask these specs** page: how to connect an MCP client, plus starter
   questions drawn from your own services, events and scenarios, so
   colleagues who will never open the repo can still
@@ -57,9 +57,9 @@ pin against.
 
 ## Where to next
 
-- Understand [the model](/model/) — services, gated artifacts, versioned change.
+- Understand [the model](/model/): services, gated artifacts, versioned change.
 - Learn the [authoring conventions](/conventions/) the linters enforce.
-- [Ask your specs questions](/ask-the-specs/) — the fastest payback, and
-  not only for agents.
+- [Ask your specs questions](/ask-the-specs/), which is the fastest payback
+  and not only for agents.
 - Point an agent at your specs with the [MCP server](/mcp/) or the
   [Claude Code plugin](/plugin-and-skills/).

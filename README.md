@@ -1,48 +1,46 @@
 # sysspec
 
 **System specs first.** sysspec is a system spec tool: you write down what
-the system is *intended* to do — AsyncAPI, OpenAPI, ODCS data contracts and
-Gherkin acceptance criteria — and those specs do double duty:
+the system is *intended* to do (AsyncAPI, OpenAPI, ODCS data contracts and
+Gherkin acceptance criteria), and those specs then do three jobs:
 
 1. **Context to build from.** Engineers and AI agents read the specs (over
    MCP, at implementation time) instead of guessing from code.
 2. **A domain expert anyone can interrogate.** The same MCP tools answer
-   questions in plain language — what a service is for, what an event
-   carries, who breaks if it changes — so product, analysts, architects,
+   questions in plain language: what a service is for, what an event
+   carries, who breaks if it changes. Product, analysts, architects,
    support and new joiners get the system's intent without opening a file.
 3. **Deterministic gates.** The same specs are packaged and consumed by
    implementations for local and CI testing. They cannot be quietly
    amended to make failing code pass, because they live and version
    separately from every implementation.
 
-This is not documentation of what you have. Specs written next to an
-implementation drift toward whatever the code happens to do; sysspec
-inverts that. Intent is authored once, versioned deliberately, reached
-only through tools, and enforced mechanically — the implementation
-conforms to the spec, never the other way round.
+Specs written next to an implementation drift toward whatever the code
+happens to do. sysspec works the other way round: intent is authored once,
+versioned deliberately, reached only through tools, and enforced by the
+gates, so the implementation conforms to the spec rather than the reverse.
 
-This repo is three things at once:
+The repo holds three things:
 
-1. **The toolkit** — two npm packages: [`sysspec`](cli/), the CLI
-   (gates, lint, docs, mock orchestration for consumers, contract testing
-   for implementations, `init` scaffold), and [`sysspec-mcp`](mcp/), the
-   MCP server serving stdio locally and streamable HTTP behind a URL.
-   One ecosystem end to end; ODCS files are held to the standard's own
-   JSON Schema (ODCS 3.2, vendored) and to datacontract-cli, fetched on
-   demand by uvx.
-2. **The distribution** — reusable GitHub workflows
+1. **The toolkit**: two npm packages. [`sysspec`](cli/) is the CLI (gates,
+   lint, docs, mock orchestration for consumers, contract testing for
+   implementations, `init` scaffold), and [`sysspec-mcp`](mcp/) is the MCP
+   server, serving stdio locally and streamable HTTP behind a URL. ODCS
+   files are held to the standard's own JSON Schema (ODCS 3.2, vendored)
+   and to datacontract-cli, fetched on demand by uvx.
+2. **The distribution**: reusable GitHub workflows
    (`.github/workflows/sysspec-*.yml`) and a Claude Code plugin (MCP tools
-   + the three skills).
-3. **The living example** — **sysspec demo**, the `orders`/`payments` spec
+   plus the three skills).
+3. **The living example**: **sysspec demo**, the `orders`/`payments` spec
    suite (`specs/system.yaml` names it), which doubles as the toolkit's
-   regression suite: every toolkit change must keep it green. It is
+   regression suite, so every toolkit change has to keep it green. It is
    published as a live catalog at **<https://demo.sysspec.dev>**, with its
    MCP endpoint at `/mcp`.
 
-Docs for the tool itself — CLI, MCP server, plugin and the spec model —
-live at **<https://sysspec.dev>** (source in [website/](website/)) and
-deploy to Cloudflare as the `sysspec-site` Worker, separate from the demo
-spec catalog ([deploy/README.md](deploy/README.md) covers both).
+Docs for the tool itself (CLI, MCP server, plugin and the spec model) live
+at **<https://sysspec.dev>** (source in [website/](website/)) and deploy to
+Cloudflare as the `sysspec-site` Worker, separate from the demo spec
+catalog. [deploy/README.md](deploy/README.md) covers both.
 
 ## Start your own spec suite
 
@@ -71,13 +69,13 @@ reference and stays current without you copying anything:
 | Agent skills | Claude Code plugin | `/plugin marketplace update` |
 
 Merges to main publish each changed service as a `<service>/v<version>`
-git tag — the release hook the implement/consume journey below pins
-against.
+git tag, which is the release hook the implement/consume journey below
+pins against.
 
 ## Ask the specs
 
 Before anyone builds anything, the suite is already useful: connect an MCP
-client and interview the system in plain language. The example suite is
+client and ask about the system in plain language. The example suite is
 served publicly, so this works right now:
 
 ```bash
@@ -89,16 +87,15 @@ Then ask in your own words:
 
 - "Who consumes `orders.placed.v2`?"
 - "What does a customer have to supply to place an order?"
-- "If we dropped `customer_id` from `OrderPlaced`, who breaks — and is that
+- "If we dropped `customer_id` from `OrderPlaced`, who breaks, and is that
   a major?"
 - "Where is 'settled' defined, and does payments mean the same by it as
   orders?"
 
-Answers come from the specs of record — versioned, gated, the same surface
-implementations are held to — not from anyone's memory and not from code
-that may have drifted. That is a byproduct worth having on its own: a
-domain expert that is never too busy and never out of date, for people who
-will never open the repo.
+Answers come from the specs of record: versioned, gated, and the same
+surface implementations are held to, rather than from anyone's memory or
+from code that may have drifted. That makes the suite worth having for
+people who will never open the repo.
 
 Point it at your own specs with `SPECS_DIR` (route 3 below), or host the
 endpoint once and record it in `specs/system.yaml`:
@@ -113,29 +110,29 @@ scenarios. The full story: <https://sysspec.dev/ask-the-specs/>.
 
 ## Implement or consume a service
 
-Building against a spec suite is its own journey, in its own repository —
-the spec repo stays contracts-only. Install the plugin (see
+Building against a spec suite happens in its own repository; the spec repo
+stays contracts-only. Install the plugin (see
 [below](#use-it-from-another-project)) so the skills and MCP tools are in
-your session, then just ask — "implement orders", "build a UI against
-payments" — and the matching skill drives the whole loop:
+your session, then ask for what you want ("implement orders", "build a UI
+against payments") and the matching skill drives the loop:
 
 - **`implement-service`** builds the real thing: a new repo that pins a
   released `<service>/v<version>` tag in `contracts.lock`, fetches that
   surface read-only into `.contracts/` (spec repo toolchain included, so
   the Microcks mock stack runs straight from the pin), binds the feature
-  files strictly, and proves itself with one command —
-  `task contracts:verify` — the same locally and in CI.
-- **`consume-service`** builds a consumer — a UI, client, or downstream
-  system — against the pinned mocks, before or without the real service
+  files strictly, and proves itself with one command,
+  `task contracts:verify`, the same locally and in CI.
+- **`consume-service`** builds a consumer (a UI, client, or downstream
+  system) against the pinned mocks, before or without the real service
   existing.
 
-Both start with an interview about the things the contract deliberately
-leaves open (language, storage, transport), and both end wired for
-pull-based sync: new release tags arrive as Renovate pin-bump PRs, green
-minors auto-merge untouched, and an agent wakes only when the gates prove
-code changes are needed.
+Both start by asking about the things the contract leaves open (language,
+storage, transport), and both end wired for pull-based sync: new release
+tags arrive as Renovate pin-bump PRs, green minors auto-merge untouched,
+and an agent only gets involved when the gates show code changes are
+needed.
 
-The full walkthroughs live in the skills themselves —
+The full walkthroughs live in the skills themselves:
 [`skills/implement-service/SKILL.md`](skills/implement-service/SKILL.md)
 and [`skills/consume-service/SKILL.md`](skills/consume-service/SKILL.md).
 They are written to be read as documentation and executed as agent
@@ -154,17 +151,18 @@ Artifacts come in two classes:
 | **Gated** | `asyncapi`, `openapi`, `data-contract`, `feature` | Spec of record | Only via versioned change, CI enforced |
 | **Ungated** | `doc` | Context and rationale | Freely |
 
-Gherkin sits deliberately in the gated class. Feature files are behavioural
+Gherkin sits in the gated class on purpose. Feature files are behavioural
 specs, and they are the ones most at risk of being softened to make a
-test pass — so they get the same protection as a schema.
+test pass, so they get the same protection as a schema.
 
 Every event is a CloudEvents 1.0 structured envelope with a
-`com.<org>.<service>.<event>.v<major>` type; the gates enforce that
+`com.<org>.<service>.<event>.v<major>` type. The gates enforce that
 breaking changes take majors (`check:compat`) and that every schema
 element added to a contract is named in the service's features
-(`check:intent`, no escape hatch there) — ODCS columns and enum values
+(`check:intent`, with no escape hatch), ODCS columns and enum values
 included, now that ODCS 3.2 makes every allowed value a first-class
-entry. `task ci` is the definition of green — identical locally, in the pre-commit hook, and in CI.
+entry. `task ci` is the definition of green, and it runs identically
+locally, in the pre-commit hook, and in CI.
 
 ## Layout
 
@@ -189,22 +187,21 @@ sysspec/
         ├── asyncapi/  openapi/  data-contracts/  features/
 ```
 
-`service.yaml` is the single source of truth for an artifact's version —
+`service.yaml` is the single source of truth for an artifact's version, so
 there is no second place to forget to update.
 
 ## Tools
 
-Seven read-only tools — the same ones behind both uses above, asking and
-building:
+Seven read-only tools, the same ones behind both uses above:
 
 | Tool | Use |
 | --- | --- |
 | `list_services()` | Discovery. Start here. |
 | `get_service(name)` | Artifact index + produce/consume edges. No file contents. |
-| `get_message_schema(service, message)` | One event payload — the cheap call. |
+| `get_message_schema(service, message)` | One event payload, the cheap call. |
 | `get_acceptance_criteria(service)` | Gherkin, labelled binding. |
 | `get_artifact(service, path)` | Any declared artifact, with its authority class. |
-| `trace_channel(address)` | Who produces and consumes it — i.e. who you break. |
+| `trace_channel(address)` | Who produces and consumes it, i.e. who you break. |
 | `search_specs(query, kind)` | Matching lines, not whole files. |
 
 No write tool exists. Reads are confined to the service directory **and**
@@ -224,11 +221,11 @@ Then ask things like:
 
 - "What fields are on OrderPlaced?"
 - "Who consumes payments.settled.v2?"
-- "Implement the order placement handler" — it should pull the Gherkin first
-- "Change OrderPlaced to drop customer_id" — it should refuse and cite consumers
+- "Implement the order placement handler": it should pull the Gherkin first
+- "Change OrderPlaced to drop customer_id": it should refuse and cite consumers
 
 Requires `node` on PATH (the plugin runs the committed server bundle
-directly — no install step).
+directly, so there is no install step).
 
 ## Use it from another project
 
@@ -252,7 +249,7 @@ then reinstall (or `/reload-plugins` after an auto-update).
 claude --plugin-dir /path/to/sysspec
 ```
 
-Same result as the marketplace install, scoped to that session — useful
+Same result as the marketplace install, scoped to that session. Useful
 when you are iterating on the specs themselves.
 
 **3. Register just the MCP server.** In the consuming project:
@@ -278,9 +275,9 @@ claude mcp add sysspec --scope project --transport http https://<your-deploy>/mc
 
 Works from clients that can't spawn a local process (remote sessions, CI).
 Tools only, like route 3. [mcp/](mcp/README.md) has the Dockerfile, the
-GHCR image CI keeps current with this repo's specs, and per-host notes
-(any Docker host, Coolify, AWS, Cloudflare) — the deployment is
-host-agnostic by design.
+GHCR image CI keeps current with this repo's specs, and notes for
+individual hosts (any Docker host, Coolify, AWS, Cloudflare); the
+deployment is host-agnostic.
 
 Whichever route, verify with `/mcp` and then `list_services()`.
 

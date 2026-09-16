@@ -1,25 +1,25 @@
 ---
-title: MCP server — sysspec-mcp
-description: Seven read-only tools over any spec tree — stdio locally, streamable HTTP behind a URL.
+title: MCP server (sysspec-mcp)
+description: Seven read-only tools over any spec tree, stdio locally and streamable HTTP behind a URL.
 ---
 
 import { DEMO_MCP_URL } from '../../lib/links';
 
 The [`sysspec-mcp` package](https://www.npmjs.com/package/sysspec-mcp) gives
-read-only MCP access to a spec tree — to agents building against it, and to
-anyone who would rather ask the system a question than go looking for the
-file. One TypeScript implementation behind every route in: stdio for local
-clients, stateless streamable HTTP for a hosted URL. There is no write tool,
-and reads are confined to artifacts a service manifest declares — dropping a
-file into the tree does not silently expose it.
+read-only MCP access to a spec tree, both to agents building against it and
+to anyone who would rather ask the system a question than go looking for
+the file. One TypeScript implementation sits behind every route in: stdio
+for local clients, stateless streamable HTTP for a hosted URL. There is no
+write tool, and reads are confined to artifacts a service manifest
+declares, so dropping a file into the tree does not silently expose it.
 
-The server is a generic engine — the specs are per-repo data, pointed at
+The server is a generic engine. The specs are per-repo data, pointed at
 with `SPECS_DIR`.
 
-:::tip[Not just for building]
-Connected to a client, these tools turn a spec suite into a domain expert
-you can interview in plain language — "who consumes this event?", "what
-does a customer have to supply?", "what would this change break?".
+:::tip[Useful before you build anything]
+Connected to a client, these tools let anyone question a spec suite in
+plain language: "who consumes this event?", "what does a customer have to
+supply?", "what would this change break?".
 [Ask the specs](/ask-the-specs/) covers that use, which is most people's
 first one.
 :::
@@ -28,16 +28,16 @@ first one.
 
 | Tool | Use | Narrowing parameters |
 | --- | --- | --- |
-| `list_services()` | Discovery. Start here. | — |
-| `get_service(name)` | Artifact index + produce/consume edges. No file contents. | — |
-| `get_message_schema(service, message)` | One event payload — the cheap call. | omit `message` to list message and schema names |
+| `list_services()` | Discovery. Start here. | none |
+| `get_service(name)` | Artifact index + produce/consume edges. No file contents. | none |
+| `get_message_schema(service, message)` | One event payload, the cheap call. | omit `message` to list message and schema names |
 | `get_acceptance_criteria(service)` | Gherkin, labelled binding. | `names_only` for the scenario index; `scenario` or `path` for one |
 | `get_artifact(service, path)` | Any declared artifact, with its authority class. | `section` (RFC 6901 pointer) for one part; `max_bytes` |
-| `trace_channel(address)` | Who produces and consumes it — i.e. who you break. | — |
+| `trace_channel(address)` | Who produces and consumes it, i.e. who you break. | none |
 | `search_specs(query)` | Matching lines, not whole files. | `kind`, `service`, `limit` (≤ 100) |
 
-Responses are bounded and narrowly addressable: any response that had to
-cut content says so with a `truncated` flag — raise `limit`/`max_bytes`
+Responses are bounded and narrowly addressable. Any response that had to
+cut content says so with a `truncated` flag; raise `limit`/`max_bytes`
 only then.
 
 ## Run it locally
@@ -64,15 +64,15 @@ claude mcp add sysspec --scope project \
 
 ## Serve it over a URL
 
-HTTP mode is stateless — no session affinity, so it works behind any load
-balancer or scale-to-zero platform. The MCP endpoint is `/mcp`; `/` answers
-with a small info document. Deployment is host-agnostic:
+HTTP mode is stateless. There is no session affinity, so it works behind
+any load balancer or scale-to-zero platform. The MCP endpoint is `/mcp`;
+`/` answers with a small info document. Deployment is host-agnostic:
 
-- **Any Docker host / VPS / Coolify** — deploy the
+- **Any Docker host / VPS / Coolify**: deploy the
   `ghcr.io/hungovercoders/sysspec-mcp` image CI keeps current with the
   example specs, or build from `mcp/Dockerfile` with your own.
-- **AWS** — App Runner or ECS pulling the image, port 8080.
-- **Cloudflare** — Containers can run the same image, or a free-tier Worker
+- **AWS**: App Runner or ECS pulling the image, port 8080.
+- **Cloudflare**: Containers can run the same image, or a free-tier Worker
   adapter bundles the specs at deploy time:
   `cd mcp && npx wrangler deploy --config adapters/cloudflare/wrangler.jsonc`.
 
@@ -82,8 +82,8 @@ Connect from anywhere that can't spawn a local process (remote sessions, CI):
 claude mcp add sysspec --scope project --transport http https://<your-deploy>/mcp
 ```
 
-The example specs are served live at <a href={DEMO_MCP_URL}>{DEMO_MCP_URL}</a> — wire it up
-with the line above and start with `list_services()`.
+The example specs are served live at <a href={DEMO_MCP_URL}>{DEMO_MCP_URL}</a>.
+Wire it up with the line above and start with `list_services()`.
 
 Whichever route, verify with `/mcp` and then `list_services()`.
 

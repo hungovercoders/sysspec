@@ -1,37 +1,38 @@
 ---
 name: sysspec
-description: Use when working against any service in the specs — implementing an event handler or HTTP endpoint, changing a message or payload shape, writing tests, checking what an event contains, or asking who consumes a channel. Also use when the user mentions AsyncAPI, OpenAPI, ODCS or data contracts, feature files, acceptance criteria, or names a service such as orders or payments.
+description: Use when working against any service in the specs: implementing an event handler or HTTP endpoint, changing a message or payload shape, writing tests, checking what an event contains, or asking who consumes a channel. Also use when the user mentions AsyncAPI, OpenAPI, ODCS or data contracts, feature files, acceptance criteria, or names a service such as orders or payments.
 ---
 
 # Working against the system specs
 
 The specs are reached only through the `sysspec` MCP tools. Do not search
-the filesystem for specs or feature files — the copies you would find are
+the filesystem for specs or feature files; the copies you would find are
 not the record.
 
 ## Two classes of artifact
 
-**Gated** — AsyncAPI, OpenAPI, ODCS data contracts, Gherkin features.
+**Gated**: AsyncAPI, OpenAPI, ODCS data contracts, Gherkin features.
 These are the contract of record. If an implementation disagrees with a
 gated artifact, the implementation is wrong. Never adjust one to make a
 failing test or handler pass. If a gated artifact genuinely looks wrong,
 say so and stop: changing it is a deliberate, versioned act in the specs
 repo, gated in CI.
 
-**Ungated** — `doc` artifacts: domain notes, context and rationale. Read
-them for the *why*, but they bind nothing and you may propose edits freely.
+**Ungated**: `doc` artifacts, meaning domain notes, context and rationale.
+Read them for the *why*, but they bind nothing and you may propose edits
+freely.
 
 Every `get_artifact` response tells you which class it is. Believe it.
 
 ## Order of operations
 
-1. `list_services()` — what exists.
-2. `get_service(name)` — the artifact index and the produce/consume edges.
-   Returns no file contents, so it is cheap.
+1. `list_services()` for what exists.
+2. `get_service(name)` for the artifact index and the produce/consume
+   edges. Returns no file contents, so it is cheap.
 3. Then fetch narrowly:
-   - `get_message_schema(service)` — no message argument — to list message
-     and schema names; `get_message_schema(service, message)` for one
-     payload (AsyncAPI messages and OpenAPI schemas both resolve here)
+   - `get_message_schema(service)`, with no message argument, to list
+     message and schema names; `get_message_schema(service, message)` for
+     one payload (AsyncAPI messages and OpenAPI schemas both resolve here)
    - `get_acceptance_criteria(service, names_only=True)` for the scenario
      index; then `scenario="..."` or `path="..."` for just the ones you
      need. Omit all filters only when implementing the whole service.
@@ -39,16 +40,16 @@ Every `get_artifact` response tells you which class it is. Believe it.
      for one section of a YAML spec (RFC 6901 pointer; `~1` escapes `/`
      in OpenAPI paths); omit `section` only for a whole spec, doc, or
      data contract
-4. `trace_channel(address)` before changing any published shape — the
+4. `trace_channel(address)` before changing any published shape: the
    consumers it lists are what you will break. Empty `produced_by` and
    `consumed_by` means nothing references the address, not an error.
 5. `search_specs(query, kind=..., service=...)` when you do not know where
    something lives. The response says `truncated` when there were more
    hits than it returned; raise `limit` only then.
 
-Do not pull whole documents when a single message or scenario would do —
-every accessor above has a mode for exactly one, and any response that
-had to cut content says so with a `truncated` flag.
+Do not pull whole documents when a single message or scenario would do.
+Every accessor above has a mode for exactly one, and any response that had
+to cut content says so with a `truncated` flag.
 
 ## Implementing from Gherkin
 
@@ -61,7 +62,7 @@ and the scenario wins on behaviour. Raise the conflict either way.
 
 ## Conventions
 
-- **Attributes and their values are `lower_snake_case`** — every payload
+- **Attributes and their values are `lower_snake_case`**: every payload
   property, every schema property, every path and query parameter, every
   ODCS column, and every enumerated value (`out_of_stock`, not
   `outOfStock`). This is the default across all four artifact kinds, so a
@@ -74,7 +75,7 @@ and the scenario wins on behaviour. Raise the conflict either way.
 - Document-local identifiers are *not* attributes and keep their own
   conventions: message names `PascalCase`, channel and operation keys and
   OpenAPI `operationId`s `camelCase`, channel addresses dotted lowercase.
-  Nor are free-form string values gated — a `const` like
+  Nor are free-form string values gated. A `const` like
   `com.hungovercoders.orders.placed.v2` or `application/json` is an
   identifier, and only `enum` members are treated as a controlled
   vocabulary.
@@ -84,7 +85,7 @@ and the scenario wins on behaviour. Raise the conflict either way.
 - Every event is a CloudEvents 1.0 **structured** envelope
   (`application/cloudevents+json`): `specversion` `"1.0"`, `id` (uuid),
   `source` (`/<service>`), `type`
-  (`com.<org>.<service>.<event>.v<major>` — reverse-DNS org, matching the
+  (`com.<org>.<service>.<event>.v<major>`, a reverse-DNS org matching the
   channel major; these specs use `com.hungovercoders`), `subject` (the aggregate id), `time`, `datacontenttype`, and the
   domain payload under `data`. Envelope and `data` both set
   `additionalProperties: false` and an explicit `required`.
@@ -97,24 +98,24 @@ and the scenario wins on behaviour. Raise the conflict either way.
   not the event.
 - Ordering holds only within a partition key (the aggregate id), never
   across channels.
-- Spec `info.version` always equals the manifest version — mock URLs and
+- Spec `info.version` always equals the manifest version. Mock URLs and
   rendered docs surface `info.version`, and `lint:manifest` enforces the
   match.
-- Every manifest also carries a top-level `version:` — the version of the
+- Every manifest also carries a top-level `version:`, the version of the
   service's whole contract surface, which is what consumers pin. Any gated
   artifact bump bumps it; an artifact major bump or breaking change bumps
   its major. Merges to main are tagged `<service>/v<version>`.
 - AsyncAPI channels carry a `ws` binding (the mock transport) and every
-  operation lists explicit `messages` refs — the Microcks async runner
-  cannot validate without them.
+  operation lists explicit `messages` refs, without which the Microcks
+  async runner cannot validate them.
 - Merges to main publish each changed service's contract surface as a
   lightweight tag `<service>/v<version>`. Implementation repos pull these
   tags; the specs never pushes work at them.
 - A service that has a live implementation may name it in the manifest as
-  `implementationRepo: <owner>/<repo>` — optional metadata for docs and
-  the specs graph, nothing more.
-- Every schema element you add — message, payload property, endpoint,
-  parameter, ODCS column, ODCS `enum` value — must be named in that
+  `implementationRepo: <owner>/<repo>`, which is optional metadata for docs
+  and the specs graph, nothing more.
+- Every schema element you add (message, payload property, endpoint,
+  parameter, ODCS column, ODCS `enum` value) must be named in that
   service's feature files. The feature change is part of the contract
   change, not an afterthought; `check:intent` enforces this with no escape
   hatch. If it is not worth a scenario, it is not worth adding to the
@@ -134,9 +135,9 @@ and the scenario wins on behaviour. Raise the conflict either way.
 - `context` carries reader guidance as part of the gated artifact:
   `instructions`, `verifiedStatements` (curated questions *with* their
   answers) and `constraints` (what must not be done with the data). Write
-  it as spec, not as prompt-engineering — it is versioned like the schema,
-  and it is what the catalog's *Ask these specs* page and the MCP server
-  serve when someone interrogates the domain.
+  it as spec rather than as prompt-engineering. It is versioned like the
+  schema, and it is what the catalog's *Ask these specs* page and the MCP
+  server serve when someone asks about the domain.
 - `semanticType: measure` means an aggregate whose expression lives in
   `transformLogic`; a raw per-row column stays the default `column`.
   `dimension` suits the columns people group by.
@@ -144,7 +145,7 @@ and the scenario wins on behaviour. Raise the conflict either way.
   `nullValues`, `invalidValues`, `duplicateValues`, `missingValues`) with a
   comparison operator, `type: sql` with a `query`, or `type: custom` with
   an engine. The operator is `mustBeGreaterOrEqualTo`, not
-  `mustBeGreaterThanOrEqualTo` — that spelling never existed.
+  `mustBeGreaterThanOrEqualTo`, which never existed.
 - Removing a column or an allowed value is breaking and takes a major
   (`check:compat` runs `datacontract breaking`); adding an allowed value is
   a minor that still needs a scenario. Deprecate first (`deprecated: true`,
