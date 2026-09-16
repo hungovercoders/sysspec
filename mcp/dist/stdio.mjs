@@ -28871,7 +28871,7 @@ var EMPTY_COMPLETION_RESULT = {
 // package.json
 var package_default = {
   name: "sysspec-mcp",
-  version: "1.0.3",
+  version: "1.0.4",
   description: "Read-only MCP access to versioned system specs: AsyncAPI, OpenAPI, ODCS data contracts and Gherkin acceptance criteria.",
   license: "MIT",
   repository: {
