@@ -11,21 +11,21 @@ const { service, artifact } = Astro.props;
 
 const GATES: Record<string, string[]> = {
   shared: [
-    '`check:version`: any change must bump the artifact and service versions; a silent edit fails CI',
+    'any change must bump the artifact and service versions (`check:version`); a silent edit fails CI',
   ],
   asyncapi: [
-    '`check:compat`: a breaking change must take a major version',
+    'a breaking change must take a major version (`check:compat`)',
     'Spectral lint, house naming rules included',
-    'Microcks contract tests: mocks and implementations are held to these messages',
+    'Microcks contract tests hold mocks and implementations to these messages',
   ],
   openapi: [
-    '`check:compat`: a breaking change must take a major version',
+    'a breaking change must take a major version (`check:compat`)',
     'Spectral lint, house naming rules included',
-    'Microcks contract tests: mocks and implementations are held to these operations',
+    'Microcks contract tests hold mocks and implementations to these operations',
   ],
   feature: [
     'bound by implementations in strict mode, where an unbound scenario fails their build',
-    '`check:intent`: every schema element added to a contract must be named here',
+    'every schema element added to a contract must be named here (`check:intent`)',
     'gherkin-lint',
   ],
   'data-contract': [

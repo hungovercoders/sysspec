@@ -1,6 +1,6 @@
 ---
 name: sysspec
-description: Use when working against any service in the specs: implementing an event handler or HTTP endpoint, changing a message or payload shape, writing tests, checking what an event contains, or asking who consumes a channel. Also use when the user mentions AsyncAPI, OpenAPI, ODCS or data contracts, feature files, acceptance criteria, or names a service such as orders or payments.
+description: Use when working against any service in the specs, such as implementing an event handler or HTTP endpoint, changing a message or payload shape, writing tests, checking what an event contains, or asking who consumes a channel. Also use when the user mentions AsyncAPI, OpenAPI, ODCS or data contracts, feature files, acceptance criteria, or names a service such as orders or payments.
 ---
 
 # Working against the system specs
@@ -11,24 +11,24 @@ not the record.
 
 ## Two classes of artifact
 
-**Gated**: AsyncAPI, OpenAPI, ODCS data contracts, Gherkin features.
-These are the contract of record. If an implementation disagrees with a
+**Gated** artifacts are the AsyncAPI, OpenAPI, ODCS data contracts and
+Gherkin features. These are the contract of record. If an implementation disagrees with a
 gated artifact, the implementation is wrong. Never adjust one to make a
 failing test or handler pass. If a gated artifact genuinely looks wrong,
 say so and stop: changing it is a deliberate, versioned act in the specs
 repo, gated in CI.
 
-**Ungated**: `doc` artifacts, meaning domain notes, context and rationale.
-Read them for the *why*, but they bind nothing and you may propose edits
-freely.
+**Ungated** artifacts are the `doc` files that carry domain notes, context
+and rationale. Read them for the *why*, but they bind nothing and you may
+propose edits freely.
 
 Every `get_artifact` response tells you which class it is. Believe it.
 
 ## Order of operations
 
-1. `list_services()` for what exists.
-2. `get_service(name)` for the artifact index and the produce/consume
-   edges. Returns no file contents, so it is cheap.
+1. `list_services()` tells you what exists.
+2. `get_service(name)` gives the artifact index and the produce/consume
+   edges. It returns no file contents, so it is cheap.
 3. Then fetch narrowly:
    - `get_message_schema(service)`, with no message argument, to list
      message and schema names; `get_message_schema(service, message)` for
@@ -40,8 +40,8 @@ Every `get_artifact` response tells you which class it is. Believe it.
      for one section of a YAML spec (RFC 6901 pointer; `~1` escapes `/`
      in OpenAPI paths); omit `section` only for a whole spec, doc, or
      data contract
-4. `trace_channel(address)` before changing any published shape: the
-   consumers it lists are what you will break. Empty `produced_by` and
+4. `trace_channel(address)` before changing any published shape, because
+   the consumers it lists are what you will break. Empty `produced_by` and
    `consumed_by` means nothing references the address, not an error.
 5. `search_specs(query, kind=..., service=...)` when you do not know where
    something lives. The response says `truncated` when there were more
@@ -62,10 +62,10 @@ and the scenario wins on behaviour. Raise the conflict either way.
 
 ## Conventions
 
-- **Attributes and their values are `lower_snake_case`**: every payload
-  property, every schema property, every path and query parameter, every
-  ODCS column, and every enumerated value (`out_of_stock`, not
-  `outOfStock`). This is the default across all four artifact kinds, so a
+- **Attributes and their values are `lower_snake_case`.** That covers
+  every payload property, every schema property, every path and query
+  parameter, every ODCS column, and every enumerated value (`out_of_stock`,
+  not `outOfStock`). This is the default across all four artifact kinds, so a
   field is spelled the same in the AsyncAPI payload, the OpenAPI schema and
   the data contract, and no consumer has to translate between them.
   Enforced, not advisory: Spectral rules over the specs
@@ -132,7 +132,7 @@ and the scenario wins on behaviour. Raise the conflict either way.
   how lineage between two services' data products becomes explicit;
   `lint:manifest` resolves every one. Fully qualified references resolve by
   `id`, so give an `id` to any element another contract points at.
-- `context` carries reader guidance as part of the gated artifact:
+- `context` carries reader guidance as part of the gated artifact, through
   `instructions`, `verifiedStatements` (curated questions *with* their
   answers) and `constraints` (what must not be done with the data). Write
   it as spec rather than as prompt-engineering. It is versioned like the

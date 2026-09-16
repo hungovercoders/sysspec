@@ -53,14 +53,14 @@ Local run: `task site:serve`.
 
 The same two halves map directly:
 
-- **Site**: upload `site/` (built with `DOCS_SITE_BASE=/`) to S3 behind
-  CloudFront. PR previews: a bucket prefix or a per-PR CloudFront
-  Function-routed path, or AWS Amplify Hosting, which has built-in PR
-  previews.
-- **MCP server**: the published container image
-  (`ghcr.io/hungovercoders/sysspec-mcp`, built by `mcp-image.yml`) runs
-  as-is on App Runner, Lambda (with the web adapter), or Fargate: it is a
-  plain stateless HTTP server configured by `PORT`/`HOST` env vars, so
+- **The site** uploads to S3 behind CloudFront, built with
+  `DOCS_SITE_BASE=/`. PR previews would be a bucket prefix, a per-PR
+  CloudFront Function-routed path, or AWS Amplify Hosting, which has
+  built-in PR previews.
+- **The MCP server** runs as-is from the published container image
+  (`ghcr.io/hungovercoders/sysspec-mcp`, built by `mcp-image.yml`) on App
+  Runner, Lambda (with the web adapter), or Fargate. It is a plain
+  stateless HTTP server configured by `PORT`/`HOST` env vars, so
   scale-to-zero hosts work.
 
 The split exists because AWS has no single primitive serving both halves;

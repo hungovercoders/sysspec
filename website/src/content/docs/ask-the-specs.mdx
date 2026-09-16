@@ -19,23 +19,24 @@ opening a file.
 Answering those questions usually means finding the right repo, finding
 the right file, working out whether it is current, and then finding the
 person who actually knows. Here each one is a sentence, answered from the
-specs of record: versioned, gated, and the same surface every
-implementation is held to, rather than from someone's memory or from code
+specs of record, which are versioned, gated and the same surface every
+implementation is held to. Nobody has to fall back on memory or on code
 that may have drifted from what was agreed.
 
 ## Who this is for
 
-- **Product and delivery**: what a service is responsible for, what it
-  guarantees, what it deliberately leaves open.
-- **Analysts and data people**: what an event carries, what is required,
-  what the data products promise.
-- **Architects and tech leads**: who depends on a channel, what a change
-  would break, whether an idea is modelled consistently across services.
-- **Support and operations**: what the system is *supposed* to do, which
+- **Product and delivery** ask what a service is responsible for, what it
+  guarantees, and what it deliberately leaves open.
+- **Analysts and data people** ask what an event carries, what is required,
+  and what the data products promise.
+- **Architects and tech leads** ask who depends on a channel, what a change
+  would break, and whether an idea is modelled consistently across
+  services.
+- **Support and operations** ask what the system is *supposed* to do, which
   is the first thing you need when deciding whether behaviour is a bug.
-- **New joiners**: somewhere to ask the obvious questions on their first
-  morning.
-- **Agents**: the same tools and the same answers, at implementation time.
+- **New joiners** ask the obvious questions on their first morning.
+- **Agents** use the same tools and get the same answers at implementation
+  time.
 
 The artifact that lets an agent build correctly is the artifact that lets
 a person ask a good question, and you only have to maintain one of them.
@@ -95,6 +96,8 @@ implementation, and its [gates](/gates-and-ci/) should already be red.
 
 ## Where to next
 
-- [MCP server](/mcp/): the seven tools, the transports, hardening.
-- [The live demo](/demo/): catalog and endpoint, deployed on every merge.
-- [Getting started](/getting-started/): scaffold a suite of your own.
+- [MCP server](/mcp/) covers the seven tools, the transports and hardening.
+- [The live demo](/demo/) has the catalog and endpoint, deployed on every
+  merge.
+- [Getting started](/getting-started/) walks through scaffolding a suite of
+  your own.

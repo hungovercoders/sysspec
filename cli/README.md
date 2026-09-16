@@ -23,16 +23,19 @@ stays in `mise.toml`.
 
 ## Layout
 
-- `src/`: the command implementations; `cli.ts` is the entry.
-- `templates/`: everything `sysspec init` lays down (dotfiles stored
+- `src/` holds the command implementations, with `cli.ts` as the entry.
+- `templates/` holds everything `sysspec init` lays down (dotfiles stored
   undotted so packaging tools cannot drop them; `scaffold.ts` renames on
   copy), plus the bundled Spectral ruleset and Microcks compose file.
-- `dist/cli.mjs`: committed dependency-free bundle. `task check:cli:dist`
-  fails when it is stale: rebuild (`npm run build`) and commit with any
-  `src/` or `templates/`-adjacent change.
-- `test/`: vitest suite: golden `specs.json` byte-comparison against a
-  frozen snapshot (`test/fixtures/expected-specs.json`), gate logic units, scaffold/rename/packaging pins (`pack.test.ts` guards the
-  npm tarball contents), and the null-service falsifiability gate.
+- `dist/cli.mjs` is the committed dependency-free bundle.
+  `task check:cli:dist` fails when it is stale, so rebuild
+  (`npm run build`) and commit with any `src/` or `templates/`-adjacent
+  change.
+- `test/` carries the vitest suite, covering the golden `specs.json`
+  byte-comparison against a frozen snapshot
+  (`test/fixtures/expected-specs.json`), gate logic units,
+  scaffold/rename/packaging pins (`pack.test.ts` guards the npm tarball
+  contents), and the null-service falsifiability gate.
 
 ## Development
 
@@ -43,6 +46,6 @@ npm test
 npm run build   # refresh dist/, then commit it
 ```
 
-Releases: tag `v<version>` matching `package.json`. `release.yml`
+To cut a release, tag `v<version>` matching `package.json`. `release.yml`
 publishes to npm via trusted publishing and moves the floating `v<major>`
 tag adopter workflows reference. See CONTRIBUTING.md.

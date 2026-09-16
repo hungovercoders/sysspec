@@ -33,9 +33,9 @@ A `contracts:fetch` task sparse-checks-out `specs/<service>`, `mocks/` and
 `cli/` at the pinned sha into `.contracts/` (gitignored), then
 write-protects the specs:
 
-- **Read-only by construction**: every run wipes and re-fetches, so a
+- **Read-only by construction.** Every run wipes and re-fetches, so a
   local edit cannot survive, and `chmod a-w` blocks casual ones.
-- **The toolchain rides the pin**: the spec repo's `Taskfile.yml` and
+- **The toolchain rides the pin.** The spec repo's `Taskfile.yml` and
   committed CLI bundle come along, so `task -d .contracts mocks:load
   SERVICE=<service>` runs the spec repo's own mock orchestration at the
   pinned version with nothing installed. When this site and your pin
@@ -47,20 +47,21 @@ write-protects the specs:
 `task contracts:verify` is the definition of done, identical locally and
 in CI:
 
-1. **Contract tests**: `task -d .contracts contract:test` holds the
+1. **Contract tests.** `task -d .contracts contract:test` holds the
    running implementation (its `REST_ENDPOINT`/`ASYNC_ENDPOINT`) to the
    pinned contracts through Microcks.
-2. **Strict-bound scenarios**: every pinned feature-file scenario runs
-   against the implementation; no pending or unbound steps.
-3. **The negative control**: the same suite replayed against the CLI's
+2. **Strict-bound scenarios.** Every pinned feature-file scenario runs
+   against the implementation, with no pending or unbound steps.
+3. **The negative control.** The same suite replayed against the CLI's
    null service (`200 {}` to everything, no events) must fail entirely,
    because a suite that stays green against nothing verifies nothing.
-4. **Schema fuzz**: for services with an OpenAPI surface, schemathesis
+4. **Schema fuzz.** For services with an OpenAPI surface, schemathesis
    checks declared-but-unexampled paths still honour the schemas.
 
 Consumers run the same shape against the pinned mocks instead of a real
-service: flows against the REST mocks, handlers fed real envelopes,
-idempotence on the envelope `id`, and the negative control.
+service, exercising flows against the REST mocks, feeding handlers real
+envelopes, checking idempotence on the envelope `id`, and running the
+negative control.
 
 ## Staying current
 

@@ -43,12 +43,12 @@ built-in `GITHUB_TOKEN`, so the image stays current with the specs
 without any host being wired into the repo. Deployment is then just
 pointing a host at the image; nothing here depends on which one:
 
-- **Any Docker host / VPS / Coolify**: deploy the GHCR image, or point
+- **Any Docker host, VPS or Coolify.** Deploy the GHCR image, or point
   Coolify at this repo with `mcp/Dockerfile` as the Dockerfile (build
   context: repo root) for build-on-push.
-- **AWS**: App Runner or ECS pulling `ghcr.io/hungovercoders/sysspec-mcp`,
+- **AWS.** App Runner or ECS pulling `ghcr.io/hungovercoders/sysspec-mcp`,
   port 8080.
-- **Cloudflare**: Containers can run the same image (paid plan), or use
+- **Cloudflare.** Containers can run the same image (paid plan), or use
   the optional free-tier Worker adapter:
   `cd mcp && npx wrangler deploy --config adapters/cloudflare/wrangler.jsonc`
   ([adapters/cloudflare/](adapters/cloudflare/) is a thin fetch entry over

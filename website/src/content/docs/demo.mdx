@@ -10,10 +10,10 @@ The sysspec repo carries a living example: **sysspec demo**, the
 toolkit's regression suite, so every toolkit change has to keep it green.
 It deploys as one Cloudflare Worker on every merge to main:
 
-- **The spec catalog**: the generated docs site (service overviews,
-  OpenAPI/AsyncAPI/data-contract renderings, acceptance criteria, the
-  interactive system graph) at the Worker root.
-- **The MCP endpoint**: the same specs served by `sysspec-mcp` over
+- **The spec catalog** is the generated docs site at the Worker root, with
+  service overviews, OpenAPI/AsyncAPI/data-contract renderings, acceptance
+  criteria and the interactive system graph.
+- **The MCP endpoint** is the same specs served by `sysspec-mcp` over
   streamable HTTP at `/mcp`.
 
 Both are built from the same spec commit, and every pull request against
@@ -35,7 +35,8 @@ Then ask things like:
 - "What fields are on OrderPlaced?"
 - "Who consumes payments.settled.v2?"
 - "What does a customer have to supply to place an order?"
-- "Change OrderPlaced to drop customer_id": it should refuse and cite consumers
+- Ask it to drop `customer_id` from OrderPlaced, and it should refuse and
+  cite the consumers
 
 You do not need to be building anything to get value from that endpoint;
 see [Ask the specs](/ask-the-specs/).

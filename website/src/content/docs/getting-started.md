@@ -38,8 +38,8 @@ tag, which is the release hook the
 - A `specs/` tree with a starter service (manifest, AsyncAPI contract and
   feature file) that already passes every gate. Swap it for your first real
   service.
-- A `specs/system.yaml` naming the system those services add up to: its
-  title, business domain, event namespace and (optionally) the `mcp:`
+- A `specs/system.yaml` naming the system those services add up to, with
+  its title, business domain, event namespace and, optionally, the `mcp:`
   endpoint your specs are served on. It annotates every page of your
   catalog, so the site is unmistakably yours rather than a generic
   "System specs". `--system` and `--domain` seed it, and you edit it in
@@ -57,7 +57,8 @@ tag, which is the release hook the
 
 ## Where to next
 
-- Understand [the model](/model/): services, gated artifacts, versioned change.
+- Understand [the model](/model/), which covers services, gated artifacts
+  and versioned change.
 - Learn the [authoring conventions](/conventions/) the linters enforce.
 - [Ask your specs questions](/ask-the-specs/), which is the fastest payback
   and not only for agents.

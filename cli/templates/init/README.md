@@ -30,9 +30,9 @@ system intent as versioned, gated artifacts. Built on
   verified definition of done, and read as walkthroughs in their own
   right.
 
-- `specs/system.yaml` describes the system as a whole: title, domain,
-  event namespace and, once you host one, the `mcp:` endpoint these specs
-  answer questions on. It annotates every page of the generated catalog, so
+- `specs/system.yaml` describes the system as a whole, naming its title,
+  its domain, its event namespace and, once you host one, the `mcp:`
+  endpoint these specs answer questions on. It annotates every page of the generated catalog, so
   fill it in for real once the starter service is gone.
 
 The `greeter` service is scaffold output - replace it with your first real

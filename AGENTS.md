@@ -17,13 +17,14 @@ below are the agent-specific sharp edges.
   `get_message_schema`, `get_acceptance_criteria`, `trace_channel`,
   `search_specs`) rather than grepping files. The tools tell you which
   artifacts are gated and who consumes what.
-- **Skills define the deeper processes**: `skills/sysspec/SKILL.md`
-  for authoring conventions and how to work against specs;
-  `skills/implement-service/SKILL.md` for building a real implementation of
-  a service (contracts.lock pinning, verification loop, sync);
-  `skills/consume-service/SKILL.md` for building a consumer (a UI or
-  client) against a service's pinned mocks.
-- **Version everything you touch**: gated artifact ⇒ artifact + service
-  version bumps; plugin surface (cli, mcp, skills, templates) ⇒
-  `.claude-plugin/plugin.json` bump. `check:version` and `lint:manifest`
-  catch the first; the second is on you.
+- **Skills define the deeper processes.** `skills/sysspec/SKILL.md` covers
+  the authoring conventions and how to work against specs.
+  `skills/implement-service/SKILL.md` covers building a real implementation
+  of a service, from contracts.lock pinning through the verification loop
+  to staying in sync. `skills/consume-service/SKILL.md` covers building a
+  consumer, a UI or client, against a service's pinned mocks.
+- **Version everything you touch.** A gated artifact change takes artifact
+  and service version bumps; a change to the plugin surface (cli, mcp,
+  skills, templates) takes a `.claude-plugin/plugin.json` bump.
+  `check:version` and `lint:manifest` catch the first, and the second is on
+  you.

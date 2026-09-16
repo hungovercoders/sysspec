@@ -22,20 +22,22 @@ commands:
 
 ## Commands
 
-### `check`: diff-based gates
+### The `check` gates
 
 All four compare the working tree against a base ref (`--base`, default
-`origin/main`):
+`origin/main`).
 
-- `check version`: any gated artifact change must bump its manifest version
-  *and* the service's top-level version; an artifact major forces a service
-  major.
-- `check compat`: breaking contract changes must carry major bumps.
-- `check intent`: every schema element added to an OpenAPI/AsyncAPI
-  contract must be named in the service's feature files. There is no escape
-  hatch, and ODCS columns and enum values are included.
-- `check surface`: changes under given paths must bump a named version file
-  (how the repo enforces its own package and plugin version bumps).
+- `check version` fails unless a gated artifact change bumps its manifest
+  version *and* the service's top-level version; an artifact major forces a
+  service major.
+- `check compat` fails when a breaking contract change does not carry a
+  major bump.
+- `check intent` requires every schema element added to an OpenAPI/AsyncAPI
+  contract to be named in the service's feature files. There is no escape
+  hatch, and ODCS columns and enum values count.
+- `check surface` requires changes under given paths to bump a named
+  version file, which is how the repo enforces its own package and plugin
+  version bumps.
 
 | Flag | Applies to | Default |
 | --- | --- | --- |
@@ -51,24 +53,25 @@ default.
 
 ### `lint`
 
-- `lint specs`: Spectral over the OpenAPI/AsyncAPI contracts, house naming
-  rules included.
-- `lint features`: gherkin-lint over the acceptance criteria.
-- `lint datacontracts`: the vendored ODCS 3.2 JSON Schema and
+- `lint specs` runs Spectral over the OpenAPI/AsyncAPI contracts, house
+  naming rules included.
+- `lint features` runs gherkin-lint over the acceptance criteria.
+- `lint datacontracts` runs the vendored ODCS 3.2 JSON Schema and
   datacontract-cli over the ODCS files, plus a Spectral ruleset for the
   naming rules.
-- `lint manifest`: manifests ⇄ contracts ⇄ spec graph consistency, semver
-  versions, feature references resolve to real messages and channels.
+- `lint manifest` checks manifests ⇄ contracts ⇄ spec graph consistency,
+  semver versions, and that feature references resolve to real messages and
+  channels.
 
 All four take `--specs-dir` (default `specs`) and `--service <name>` to
 scope to one service.
 
 ### `docs`
 
-- `docs data`: emit the spec data the generated docs site renders from.
+- `docs data` emits the spec data the generated docs site renders from.
   Flags: `--specs-dir`, `--site-dir` (default `docs-site`), `--mocks-dir`
   (default `mocks`).
-- `docs diagrams`: every mermaid diagram in the generated site must parse.
+- `docs diagrams` parses every mermaid diagram in the generated site.
   Flags: `--specs-dir`, `--docs-dir` (default `docs`), `--site-dir`.
 
 ### `init`
@@ -105,15 +108,16 @@ endpoint overrides, the mocks themselves) to the contracts.
 | `--channel <Title/version/operation>` | `watch` | required |
 | `--rest-endpoint` / `--async-endpoint` | `contract test` | the mocks themselves |
 
-### `null run`: the falsifiability gate
+### The falsifiability gate (`null run`)
 
 Runs a bound feature suite against a *null service* that proves nothing; the
 gate is red unless zero scenarios pass. A suite that goes green against
 nothing is hollow, and this catches it.
 
+Everything after `--` in
 `null run --results <cucumber-json-file> [--port 9099] [--timeout 300] --
-<suite command>`: everything after `--` is the suite command, run with the
-null service listening on `--port`.
+<suite command>` is the suite command, run with the null service listening
+on `--port`.
 
 ## Pinned external tools
 

@@ -50,7 +50,7 @@ const lastRelease = services
   {system.summary && <p class="sc-summary">{system.summary}</p>}
   <p>
     {system.name ? (
-      <>The specs of record for <strong>{system.title}</strong>: what it</>
+      <>The specs of record for <strong>{system.title}</strong>, saying what it</>
     ) : (
       <>These are specs of what the system</>
     )}{' '}
@@ -72,7 +72,7 @@ const lastRelease = services
       <strong>Ask and build with context</strong>
       <p>
         Anyone can question these specs over MCP (the
-        <code>sysspec</code> server): people in plain language, agents at
+        <code>sysspec</code> server), people in plain language and agents at
         implementation time, never from a remembered or vendored copy.
       </p>
     </div>
@@ -91,8 +91,9 @@ const lastRelease = services
     <strong>Ask these specs anything →</strong>
     <span>
       Connect an MCP client{system.mcp ? <> (<em>{system.mcp}</em>)</> : null} and
-      ask about this system in plain language: what a service is for, what an
-      event carries, how something should behave, who breaks if it changes.
+      ask about this system in plain language, from what a service is for to
+      what an event carries, how something should behave, and who breaks if
+      it changes.
       Same answers for people as for the agents building against it.
     </span>
   </a>

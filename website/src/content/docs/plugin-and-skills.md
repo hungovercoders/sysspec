@@ -26,11 +26,11 @@ claude --plugin-dir /path/to/sysspec
 
 Same result, scoped to that session, which helps when iterating on specs.
 
-**3. Register just the MCP server**: tools only, no skills. See
-[the MCP server page](/mcp/).
+**3. Register just the MCP server.** That gives you the tools and no
+skills. See [the MCP server page](/mcp/).
 
-**4. Connect to a hosted URL**: tools only, no local process at all. Also
-on [the MCP server page](/mcp/).
+**4. Connect to a hosted URL.** Tools again, with no local process at all.
+Also on [the MCP server page](/mcp/).
 
 Whichever route, verify with `/mcp` and then `list_services()`.
 

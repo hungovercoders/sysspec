@@ -20,8 +20,8 @@ there is no second place to forget to update.
 ## The system
 
 One level up sits the suite itself. `specs/system.yaml` says which system
-these services belong to: its `title`, the business `domain` it sits in,
-and the reverse-DNS `org` every event type is prefixed with:
+these services belong to, naming its `title`, the business `domain` it sits
+in, and the reverse-DNS `org` every event type is prefixed with:
 
 ```yaml
 apiVersion: sysspec/v1
