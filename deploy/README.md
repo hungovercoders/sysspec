@@ -50,19 +50,22 @@ came from.
   dashboard, so a gate pointed at it would fail on a Worker that is
   otherwise healthy. Set the repo variable `SYSSPEC_DEMO_MOCKS_URL` to
   check a specific URL instead.
-- `mocks-preview.yml` uploads a `pr-<number>` version per PR and holds it
-  to that PR's own example suite before commenting the URL. On the very
-  first run the Worker does not exist yet, so the job bootstraps it with
-  `wrangler deploy` and derives the alias URL (`pr-<n>-sysspec-mocks.<sub>.workers.dev`)
-  rather than relying on wrangler to print it, which it does not do on that
-  first upload. Both jobs wait for the deployment to answer `/health`
-  before running the suite against it.
+- `mocks-preview.yml` runs each PR's own example suite twice - against the
+  served engine, then against the Worker on workerd (`wrangler dev`) - and
+  uploads a `pr-<number>` version. Unlike the other two Workers, this one
+  gets no public preview URL: wrangler reports an alias for `sysspec-demo`
+  and `sysspec-site` and none for `sysspec-mocks`, the difference being its
+  Durable Object binding. So the gate that matters runs in the job, where
+  workerd serves the real Worker code, Durable Object channels included,
+  and the PR comment carries an alias only when wrangler reports one.
 - Repo secrets: the same `CLOUDFLARE_API_TOKEN` and
   `CLOUDFLARE_ACCOUNT_ID`.
 
 Event channels publish for as long as a subscriber is connected, which on
 Workers needs a Durable Object (`MockEvents`, declared as an SQLite class
-so the free plan covers it). REST mocks need no binding at all.
+so the free plan covers it). REST mocks need no binding at all. That
+binding is also why this Worker has no version preview URLs, which is what
+`mocks-preview.yml` works around by running workerd in the job.
 
 Local run: `npm ci --prefix deploy/cloudflare-mocks`, then
 `task mocks:bundle OUT=deploy/cloudflare-mocks/src/generated/mocks-bundle.json`
