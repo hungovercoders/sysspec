@@ -13,7 +13,7 @@
  * quietly serves something the Microcks stack would not.
  */
 
-import { readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createServer, IncomingMessage, Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import path from "node:path";
@@ -388,6 +388,9 @@ export function runBundle(
   source: string | null,
 ): number {
   const { bundle, gaps } = buildBundle(only, specsDir, mocksDir, source ?? undefined);
+  // A baked bundle is build output: its directory is typically gitignored,
+  // so a fresh checkout has nowhere to write it yet.
+  mkdirSync(path.dirname(path.resolve(out)), { recursive: true });
   writeFileSync(out, `${JSON.stringify(bundle, null, 2)}\n`);
   console.log(`wrote ${out} (${describe(bundle).services.length} mock services)`);
   for (const gap of gaps) console.log(`  note: ${gap}`);

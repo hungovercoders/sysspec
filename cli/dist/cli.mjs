@@ -21574,7 +21574,7 @@ function runLint(only, specsDir) {
 
 // src/mocks-serve.ts
 var import_yaml9 = __toESM(require_dist(), 1);
-import { readdirSync as readdirSync6, readFileSync as readFileSync9, writeFileSync as writeFileSync4 } from "fs";
+import { mkdirSync as mkdirSync3, readdirSync as readdirSync6, readFileSync as readFileSync9, writeFileSync as writeFileSync4 } from "fs";
 import { createServer } from "http";
 import path8 from "path";
 
@@ -22023,6 +22023,7 @@ async function runParity(only, specsDir, mocksDir, port) {
 }
 function runBundle(only, specsDir, mocksDir, out, source) {
   const { bundle, gaps } = buildBundle(only, specsDir, mocksDir, source ?? void 0);
+  mkdirSync3(path8.dirname(path8.resolve(out)), { recursive: true });
   writeFileSync4(out, `${JSON.stringify(bundle, null, 2)}
 `);
   console.log(`wrote ${out} (${describe(bundle).services.length} mock services)`);
@@ -22156,7 +22157,7 @@ async function runNull(port, results, timeout, cmd) {
 // src/scaffold.ts
 init_pins();
 init_util();
-import { chmodSync, mkdirSync as mkdirSync3, readdirSync as readdirSync7, readFileSync as readFileSync11, statSync as statSync5, writeFileSync as writeFileSync5 } from "fs";
+import { chmodSync, mkdirSync as mkdirSync4, readdirSync as readdirSync7, readFileSync as readFileSync11, statSync as statSync5, writeFileSync as writeFileSync5 } from "fs";
 import path9 from "path";
 import { fileURLToPath as fileURLToPath3 } from "url";
 var RENAMES = {
@@ -22197,14 +22198,14 @@ function copy(node, target, subs, rel = "") {
     const out = path9.join(target, RENAMES[child.name] ?? child.name);
     const source = path9.join(node, child.name);
     if (child.isDirectory()) {
-      mkdirSync3(out, { recursive: true });
+      mkdirSync4(out, { recursive: true });
       written.push(...copy(source, out, subs, childRel));
     } else {
       let text = readFileSync11(source, "utf-8");
       for (const [key, value] of Object.entries(subs)) {
         text = text.replaceAll(key, value);
       }
-      mkdirSync3(path9.dirname(out), { recursive: true });
+      mkdirSync4(path9.dirname(out), { recursive: true });
       writeFileSync5(out, text);
       chmodSync(out, statSync5(source).mode & 511);
       written.push(out);
@@ -22226,7 +22227,7 @@ function runInit(targetDir, org, sysspecRepo, system = null, domain = null) {
   if (existing.length) {
     throw new Exit(`${target} exists and is not empty`);
   }
-  mkdirSync3(target, { recursive: true });
+  mkdirSync4(target, { recursive: true });
   const version = ownVersion();
   const systemTitle = (system ?? systemTitleFrom(org)).trim();
   const systemDomain = (domain ?? "Examples").trim();

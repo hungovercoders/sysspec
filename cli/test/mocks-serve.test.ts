@@ -4,12 +4,12 @@
  * asserted here as well as by the smoke suite in CI).
  */
 
-import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe as suite, expect, test } from "vitest";
 import { dispatch, matchChannel, restBase } from "../src/mock-engine.js";
-import { buildBundle, serve } from "../src/mocks-serve.js";
+import { buildBundle, runBundle, serve } from "../src/mocks-serve.js";
 import { Exit } from "../src/util.js";
 
 const FIXTURES = path.join(__dirname, "fixtures");
@@ -116,6 +116,20 @@ suite("buildBundle", () => {
     const { bundle, gaps } = build(t);
     expect(bundle.services.some((s) => s.title === "Payments")).toBe(false);
     expect(gaps).toEqual([expect.stringMatching(/no event examples for Payments 2\.0\.0/)]);
+  });
+});
+
+suite("runBundle", () => {
+  test("writes the bundle, creating the output directory", () => {
+    const t = tree();
+    // A deploy bakes the bundle into a gitignored directory, which a fresh
+    // checkout does not have.
+    const out = path.join(path.dirname(t.specs), "deploy", "generated", "mocks-bundle.json");
+    expect(existsSync(path.dirname(out))).toBe(false);
+    expect(runBundle(null, t.specs, t.mocks, out, "abc123")).toBe(0);
+    const written = JSON.parse(readFileSync(out, "utf-8"));
+    expect(written.source).toBe("abc123");
+    expect(written.services).toHaveLength(3);
   });
 });
 
