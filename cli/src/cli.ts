@@ -15,6 +15,7 @@ import * as intent from "./intent.js";
 import * as linters from "./lint.js";
 import { runLint as manifestLint } from "./manifest-lint.js";
 import * as mocks from "./mocks.js";
+import { runBundle, runParity, runServe } from "./mocks-serve.js";
 import { runNull } from "./nullsvc.js";
 import { runInit } from "./scaffold.js";
 import * as surface from "./surface.js";
@@ -28,7 +29,7 @@ commands:
   lint manifest|specs|features|datacontracts
   docs data|diagrams
   init <dir> --org <reverse-dns> [--system <title>] [--domain <name>]
-  mocks up|down|load|test|watch
+  mocks up|down|load|test|watch|serve|bundle
   contract test
   null run --results <file> -- <suite command>`;
 
@@ -103,6 +104,39 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<numb
     }
   }
   if (command === "mocks") {
+    // serve and bundle are the Docker-free half: they read the specs and
+    // the example artifacts directly, with no Microcks stack to start.
+    if (sub === "serve") {
+      args.only("service", "specs-dir", "mocks-dir", "port", "host");
+      return runServe(
+        args.get("service"),
+        args.get("specs-dir", "specs")!,
+        args.get("mocks-dir", "mocks")!,
+        args.int("port", 8686),
+        args.get("host", "127.0.0.1")!,
+      );
+    }
+    if (sub === "bundle") {
+      args.only("service", "specs-dir", "mocks-dir", "out", "source");
+      return runBundle(
+        args.get("service"),
+        args.get("specs-dir", "specs")!,
+        args.get("mocks-dir", "mocks")!,
+        args.require("out"),
+        args.get("source"),
+      );
+    }
+    // The smoke suite doubles as the parity gate: --serve runs it against a
+    // bundle this process serves, rather than against the Microcks stack.
+    if (sub === "test" && args.has("serve")) {
+      args.only("serve", "service", "specs-dir", "mocks-dir", "port");
+      return runParity(
+        args.get("service"),
+        args.get("specs-dir", "specs")!,
+        args.get("mocks-dir", "mocks")!,
+        args.int("port", 0),
+      );
+    }
     if (sub === "watch") {
       args.only("channel", "async-minion-url");
       return mocks.watch(

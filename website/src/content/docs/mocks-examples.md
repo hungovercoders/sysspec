@@ -76,8 +76,19 @@ reaches them.
 ## Where they end up
 
 - REST mocks: `http://localhost:8585/rest/<info.title>/<version>/…`
-  (spaces in the title become `+`).
-- Event channels: `ws://localhost:8081/api/ws/<info.title>/<version>/<operation>`.
+  (spaces in the title become `+`), or `:8686` with `task mocks:serve`.
+- Event channels: `ws://localhost:8081/api/ws/<info.title>/<version>/<operation>`,
+  same path on the served mocks.
+- Hosted, for a spec suite that publishes them: this repo's demo serves the
+  files below at <https://mocks.sysspec.dev>.
 - Implementations replay the same REST cases **verbatim against the real
   service** in `contract test`, so the example fixtures are contract rather
   than decoration.
+
+Two engines serve these files: the Microcks stack, and `sysspec mocks
+serve`, which reads them directly and needs no Docker (it is also what a
+hosted deployment bakes in, via `sysspec mocks bundle`). The served engine
+refuses what it cannot reproduce exactly - templated payloads, cases a URI
+cannot tell apart, an operation no contract declares - and
+`sysspec mocks test --serve` holds it to the same suite the stack answers,
+so the two never drift apart quietly.

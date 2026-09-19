@@ -1,0 +1,70 @@
+# Deploy the demo mocks (mocks.sysspec.dev) on every main push that changes
+# what they serve - the specs, the example artifacts, the engine or the
+# Worker. The bundle is baked from the spec commit, so the deployed mocks
+# can never be newer or staler than the contracts they came from.
+#
+# Secrets: CLOUDFLARE_API_TOKEN (Workers Scripts:Edit), CLOUDFLARE_ACCOUNT_ID
+# (shared with the other Cloudflare workflows).
+name: mocks-deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "specs/**"
+      - "mocks/**"
+      - "cli/**"
+      - "deploy/cloudflare-mocks/**"
+      - ".github/workflows/mocks-deploy.yml"
+  # First deploy bootstraps the Worker that preview versions target.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mocks-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v2
+      - name: The served mocks must answer the example suite
+        run: task mocks:parity
+      - name: Bake the mock bundle the Worker serves
+        run: |
+          node cli/dist/cli.mjs mocks bundle \
+            --out deploy/cloudflare-mocks/src/generated/mocks-bundle.json \
+            --source "$GITHUB_SHA"
+      - run: npm ci --no-audit --no-fund
+        working-directory: deploy/cloudflare-mocks
+      - name: Deploy
+        id: deploy
+        working-directory: deploy/cloudflare-mocks
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -o pipefail
+          npx wrangler deploy 2>&1 | tee deploy.log
+          # The workers.dev hostname the deploy prints is what this job can
+          # check without waiting on DNS: a custom domain is attached in the
+          # dashboard, so it may not exist yet, or may point at an older
+          # version while it propagates.
+          # `|| true`: a failing grep must not kill the step under `bash -e`
+          # after a deploy that worked; the next step reports an empty URL.
+          url=$(grep -oE 'https://sysspec-mocks\.[a-z0-9.-]+\.workers\.dev' deploy.log | head -1 || true)
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+      - name: Hold the deployed mocks to the same example suite
+        run: |
+          url="${{ vars.SYSSPEC_DEMO_MOCKS_URL || steps.deploy.outputs.url }}"
+          [ -n "$url" ] || { echo "no deployed URL to check"; exit 1; }
+          echo "checking $url"
+          for _ in $(seq 1 30); do
+            curl -sf "$url/health" >/dev/null && break
+            sleep 2
+          done
+          node cli/dist/cli.mjs mocks test --microcks-url "$url" --async-minion-url "$url"

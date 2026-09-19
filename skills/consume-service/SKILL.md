@@ -81,15 +81,32 @@ codes, payload shapes, event semantics.
 
 ## Phase 2. Build against the mocks
 
-- `task -d .contracts mocks:load SERVICE=<service>`, then point the client at
-  the pinned mocks (title and version come from the spec's `info` block):
-  - REST mocks answer at `http://localhost:8585/rest/<Title>/<version>/...`
-    with fixture data included, so list and detail screens render
-    real-looking aggregates.
-  - Events arrive on `ws://localhost:8081/api/ws/<Title>/<version>/<operation>`,
-    where the async-minion emits the example CloudEvents on a schedule. Run
+Two ways to run them, same contracts, same fixtures, same URL shapes:
+
+- `task -d .contracts mocks:serve` needs no Docker and starts in a second
+  (`http://localhost:8686`, `PORT=` to move it). Prefer it while building.
+- `task -d .contracts mocks:load SERVICE=<service>` starts the Microcks
+  stack (`http://localhost:8585`, events on `:8081`), which additionally
+  runs the contract tests and its own UI.
+- A spec suite may publish hosted mocks - this one serves
+  <https://mocks.sysspec.dev> - which need nothing local at all. Treat a
+  hosted mock as a convenience for exploring and demoing; CI pins and runs
+  its own, so the surface under test is the one in `contracts.lock`.
+
+Point the client at whichever is running (title and version come from the
+spec's `info` block; the served mocks list every URL at `/`):
+  - REST mocks answer at `<mock-url>/rest/<Title>/<version>/...` with
+    fixture data included, so list and detail screens render real-looking
+    aggregates. Responses carry permissive CORS headers, so a browser
+    consumer can call them directly.
+  - Events arrive on `<mock-url>/api/ws/<Title>/<version>/<operation>` over
+    WebSocket, emitting the example CloudEvents every few seconds. Run
     `task -d .contracts mocks:watch CHANNEL=<Title>/<version>/<operation>`
-    to eyeball them.
+    to eyeball them (add `--async-minion-url` for a mock that is not the
+    local minion).
+  - Mock cases dispatch by URI: a detail screen gets the example aggregate
+    only for the example's own id. The mocks are stateless, so a POST never
+    changes what a later GET returns.
 - Generate types from `.contracts/specs/<service>/openapi/*.yaml` and the
   message payload schemas in the AsyncAPI file; wire the client through
   them.
@@ -102,7 +119,7 @@ The suite must run headlessly against the mock stack (this is also the
 `contracts:verify` task the sync loop calls):
 
 1. **Client flows against the REST mocks.** Every call the consumer makes
-   is exercised against Microcks, with responses parsed through the
+   is exercised against the mocks, with responses parsed through the
    generated types.
 2. **Event handling against real envelopes.** Feed the handler from the WS
    mock or directly from `.contracts/mocks/<service>.events.examples.yaml`, and
@@ -127,10 +144,12 @@ prove the real service behaves; that is the *service's* verification loop.
 
 ## Phase 4. Wire the consumer's CI
 
-mise-action → `task contracts:fetch` → `task -d .contracts mocks:load
-SERVICE=<service>` → the phase 3 suite → `task -d .contracts mocks:down`.
-Everything resolves against `.contracts/`, so CI verifies exactly the
-surface the lock names.
+mise-action → `task contracts:fetch` → the mocks → the phase 3 suite. With
+`task -d .contracts mocks:serve` the mocks are a background process and
+there is no Docker in the job; with `mocks:load` the job ends in
+`task -d .contracts mocks:down`. Either way everything resolves against
+`.contracts/`, so CI verifies exactly the surface the lock names - never a
+hosted URL, which can move under it.
 
 ## Phase 5. Stay current
 
@@ -154,6 +173,7 @@ scope.
 - [ ] replaying an envelope `id` does not double-apply
 - [ ] the suite is falsifiable, with zero checks passing against the null
       service (or with the mock stack down)
-- [ ] CI runs fetch → mocks up → the phase 3 suite → mocks down on every push
+- [ ] CI runs fetch → the pinned mocks → the phase 3 suite on every push,
+      against `.contracts/` rather than a hosted URL
 - [ ] `renovate.json` + `contract-converge.yml` installed with the
       placeholders substituted

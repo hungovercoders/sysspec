@@ -1,8 +1,8 @@
 # sysspec (CLI)
 
 The `sysspec` command on npm: deterministic gates, lint, generated docs,
-Microcks mock orchestration and the `init` scaffold for a contract-first
-spec repository.
+mocks (the Microcks stack, or served straight from the specs) and the
+`init` scaffold for a contract-first spec repository.
 
 ```bash
 npx -y sysspec init my-specs --org com.acme \
@@ -24,6 +24,10 @@ stays in `mise.toml`.
 ## Layout
 
 - `src/` holds the command implementations, with `cli.ts` as the entry.
+  `mock-engine.ts` is deliberately free of node builtins and dependencies:
+  it is the dispatch a Worker imports as-is, so a hosted mock and
+  `mocks serve` are one implementation rather than two that agree by
+  hand.
 - `templates/` holds everything `sysspec init` lays down (dotfiles stored
   undotted so packaging tools cannot drop them; `scaffold.ts` renames on
   copy), plus the bundled Spectral ruleset and Microcks compose file.

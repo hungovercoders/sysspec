@@ -195,6 +195,7 @@ tasks:
       - task: mocks:load
       - task: contract:test
       - task: mocks:test
+      - task: mocks:parity
 
   check:init:
     desc: The init scaffold must pass its own gates
@@ -248,6 +249,21 @@ tasks:
     run: once
     cmds:
       - node {{.ROOT_DIR}}/cli/dist/cli.mjs mocks load {{if .SERVICE}}--service {{.SERVICE}}{{end}}
+
+  mocks:serve:
+    desc: Serve the mocks straight from the specs and examples, no Docker (PORT=, HOST=)
+    cmds:
+      - node {{.ROOT_DIR}}/cli/dist/cli.mjs mocks serve {{if .SERVICE}}--service {{.SERVICE}}{{end}} {{if .PORT}}--port {{.PORT}}{{end}} {{if .HOST}}--host {{.HOST}}{{end}}
+
+  mocks:bundle:
+    desc: Bake the mocks into a bundle a Worker or other runtime can serve (OUT=)
+    cmds:
+      - node {{.ROOT_DIR}}/cli/dist/cli.mjs mocks bundle --out {{.OUT | default "mocks-bundle.json"}} --source "$(git rev-parse HEAD)" {{if .SERVICE}}--service {{.SERVICE}}{{end}}
+
+  mocks:parity:
+    desc: The served mocks must answer the example suite exactly as the Microcks stack does
+    cmds:
+      - node {{.ROOT_DIR}}/cli/dist/cli.mjs mocks test --serve {{if .SERVICE}}--service {{.SERVICE}}{{end}}
 
   mocks:watch:
     desc: 'Watch a mock event channel (CHANNEL=<Title>/<version>/<operation>, e.g. Orders/3.0.0/publishOrderPlaced)'

@@ -1,0 +1,30 @@
+// The sysspec demo mocks on Cloudflare: the spec-derived mock bundle
+// served on Microcks' own URL shapes, so `sysspec mocks test` holds this
+// deployment to the same example suite the local stack answers.
+//
+// A Worker of its own rather than a route on sysspec-demo: the mocks live
+// on their own hostname (mocks.sysspec.dev, attached in the Cloudflare
+// dashboard), and a mock that falls over must not take the spec catalog
+// with it.
+//
+// Build input (see ../../.github/workflows/mocks-deploy.yml):
+//   src/generated/mocks-bundle.json <- node cli/dist/cli.mjs mocks bundle
+//                                      --out deploy/cloudflare-mocks/src/generated/mocks-bundle.json
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "sysspec-mocks",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-08-01",
+  "workers_dev": true,
+  "preview_urls": true,
+  // Event mocks publish on a timer for as long as a subscriber is
+  // connected, which on Workers only a Durable Object can hold. SQLite-backed
+  // classes are the free-plan shape.
+  "durable_objects": {
+    "bindings": [{ "name": "EVENTS", "class_name": "MockEvents" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["MockEvents"] }],
+  "observability": {
+    "enabled": true
+  }
+}

@@ -12,3 +12,4 @@ website/dist/
 website/.astro/
 .wrangler/
 .sysspec/
+deploy/cloudflare-mocks/src/generated/

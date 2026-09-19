@@ -1,28 +1,49 @@
 ---
 title: The live demo
-description: The orders/payments example suite, spec catalog and MCP endpoint, deployed from every merge.
+description: The orders/payments example suite, spec catalog, MCP endpoint and live mocks, deployed from every merge.
 ---
 
-import { DEMO_SITE_URL, DEMO_MCP_URL } from '../../lib/links';
+import { DEMO_SITE_URL, DEMO_MCP_URL, DEMO_MOCKS_URL } from '../../lib/links';
 
 The sysspec repo carries a living example: **sysspec demo**, the
 `orders`/`payments` spec suite in the Commerce domain, which doubles as the
 toolkit's regression suite, so every toolkit change has to keep it green.
-It deploys as one Cloudflare Worker on every merge to main:
+It deploys on every merge to main:
 
 - **The spec catalog** is the generated docs site at the Worker root, with
   service overviews, OpenAPI/AsyncAPI/data-contract renderings, acceptance
   criteria and the interactive system graph.
 - **The MCP endpoint** is the same specs served by `sysspec-mcp` over
   streamable HTTP at `/mcp`.
+- **The mocks** are the same contracts and example fixtures, served on a
+  Worker of their own: REST responses and ambient CloudEvents over
+  WebSocket, so a consumer can be built against this suite with nothing
+  installed.
 
-Both are built from the same spec commit, and every pull request against
-the specs gets its own stable preview URL of the whole system.
+All three are built from the same spec commit, and every pull request
+against the specs gets its own stable preview URL of the whole system.
 
 <ul>
   <li><strong>Spec catalog:</strong> <a href={DEMO_SITE_URL}>{DEMO_SITE_URL}</a></li>
   <li><strong>MCP endpoint:</strong> <a href={DEMO_MCP_URL}>{DEMO_MCP_URL}</a></li>
+  <li><strong>Mocks:</strong> <a href={DEMO_MOCKS_URL}>{DEMO_MOCKS_URL}</a></li>
 </ul>
+
+The mock index lists every URL it serves. The REST mocks answer on
+`/rest/<Title>/<version>/…` and the event channels publish the example
+CloudEvents on `/api/ws/<Title>/<version>/<operation>`, both with the
+titles and versions the contracts declare:
+
+```bash
+curl https://mocks.sysspec.dev/rest/Orders+API/3.2.0/orders/11111111-1111-1111-1111-111111111111
+```
+
+They are the same mocks `task mocks:serve` runs locally, held to the same
+example suite by `sysspec mocks test` on every deploy. They are stateless
+and read-only: a POST returns its example, it does not change what a later
+GET answers. Build a consumer against a pin (see
+[contracts.lock](/contracts-lock/)) rather than against the hosted URL,
+which moves with main.
 
 Connect a client to the endpoint and start with `list_services()`:
 
