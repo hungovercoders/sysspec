@@ -45,12 +45,20 @@ came from.
 
 - `mocks-deploy.yml` deploys on main pushes touching the specs, the
   examples, the engine or the Worker, then runs `sysspec mocks test`
-  against the deployed URL.
+  against the URL it just deployed. It checks the `workers.dev` hostname
+  wrangler prints, not the custom domain: the domain is attached in the
+  dashboard, so a gate pointed at it would fail on a Worker that is
+  otherwise healthy. Set the repo variable `SYSSPEC_DEMO_MOCKS_URL` to
+  check a specific URL instead.
 - `mocks-preview.yml` uploads a `pr-<number>` version per PR and holds it
-  to that PR's own example suite before commenting the URL.
+  to that PR's own example suite before commenting the URL. On the very
+  first run the Worker does not exist yet, so the job bootstraps it with
+  `wrangler deploy` and derives the alias URL (`pr-<n>-sysspec-mocks.<sub>.workers.dev`)
+  rather than relying on wrangler to print it, which it does not do on that
+  first upload. Both jobs wait for the deployment to answer `/health`
+  before running the suite against it.
 - Repo secrets: the same `CLOUDFLARE_API_TOKEN` and
-  `CLOUDFLARE_ACCOUNT_ID`. Optional variable `SYSSPEC_DEMO_MOCKS_URL`
-  overrides the URL the deploy gate checks.
+  `CLOUDFLARE_ACCOUNT_ID`.
 
 Event channels publish for as long as a subscriber is connected, which on
 Workers needs a Durable Object (`MockEvents`, declared as an SQLite class

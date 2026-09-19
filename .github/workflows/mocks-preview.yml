@@ -45,23 +45,47 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          ALIAS: pr-${{ github.event.pull_request.number }}
         run: |
           set -o pipefail
-          if ! npx wrangler versions upload --preview-alias "pr-${{ github.event.pull_request.number }}" 2>&1 | tee upload.log; then
+          upload() { npx wrangler versions upload --preview-alias "$ALIAS" 2>&1 | tee upload.log; }
+          if ! upload; then
             if grep -q 'cannot upload a new version of a Worker that does not yet exist' upload.log; then
               echo "Worker not deployed yet; bootstrapping with wrangler deploy first."
-              npx wrangler deploy
-              npx wrangler versions upload --preview-alias "pr-${{ github.event.pull_request.number }}" 2>&1 | tee upload.log
+              npx wrangler deploy 2>&1 | tee deploy.log
+              upload
             else
               exit 1
             fi
           fi
-          url=$(grep -oE 'https://pr-[0-9]+-[a-z0-9.-]+\.workers\.dev' upload.log | head -1)
+          # Anchored on the alias: a bare sysspec-mocks.*.workers.dev line
+          # must never be mistaken for this PR's preview.
+          url=$(grep -oE "https://$ALIAS-[a-z0-9.-]+\.workers\.dev" upload.log | head -1)
+          # On the Worker's first upload, right after the bootstrap deploy,
+          # wrangler prints no alias URL. The alias is deterministic
+          # (<alias>-<worker>.<subdomain>.workers.dev), so derive it from the
+          # workers.dev hostname the deploy printed; the next step proves
+          # whichever URL this lands on by calling it.
+          if [ -z "$url" ] && [ -f deploy.log ]; then
+            host=$(grep -oE 'https://sysspec-mocks\.[a-z0-9.-]+\.workers\.dev' deploy.log | head -1)
+            url=$(printf '%s' "$host" | sed "s#https://sysspec-mocks\.#https://$ALIAS-sysspec-mocks.#")
+          fi
           [ -n "$url" ] || { echo "no preview URL in wrangler output"; exit 1; }
+          echo "preview: $url"
           echo "url=$url" >> "$GITHUB_OUTPUT"
       - name: Hold the preview to this PR's example suite
         run: |
           url="${{ steps.upload.outputs.url }}"
+          # A freshly uploaded version takes a moment to answer on its alias.
+          for _ in $(seq 1 30); do
+            curl -sf "$url/health" >/dev/null && break
+            sleep 2
+          done
+          curl -sf "$url/health" >/dev/null || {
+            echo "$url never answered /health - the preview alias may not exist."
+            echo "Check whether preview URLs are enabled for this Worker."
+            exit 1
+          }
           node cli/dist/cli.mjs mocks test --microcks-url "$url" --async-minion-url "$url"
       - name: Post the preview URL as a sticky comment
         uses: actions/github-script@v7
