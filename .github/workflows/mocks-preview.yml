@@ -88,7 +88,9 @@ jobs:
           # here: this Worker gets no alias URL (see the header), and the
           # version upload is still worth running because it is the real
           # upload path main takes.
-          url=$(grep -oE "https://$ALIAS-[a-z0-9.-]+\.workers\.dev" upload.log | head -1)
+          # `|| true`: no match is the normal case here, and a bare failing
+          # grep would kill the step under `bash -e` with pipefail set.
+          url=$(grep -oE "https://$ALIAS-[a-z0-9.-]+\.workers\.dev" upload.log | head -1 || true)
           echo "preview alias: ${url:-none reported by wrangler}"
           echo "url=$url" >> "$GITHUB_OUTPUT"
       - name: Post the preview URL as a sticky comment

@@ -54,7 +54,9 @@ jobs:
           # check without waiting on DNS: a custom domain is attached in the
           # dashboard, so it may not exist yet, or may point at an older
           # version while it propagates.
-          url=$(grep -oE 'https://sysspec-mocks\.[a-z0-9.-]+\.workers\.dev' deploy.log | head -1)
+          # `|| true`: a failing grep must not kill the step under `bash -e`
+          # after a deploy that worked; the next step reports an empty URL.
+          url=$(grep -oE 'https://sysspec-mocks\.[a-z0-9.-]+\.workers\.dev' deploy.log | head -1 || true)
           echo "url=$url" >> "$GITHUB_OUTPUT"
       - name: Hold the deployed mocks to the same example suite
         run: |
