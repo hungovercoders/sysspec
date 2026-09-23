@@ -1,8 +1,13 @@
 # Reusable container-image publish for a sysspec repo's MCP server: bakes
-# the repo's specs/ into the sysspec-mcp image and pushes it to GHCR using
+# the repo's specs/ into a sysspec-mcp image and pushes it to GHCR using
 # the built-in GITHUB_TOKEN — no host-specific secrets, no host chosen.
 # Any container platform (Coolify, AWS App Runner/ECS, Cloud Run,
 # Cloudflare Containers, a VPS) then runs the image by reference.
+#
+# By default the image runs the published sysspec-mcp package at the
+# version the repo's .mcp.json pins (Renovate keeps that pin current), so a
+# scaffolded spec repo needs no Dockerfile of its own. Pass `dockerfile`
+# to build from your own instead.
 #
 # Consumers (the caller must grant the permissions):
 #   permissions: { contents: read, packages: write }
@@ -15,36 +20,82 @@ on:
   workflow_call:
     inputs:
       dockerfile:
-        description: Dockerfile that packages the server with this repo's specs
-        type: string
-        default: mcp/Dockerfile
-      image-name:
-        description: Image name under ghcr.io/<owner>; defaults to the repo name
+        description: Dockerfile to build instead of the default published-package image
         type: string
         default: ""
+      mcp-version:
+        description: sysspec-mcp version for the default image; defaults to the .mcp.json pin
+        type: string
+        default: ""
+      specs-path:
+        description: Directory holding the specs, baked into the default image
+        type: string
+        default: specs
+      image-name:
+        description: Image name under ghcr.io/<owner>; defaults to <repo>-mcp
+        type: string
+        default: ""
+
+permissions:
+  contents: read
 
 jobs:
   publish:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: read
       packages: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: docker/login-action@v3
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Resolve image reference
         id: ref
+        env:
+          IMAGE_NAME: ${{ inputs.image-name }}
         run: |
-          name="${{ inputs.image-name }}"
+          name="$IMAGE_NAME"
           [ -n "$name" ] || name="${GITHUB_REPOSITORY#*/}-mcp"
           echo "image=ghcr.io/${GITHUB_REPOSITORY_OWNER}/${name}" | tr '[:upper:]' '[:lower:]' >> "$GITHUB_OUTPUT"
-      - name: Build and push
+      - name: Write the default Dockerfile
+        if: inputs.dockerfile == ''
+        env:
+          MCP_VERSION: ${{ inputs.mcp-version }}
+          SPECS_PATH: ${{ inputs.specs-path }}
         run: |
-          image="${{ steps.ref.outputs.image }}"
-          docker build -f "${{ inputs.dockerfile }}" -t "$image:latest" -t "$image:$GITHUB_SHA" .
-          docker push "$image:latest"
-          docker push "$image:$GITHUB_SHA"
+          version="$MCP_VERSION"
+          if [ -z "$version" ]; then
+            version=$(grep -oE 'sysspec-mcp@[0-9]+\.[0-9]+\.[0-9]+' .mcp.json 2>/dev/null | head -1 | cut -d@ -f2)
+          fi
+          [ -n "$version" ] || { echo "::error::no sysspec-mcp pin in .mcp.json - pass mcp-version"; exit 1; }
+          [ -d "$SPECS_PATH" ] || { echo "::error::no specs directory at $SPECS_PATH"; exit 1; }
+          mkdir -p "$RUNNER_TEMP/mcp-image"
+          cat > "$RUNNER_TEMP/mcp-image/Dockerfile" <<DOCKERFILE
+          FROM node:24-slim
+          RUN npm install -g --no-audit --no-fund sysspec-mcp@${version}
+          WORKDIR /app
+          COPY ${SPECS_PATH} ./specs
+          # Host-allowlist hardening for a public hostname is opt-in:
+          # set SYSSPEC_MCP_ALLOWED_HOSTS=mcp.example.com (comma-separated).
+          ENV SPECS_DIR=/app/specs SYSSPEC_MCP_TRANSPORT=http HOST=0.0.0.0 PORT=8080
+          EXPOSE 8080
+          USER node
+          CMD ["sysspec-mcp"]
+          DOCKERFILE
+          echo "DOCKERFILE=$RUNNER_TEMP/mcp-image/Dockerfile" >> "$GITHUB_ENV"
+          echo "sysspec-mcp@${version} with specs from ${SPECS_PATH}"
+      - name: Build and push
+        env:
+          IMAGE: ${{ steps.ref.outputs.image }}
+          INPUT_DOCKERFILE: ${{ inputs.dockerfile }}
+        run: |
+          dockerfile="${INPUT_DOCKERFILE:-$DOCKERFILE}"
+          docker build -f "$dockerfile" -t "$IMAGE:latest" -t "$IMAGE:$GITHUB_SHA" .
+          docker push "$IMAGE:latest"
+          docker push "$IMAGE:$GITHUB_SHA"

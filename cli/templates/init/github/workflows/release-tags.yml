@@ -1,9 +1,13 @@
 name: release-tags
 
+# Tags only what CI passed: runs when the ci workflow finishes on a push
+# to main, and tags the exact commit it ran on. Tagging is idempotent
+# (existing tags are skipped), so running after every green main is safe.
 on:
-  push:
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
     branches: [main]
-    paths: ["specs/**"]
   workflow_dispatch: {}
 
 permissions:
@@ -11,4 +15,13 @@ permissions:
 
 jobs:
   tag:
+    # A fork's PR from a branch named main also reports head_branch main;
+    # only this repository's own pushes count.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
     uses: __SYSSPEC_REPO_SLUG__/.github/workflows/sysspec-release-tags.yml@__KIT_MAJOR__
+    with:
+      ref: ${{ github.event.workflow_run.head_sha || github.sha }}

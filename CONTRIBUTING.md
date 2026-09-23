@@ -26,7 +26,12 @@ Everything runs through [Task](https://taskfile.dev). If a command is not a
 task ci
 ```
 
-Exactly what CI runs. It composes, in order:
+Exactly what CI runs. CI runs it as five parallel jobs, one per `ci:*`
+group (`ci:gates`, `ci:cli`, `ci:mcp`, `ci:docs`, `ci:mocks`), whose union
+is `task ci`; the aggregate `ci green` job is the one check for branch
+protection to require.
+Add a new gate to one of the groups, never to `ci` directly. It composes,
+in order:
 
 | Task | What it enforces |
 | --- | --- |

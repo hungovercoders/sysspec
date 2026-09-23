@@ -4,6 +4,7 @@
 # silently.
 #
 # Consumers:
+#   permissions: { contents: read }
 #   jobs:
 #     ci:
 #       uses: hungovercoders/sysspec/.github/workflows/sysspec-ci.yml@v<major>  # current: v0
@@ -13,16 +14,40 @@ on:
   workflow_call:
     inputs:
       task-command:
-        description: The task target to run
+        description: The task target(s) to run, space-separated
         type: string
         default: ci
+      timeout-minutes:
+        description: Job timeout; a hung mock stack must not burn the runner for six hours
+        type: number
+        default: 45
+
+permissions:
+  contents: read
 
 jobs:
   ci:
     runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout-minutes }}
     steps:
-      - uses: actions/checkout@v4
+      # Credentials stay persisted: the diff gates `git fetch origin main`,
+      # which a private repository only answers when authenticated.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           fetch-depth: 0
-      - uses: jdx/mise-action@v2
-      - run: task ${{ inputs.task-command }}
+      - uses: jdx/mise-action@c37c93293d6b742fc901e1406b8f764f6fb19dac # v2.4.4
+      # npx caches every pinned tool (sysspec, spectral, gherkin-lint,
+      # mermaid-cli) under ~/.npm; the pins live in the lockfiles and the
+      # Taskfile, so those key the cache.
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.npm
+          key: npm-${{ runner.os }}-${{ hashFiles('**/package-lock.json', 'Taskfile.yml') }}
+          restore-keys: npm-${{ runner.os }}-
+      # Inputs reach the shell through env, never interpolated into the
+      # script, so a caller-supplied value cannot inject commands.
+      - name: task ${{ inputs.task-command }}
+        env:
+          TASK_COMMAND: ${{ inputs.task-command }}
+        # Unquoted on purpose: several targets are several words.
+        run: task $TASK_COMMAND

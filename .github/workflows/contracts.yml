@@ -13,5 +13,27 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # `task ci` split into its groups (Taskfile.yml ci:*), run in parallel.
+  # Together they are exactly `task ci`, still the definition of green.
   ci:
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [gates, cli, mcp, docs, mocks]
     uses: ./.github/workflows/sysspec-ci.yml
+    with:
+      task-command: ci:${{ matrix.group }}
+
+  # One stable check name for branch protection to require, whatever the
+  # matrix grows into.
+  ci-green:
+    name: ci green
+    if: always()
+    needs: ci
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Every ci group passed
+        env:
+          RESULT: ${{ needs.ci.result }}
+        run: '[ "$RESULT" = "success" ] || { echo "ci groups: $RESULT"; exit 1; }'
