@@ -11,7 +11,7 @@ import { chmodSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSyn
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { SYSSPEC_MCP } from "./pins.js";
-import { Exit } from "./util.js";
+import { Exit, ORG_RE } from "./util.js";
 
 const RENAMES: Record<string, string> = {
   gitignore: ".gitignore",
@@ -22,8 +22,6 @@ const RENAMES: Record<string, string> = {
   githooks: ".githooks",
   gitkeep: ".gitkeep",
 };
-
-const ORG_RE = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/;
 
 /** Title Case from the org's last label: com.acme -> "Acme". The system
  * name has to be *something* per instance, and the org is the one thing
@@ -62,7 +60,7 @@ function templatesRoot(): string {
   return path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "templates", "init");
 }
 
-function ownVersion(): string {
+export function ownVersion(): string {
   const pkg = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "package.json");
   return JSON.parse(readFileSync(pkg, "utf-8")).version;
 }

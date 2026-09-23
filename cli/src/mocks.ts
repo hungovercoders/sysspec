@@ -5,21 +5,13 @@
  * example files - nothing here knows any service by name.
  */
 
-import { copyFileSync, mkdirSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { copyFileSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { Exit, run } from "./util.js";
+import { Exit, isFile, run, serviceDirs as allServiceDirs } from "./util.js";
 import { parse } from "yaml";
 
 type Dict = Record<string, any>;
-
-function isFile(p: string): boolean {
-  try {
-    return statSync(p).isFile();
-  } catch {
-    return false;
-  }
-}
 
 export function composeFile(arg: string | null): string {
   if (arg) return arg;
@@ -53,12 +45,23 @@ async function http(
   headers: Record<string, string> = {},
   timeoutSeconds = 10,
 ): Promise<[number, string]> {
-  const resp = await fetch(url, {
-    method,
-    body,
-    headers,
-    signal: AbortSignal.timeout(timeoutSeconds * 1000),
-  });
+  let resp: Response;
+  try {
+    resp = await fetch(url, {
+      method,
+      body,
+      headers,
+      signal: AbortSignal.timeout(timeoutSeconds * 1000),
+    });
+  } catch (err) {
+    // fetch reports a refused connection as a bare "fetch failed"; name
+    // the endpoint and the likely fix instead.
+    const cause = (err as { cause?: { code?: string } }).cause?.code ?? (err as Error).name;
+    throw new Exit(
+      `cannot reach ${new URL(url).origin} (${cause}) - is the mock stack running? ` +
+        "Start it with 'task mocks:up' (or 'sysspec mocks up'), or pass the right URL flag.",
+    );
+  }
   return [resp.status, await resp.text()];
 }
 
@@ -83,16 +86,7 @@ async function upload(microcksUrl: string, file: string, main: boolean): Promise
 }
 
 export function serviceDirs(specsDir: string, only: string | null): string[] {
-  let dirs: string[] = [];
-  try {
-    dirs = readdirSync(specsDir)
-      .sort()
-      .map((d) => path.join(specsDir, d))
-      .filter((d) => isFile(path.join(d, "service.yaml")))
-      .filter((d) => !only || path.basename(d) === only);
-  } catch {
-    dirs = [];
-  }
+  const dirs = allServiceDirs(specsDir).filter((d) => !only || path.basename(d) === only);
   if (dirs.length === 0) {
     throw new Exit(`no services matching '${only || "*"}' under ${specsDir}/`);
   }

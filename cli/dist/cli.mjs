@@ -41,6 +41,8 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
 
 // src/util.ts
 import { spawnSync } from "child_process";
+import { readdirSync, statSync } from "fs";
+import path from "path";
 function run(cmd, opts = {}) {
   const [file, ...args] = cmd;
   const res = spawnSync(file, args, {
@@ -49,7 +51,14 @@ function run(cmd, opts = {}) {
     env: opts.env,
     maxBuffer: 64 * 1024 * 1024
   });
-  if (res.error) throw res.error;
+  if (res.error) {
+    if (res.error.code === "ENOENT") {
+      throw new Exit(
+        `'${file}' is not installed or not on PATH - run 'mise install' (the repo pins its toolchain in mise.toml) and retry`
+      );
+    }
+    throw res.error;
+  }
   return { status: res.status ?? 1, stdout: res.stdout ?? "", stderr: res.stderr ?? "" };
 }
 function git(...args) {
@@ -59,8 +68,8 @@ function git(...args) {
   }
   return res.stdout;
 }
-function blob(ref, path9) {
-  const res = run(["git", "show", `${ref}:${path9}`]);
+function blob(ref, path10) {
+  const res = run(["git", "show", `${ref}:${path10}`]);
   return res.status === 0 ? res.stdout : null;
 }
 function mergeBase(base) {
@@ -124,7 +133,29 @@ function pyRepr(v) {
 function pySorted(items) {
   return [...items].sort((a, b) => a < b ? -1 : a > b ? 1 : 0);
 }
-var Exit;
+function isFile(p) {
+  try {
+    return statSync(p).isFile();
+  } catch {
+    return false;
+  }
+}
+function isDir(p) {
+  try {
+    return statSync(p).isDirectory();
+  } catch {
+    return false;
+  }
+}
+function globYaml(dir) {
+  if (!isDir(dir)) return [];
+  return readdirSync(dir).filter((f) => /\.ya?ml$/.test(f)).sort().map((f) => path.join(dir, f));
+}
+function serviceDirs(specsDir) {
+  if (!isDir(specsDir)) return [];
+  return readdirSync(specsDir).sort().map((d) => path.join(specsDir, d)).filter((d) => isFile(path.join(d, "service.yaml")));
+}
+var Exit, ORG_RE;
 var init_util = __esm({
   "src/util.ts"() {
     "use strict";
@@ -133,6 +164,7 @@ var init_util = __esm({
         super(message);
       }
     };
+    ORG_RE = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/;
   }
 });
 
@@ -213,17 +245,17 @@ var require_visit = __commonJS({
     visit.BREAK = BREAK;
     visit.SKIP = SKIP2;
     visit.REMOVE = REMOVE;
-    function visit_(key, node, visitor, path9) {
-      const ctrl = callVisitor(key, node, visitor, path9);
+    function visit_(key, node, visitor, path10) {
+      const ctrl = callVisitor(key, node, visitor, path10);
       if (identity.isNode(ctrl) || identity.isPair(ctrl)) {
-        replaceNode(key, path9, ctrl);
-        return visit_(key, ctrl, visitor, path9);
+        replaceNode(key, path10, ctrl);
+        return visit_(key, ctrl, visitor, path10);
       }
       if (typeof ctrl !== "symbol") {
         if (identity.isCollection(node)) {
-          path9 = Object.freeze(path9.concat(node));
+          path10 = Object.freeze(path10.concat(node));
           for (let i = 0; i < node.items.length; ++i) {
-            const ci = visit_(i, node.items[i], visitor, path9);
+            const ci = visit_(i, node.items[i], visitor, path10);
             if (typeof ci === "number")
               i = ci - 1;
             else if (ci === BREAK)
@@ -234,13 +266,13 @@ var require_visit = __commonJS({
             }
           }
         } else if (identity.isPair(node)) {
-          path9 = Object.freeze(path9.concat(node));
-          const ck = visit_("key", node.key, visitor, path9);
+          path10 = Object.freeze(path10.concat(node));
+          const ck = visit_("key", node.key, visitor, path10);
           if (ck === BREAK)
             return BREAK;
           else if (ck === REMOVE)
             node.key = null;
-          const cv = visit_("value", node.value, visitor, path9);
+          const cv = visit_("value", node.value, visitor, path10);
           if (cv === BREAK)
             return BREAK;
           else if (cv === REMOVE)
@@ -261,17 +293,17 @@ var require_visit = __commonJS({
     visitAsync.BREAK = BREAK;
     visitAsync.SKIP = SKIP2;
     visitAsync.REMOVE = REMOVE;
-    async function visitAsync_(key, node, visitor, path9) {
-      const ctrl = await callVisitor(key, node, visitor, path9);
+    async function visitAsync_(key, node, visitor, path10) {
+      const ctrl = await callVisitor(key, node, visitor, path10);
       if (identity.isNode(ctrl) || identity.isPair(ctrl)) {
-        replaceNode(key, path9, ctrl);
-        return visitAsync_(key, ctrl, visitor, path9);
+        replaceNode(key, path10, ctrl);
+        return visitAsync_(key, ctrl, visitor, path10);
       }
       if (typeof ctrl !== "symbol") {
         if (identity.isCollection(node)) {
-          path9 = Object.freeze(path9.concat(node));
+          path10 = Object.freeze(path10.concat(node));
           for (let i = 0; i < node.items.length; ++i) {
-            const ci = await visitAsync_(i, node.items[i], visitor, path9);
+            const ci = await visitAsync_(i, node.items[i], visitor, path10);
             if (typeof ci === "number")
               i = ci - 1;
             else if (ci === BREAK)
@@ -282,13 +314,13 @@ var require_visit = __commonJS({
             }
           }
         } else if (identity.isPair(node)) {
-          path9 = Object.freeze(path9.concat(node));
-          const ck = await visitAsync_("key", node.key, visitor, path9);
+          path10 = Object.freeze(path10.concat(node));
+          const ck = await visitAsync_("key", node.key, visitor, path10);
           if (ck === BREAK)
             return BREAK;
           else if (ck === REMOVE)
             node.key = null;
-          const cv = await visitAsync_("value", node.value, visitor, path9);
+          const cv = await visitAsync_("value", node.value, visitor, path10);
           if (cv === BREAK)
             return BREAK;
           else if (cv === REMOVE)
@@ -315,23 +347,23 @@ var require_visit = __commonJS({
       }
       return visitor;
     }
-    function callVisitor(key, node, visitor, path9) {
+    function callVisitor(key, node, visitor, path10) {
       if (typeof visitor === "function")
-        return visitor(key, node, path9);
+        return visitor(key, node, path10);
       if (identity.isMap(node))
-        return visitor.Map?.(key, node, path9);
+        return visitor.Map?.(key, node, path10);
       if (identity.isSeq(node))
-        return visitor.Seq?.(key, node, path9);
+        return visitor.Seq?.(key, node, path10);
       if (identity.isPair(node))
-        return visitor.Pair?.(key, node, path9);
+        return visitor.Pair?.(key, node, path10);
       if (identity.isScalar(node))
-        return visitor.Scalar?.(key, node, path9);
+        return visitor.Scalar?.(key, node, path10);
       if (identity.isAlias(node))
-        return visitor.Alias?.(key, node, path9);
+        return visitor.Alias?.(key, node, path10);
       return void 0;
     }
-    function replaceNode(key, path9, node) {
-      const parent = path9[path9.length - 1];
+    function replaceNode(key, path10, node) {
+      const parent = path10[path10.length - 1];
       if (identity.isCollection(parent)) {
         parent.items[key] = node;
       } else if (identity.isPair(parent)) {
@@ -941,10 +973,10 @@ var require_Collection = __commonJS({
     var createNode = require_createNode();
     var identity = require_identity();
     var Node = require_Node();
-    function collectionFromPath(schema, path9, value) {
+    function collectionFromPath(schema, path10, value) {
       let v = value;
-      for (let i = path9.length - 1; i >= 0; --i) {
-        const k = path9[i];
+      for (let i = path10.length - 1; i >= 0; --i) {
+        const k = path10[i];
         if (typeof k === "number" && Number.isInteger(k) && k >= 0) {
           const a = [];
           a[k] = v;
@@ -963,7 +995,7 @@ var require_Collection = __commonJS({
         sourceObjects: /* @__PURE__ */ new Map()
       });
     }
-    var isEmptyPath = (path9) => path9 == null || typeof path9 === "object" && !!path9[Symbol.iterator]().next().done;
+    var isEmptyPath = (path10) => path10 == null || typeof path10 === "object" && !!path10[Symbol.iterator]().next().done;
     var Collection = class extends Node.NodeBase {
       constructor(type, schema) {
         super(type);
@@ -993,11 +1025,11 @@ var require_Collection = __commonJS({
        * be a Pair instance or a `{ key, value }` object, which may not have a key
        * that already exists in the map.
        */
-      addIn(path9, value) {
-        if (isEmptyPath(path9))
+      addIn(path10, value) {
+        if (isEmptyPath(path10))
           this.add(value);
         else {
-          const [key, ...rest] = path9;
+          const [key, ...rest] = path10;
           const node = this.get(key, true);
           if (identity.isCollection(node))
             node.addIn(rest, value);
@@ -1011,8 +1043,8 @@ var require_Collection = __commonJS({
        * Removes a value from the collection.
        * @returns `true` if the item was found and removed.
        */
-      deleteIn(path9) {
-        const [key, ...rest] = path9;
+      deleteIn(path10) {
+        const [key, ...rest] = path10;
         if (rest.length === 0)
           return this.delete(key);
         const node = this.get(key, true);
@@ -1026,8 +1058,8 @@ var require_Collection = __commonJS({
        * scalar values from their surrounding node; to disable set `keepScalar` to
        * `true` (collections are always returned intact).
        */
-      getIn(path9, keepScalar) {
-        const [key, ...rest] = path9;
+      getIn(path10, keepScalar) {
+        const [key, ...rest] = path10;
         const node = this.get(key, true);
         if (rest.length === 0)
           return !keepScalar && identity.isScalar(node) ? node.value : node;
@@ -1045,8 +1077,8 @@ var require_Collection = __commonJS({
       /**
        * Checks if the collection includes a value with the key `key`.
        */
-      hasIn(path9) {
-        const [key, ...rest] = path9;
+      hasIn(path10) {
+        const [key, ...rest] = path10;
         if (rest.length === 0)
           return this.has(key);
         const node = this.get(key, true);
@@ -1056,8 +1088,8 @@ var require_Collection = __commonJS({
        * Sets a value in this collection. For `!!set`, `value` needs to be a
        * boolean to add/remove the item from the set.
        */
-      setIn(path9, value) {
-        const [key, ...rest] = path9;
+      setIn(path10, value) {
+        const [key, ...rest] = path10;
         if (rest.length === 0) {
           this.set(key, value);
         } else {
@@ -3572,9 +3604,9 @@ var require_Document = __commonJS({
           this.contents.add(value);
       }
       /** Adds a value to the document. */
-      addIn(path9, value) {
+      addIn(path10, value) {
         if (assertCollection(this.contents))
-          this.contents.addIn(path9, value);
+          this.contents.addIn(path10, value);
       }
       /**
        * Create a new `Alias` node, ensuring that the target `node` has the required anchor.
@@ -3649,14 +3681,14 @@ var require_Document = __commonJS({
        * Removes a value from the document.
        * @returns `true` if the item was found and removed.
        */
-      deleteIn(path9) {
-        if (Collection.isEmptyPath(path9)) {
+      deleteIn(path10) {
+        if (Collection.isEmptyPath(path10)) {
           if (this.contents == null)
             return false;
           this.contents = null;
           return true;
         }
-        return assertCollection(this.contents) ? this.contents.deleteIn(path9) : false;
+        return assertCollection(this.contents) ? this.contents.deleteIn(path10) : false;
       }
       /**
        * Returns item at `key`, or `undefined` if not found. By default unwraps
@@ -3671,10 +3703,10 @@ var require_Document = __commonJS({
        * scalar values from their surrounding node; to disable set `keepScalar` to
        * `true` (collections are always returned intact).
        */
-      getIn(path9, keepScalar) {
-        if (Collection.isEmptyPath(path9))
+      getIn(path10, keepScalar) {
+        if (Collection.isEmptyPath(path10))
           return !keepScalar && identity.isScalar(this.contents) ? this.contents.value : this.contents;
-        return identity.isCollection(this.contents) ? this.contents.getIn(path9, keepScalar) : void 0;
+        return identity.isCollection(this.contents) ? this.contents.getIn(path10, keepScalar) : void 0;
       }
       /**
        * Checks if the document includes a value with the key `key`.
@@ -3685,10 +3717,10 @@ var require_Document = __commonJS({
       /**
        * Checks if the document includes a value at `path`.
        */
-      hasIn(path9) {
-        if (Collection.isEmptyPath(path9))
+      hasIn(path10) {
+        if (Collection.isEmptyPath(path10))
           return this.contents !== void 0;
-        return identity.isCollection(this.contents) ? this.contents.hasIn(path9) : false;
+        return identity.isCollection(this.contents) ? this.contents.hasIn(path10) : false;
       }
       /**
        * Sets a value in this document. For `!!set`, `value` needs to be a
@@ -3705,13 +3737,13 @@ var require_Document = __commonJS({
        * Sets a value in this document. For `!!set`, `value` needs to be a
        * boolean to add/remove the item from the set.
        */
-      setIn(path9, value) {
-        if (Collection.isEmptyPath(path9)) {
+      setIn(path10, value) {
+        if (Collection.isEmptyPath(path10)) {
           this.contents = value;
         } else if (this.contents == null) {
-          this.contents = Collection.collectionFromPath(this.schema, Array.from(path9), value);
+          this.contents = Collection.collectionFromPath(this.schema, Array.from(path10), value);
         } else if (assertCollection(this.contents)) {
-          this.contents.setIn(path9, value);
+          this.contents.setIn(path10, value);
         }
       }
       /**
@@ -5671,9 +5703,9 @@ var require_cst_visit = __commonJS({
     visit.BREAK = BREAK;
     visit.SKIP = SKIP2;
     visit.REMOVE = REMOVE;
-    visit.itemAtPath = (cst, path9) => {
+    visit.itemAtPath = (cst, path10) => {
       let item = cst;
-      for (const [field, index] of path9) {
+      for (const [field, index] of path10) {
         const tok = item?.[field];
         if (tok && "items" in tok) {
           item = tok.items[index];
@@ -5682,23 +5714,23 @@ var require_cst_visit = __commonJS({
       }
       return item;
     };
-    visit.parentCollection = (cst, path9) => {
-      const parent = visit.itemAtPath(cst, path9.slice(0, -1));
-      const field = path9[path9.length - 1][0];
+    visit.parentCollection = (cst, path10) => {
+      const parent = visit.itemAtPath(cst, path10.slice(0, -1));
+      const field = path10[path10.length - 1][0];
       const coll = parent?.[field];
       if (coll && "items" in coll)
         return coll;
       throw new Error("Parent collection not found");
     };
-    function _visit(path9, item, visitor) {
-      let ctrl = visitor(item, path9);
+    function _visit(path10, item, visitor) {
+      let ctrl = visitor(item, path10);
       if (typeof ctrl === "symbol")
         return ctrl;
       for (const field of ["key", "value"]) {
         const token = item[field];
         if (token && "items" in token) {
           for (let i = 0; i < token.items.length; ++i) {
-            const ci = _visit(Object.freeze(path9.concat([[field, i]])), token.items[i], visitor);
+            const ci = _visit(Object.freeze(path10.concat([[field, i]])), token.items[i], visitor);
             if (typeof ci === "number")
               i = ci - 1;
             else if (ci === BREAK)
@@ -5709,10 +5741,10 @@ var require_cst_visit = __commonJS({
             }
           }
           if (typeof ctrl === "function" && field === "key")
-            ctrl = ctrl(item, path9);
+            ctrl = ctrl(item, path10);
         }
       }
-      return typeof ctrl === "function" ? ctrl(item, path9) : ctrl;
+      return typeof ctrl === "function" ? ctrl(item, path10) : ctrl;
     }
     exports.visit = visit;
   }
@@ -7490,7 +7522,7 @@ __export(docs_data_exports, {
   systemEntry: () => systemEntry
 });
 import { cpSync, mkdirSync, readFileSync as readFileSync3, rmSync as rmSync2, writeFileSync as writeFileSync2 } from "fs";
-import path2 from "path";
+import path3 from "path";
 function unfence(lines) {
   return lines.slice(1, -1).join("\n");
 }
@@ -7532,7 +7564,7 @@ function httpOperations(m, specs2, restExamples) {
   const ops = [];
   for (const a of m.artifacts ?? []) {
     if (a.kind !== "openapi") continue;
-    const doc = readYaml(path2.join(specs2, m.name, a.path));
+    const doc = readYaml(path3.join(specs2, m.name, a.path));
     for (const [path_, methods] of Object.entries(doc.paths ?? {})) {
       for (const [method, op] of Object.entries(methods ?? {})) {
         if (!["get", "post", "put", "patch", "delete"].includes(method)) continue;
@@ -7801,7 +7833,7 @@ function buildData(manifests, specs2, mocks) {
         summary: a.summary ?? "",
         history: histories.get(a.path) ?? []
       };
-      const source = path2.join(specs2, name, a.path);
+      const source = path3.join(specs2, name, a.path);
       if (a.kind === "data-contract") {
         const odcs = readYaml(source);
         entry.odcs = odcs;
@@ -7881,16 +7913,16 @@ function runData(specsDir, siteDir, mocksDir = "mocks") {
     throw new Exit(`no service manifests found under ${specsDir}/*/service.yaml`);
   }
   const data = buildData(manifests, specsDir, mocksDir);
-  const dataFile = path2.join(siteDir, "src", "data", "specs.json");
-  mkdirSync(path2.dirname(dataFile), { recursive: true });
+  const dataFile = path3.join(siteDir, "src", "data", "specs.json");
+  mkdirSync(path3.dirname(dataFile), { recursive: true });
   writeFileSync2(dataFile, pyJson(data) + "\n");
-  const publicDir = path2.join(siteDir, "public", "specs");
+  const publicDir = path3.join(siteDir, "public", "specs");
   rmSync2(publicDir, { recursive: true, force: true });
   for (const m of manifests) {
     for (const a of m.artifacts ?? []) {
-      const source = path2.join(specsDir, m.name, a.path);
-      const target = path2.join(publicDir, m.name, a.path);
-      mkdirSync(path2.dirname(target), { recursive: true });
+      const source = path3.join(specsDir, m.name, a.path);
+      const target = path3.join(publicDir, m.name, a.path);
+      mkdirSync(path3.dirname(target), { recursive: true });
       cpSync(source, target, { preserveTimestamps: true });
     }
   }
@@ -7904,41 +7936,46 @@ var init_docs_data = __esm({
     init_docs_gen();
     init_util();
     import_yaml3 = __toESM(require_dist(), 1);
-    stem = (p) => path2.basename(p).replace(/\.[^.]*$/, "");
+    stem = (p) => path3.basename(p).replace(/\.[^.]*$/, "");
   }
 });
 
 // src/docs-gen.ts
-import { mkdtempSync as mkdtempSync2, readdirSync, readFileSync as readFileSync4, rmSync as rmSync3, statSync, writeFileSync as writeFileSync3 } from "fs";
+import {
+  accessSync,
+  constants,
+  mkdtempSync as mkdtempSync2,
+  readdirSync as readdirSync2,
+  readFileSync as readFileSync4,
+  rmSync as rmSync3,
+  statSync as statSync2,
+  writeFileSync as writeFileSync3
+} from "fs";
 import { tmpdir as tmpdir2 } from "os";
-import path3 from "path";
-function isDir(p) {
-  try {
-    return statSync(p).isDirectory();
-  } catch {
-    return false;
-  }
-}
-function isFile(p) {
-  try {
-    return statSync(p).isFile();
-  } catch {
-    return false;
-  }
-}
+import path4 from "path";
 function readYaml(file) {
   return (0, import_yaml4.parse)(readFileSync4(file, "utf-8")) ?? {};
 }
 function which(cmd) {
-  const res = run(["which", cmd]);
-  return res.status === 0 ? res.stdout.trim() : null;
+  const exts = process.platform === "win32" ? (process.env.PATHEXT ?? ".EXE").split(";") : [""];
+  for (const dir of (process.env.PATH ?? "").split(path4.delimiter).filter(Boolean)) {
+    for (const ext of exts) {
+      const candidate = path4.join(dir, cmd + ext);
+      try {
+        accessSync(candidate, constants.X_OK);
+        if (statSync2(candidate).isFile()) return candidate;
+      } catch {
+      }
+    }
+  }
+  return null;
 }
 function loadManifests(specs2) {
   if (!isDir(specs2)) return [];
-  return readdirSync(specs2).sort().map((d) => path3.join(specs2, d, "service.yaml")).filter(isFile).map(readYaml);
+  return readdirSync2(specs2).sort().map((d) => path4.join(specs2, d, "service.yaml")).filter(isFile).map(readYaml);
 }
 function loadSystem(specs2) {
-  const file = path3.join(specs2, "system.yaml");
+  const file = path4.join(specs2, "system.yaml");
   return isFile(file) ? readYaml(file) : null;
 }
 function nodeId(name) {
@@ -7949,7 +7986,7 @@ function channelIndex(manifests, specs2) {
   for (const m of manifests) {
     for (const a of m.artifacts ?? []) {
       if (a.kind !== "asyncapi") continue;
-      const doc = readYaml(path3.join(specs2, m.name, a.path));
+      const doc = readYaml(path4.join(specs2, m.name, a.path));
       const channels = doc.channels ?? {};
       const messages = doc.components?.messages ?? {};
       for (const [opKey, op] of Object.entries(doc.operations ?? {})) {
@@ -7990,7 +8027,7 @@ function surfaceIndex(manifests, specs2) {
     const ops = [];
     const data = [];
     for (const a of m.artifacts ?? []) {
-      const file = path3.join(specs2, m.name, a.path);
+      const file = path4.join(specs2, m.name, a.path);
       if (a.kind === "openapi") {
         const doc = readYaml(file);
         for (const [path_, methods] of Object.entries(doc.paths ?? {})) {
@@ -8003,7 +8040,7 @@ function surfaceIndex(manifests, specs2) {
         }
       } else if (a.kind === "data-contract") {
         const odcs = readYaml(file);
-        const stem2 = path3.basename(a.path).replace(/\.[^.]*$/, "");
+        const stem2 = path4.basename(a.path).replace(/\.[^.]*$/, "");
         data.push([stem2, odcs.name ?? stem2]);
       }
     }
@@ -8012,7 +8049,7 @@ function surfaceIndex(manifests, specs2) {
   return out;
 }
 function loadExamples(mocksDir, service) {
-  const file = path3.join(mocksDir, `${service}.events.examples.yaml`);
+  const file = path4.join(mocksDir, `${service}.events.examples.yaml`);
   const examples = /* @__PURE__ */ new Map();
   if (!isFile(file)) return examples;
   const doc = readYaml(file);
@@ -8030,7 +8067,7 @@ function loadExamples(mocksDir, service) {
   return examples;
 }
 function loadRestExamples(mocksDir, service) {
-  const file = path3.join(mocksDir, `${service}.rest.examples.yaml`);
+  const file = path4.join(mocksDir, `${service}.rest.examples.yaml`);
   const examples = /* @__PURE__ */ new Map();
   if (!isFile(file)) return examples;
   const doc = readYaml(file);
@@ -8227,28 +8264,28 @@ function docLabel(src, summary) {
     const match = line.match(/^#\s+(.+)/);
     if (match) return match[1].trim();
   }
-  return summary ? clean(summary).replace(/\.+$/, "") : path3.basename(src).replace(/\.[^.]*$/, "");
+  return summary ? clean(summary).replace(/\.+$/, "") : path4.basename(src).replace(/\.[^.]*$/, "");
 }
 function rglobMd(dir) {
   const out = [];
   if (!isDir(dir)) return out;
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    const p = path3.join(dir, entry.name);
+  for (const entry of readdirSync2(dir, { withFileTypes: true })) {
+    const p = path4.join(dir, entry.name);
     if (entry.isDirectory()) out.push(...rglobMd(p));
     else if (entry.name.endsWith(".md")) out.push(p);
   }
   return out.sort();
 }
 function mermaidBlocks(specs2, docs) {
-  const specsSub = path3.join(docs, "specs") + path3.sep;
+  const specsSub = path4.join(docs, "specs") + path4.sep;
   const pages = rglobMd(docs).filter((p) => !p.startsWith(specsSub));
   const sources = [];
   if (isDir(specs2)) {
-    for (const d of readdirSync(specs2).sort()) {
-      const docsDir = path3.join(specs2, d, "docs");
+    for (const d of readdirSync2(specs2).sort()) {
+      const docsDir = path4.join(specs2, d, "docs");
       if (!isDir(docsDir)) continue;
-      for (const f of readdirSync(docsDir).sort()) {
-        if (f.endsWith(".md")) sources.push(path3.join(docsDir, f));
+      for (const f of readdirSync2(docsDir).sort()) {
+        if (f.endsWith(".md")) sources.push(path4.join(docsDir, f));
       }
     }
   }
@@ -8280,7 +8317,7 @@ function browserEnv() {
 }
 async function checkDiagrams(specsDir, docsDir, siteDir = "docs-site") {
   const blocks = mermaidBlocks(specsDir, docsDir);
-  const dataFile = path3.join(siteDir, "src", "data", "specs.json");
+  const dataFile = path4.join(siteDir, "src", "data", "specs.json");
   if (isFile(dataFile)) {
     const { collectMermaid: collectMermaid2 } = await Promise.resolve().then(() => (init_docs_data(), docs_data_exports));
     const data = JSON.parse(readFileSync4(dataFile, "utf-8"));
@@ -8294,36 +8331,43 @@ async function checkDiagrams(specsDir, docsDir, siteDir = "docs-site") {
   }
   const [config, env] = browserEnv();
   let failures = 0;
-  const tmp = mkdtempSync2(path3.join(tmpdir2(), "sysspec-mmd-"));
+  const tmp = mkdtempSync2(path4.join(tmpdir2(), "sysspec-mmd-"));
   try {
-    const configFile = path3.join(tmp, "puppeteer.json");
+    const configFile = path4.join(tmp, "puppeteer.json");
     writeFileSync3(configFile, JSON.stringify(config));
-    for (const [f, line, source] of blocks) {
-      const mmd = path3.join(tmp, "diagram.mmd");
-      writeFileSync3(mmd, source);
-      const res = run(
-        [
-          "npx",
-          "-y",
-          MERMAID_CLI,
-          "--quiet",
-          "--puppeteerConfigFile",
-          configFile,
-          "--input",
-          mmd,
-          "--output",
-          path3.join(tmp, "diagram.svg")
-        ],
-        { env }
-      );
-      if (res.status !== 0) {
-        failures += 1;
-        const detail = (res.stderr || res.stdout).trim();
-        console.error(`mermaid FAILED: ${f}:${line}
+    const mmdc = (input, output) => run(
+      [
+        "npx",
+        "-y",
+        MERMAID_CLI,
+        "--quiet",
+        "--puppeteerConfigFile",
+        configFile,
+        "--input",
+        input,
+        "--output",
+        output
+      ],
+      { env }
+    );
+    const batch = path4.join(tmp, "all.md");
+    writeFileSync3(batch, blocks.map(([, , source]) => "```mermaid\n" + source + "\n```\n").join("\n"));
+    if (mmdc(batch, path4.join(tmp, "all-out.md")).status === 0) {
+      for (const [f, line] of blocks) console.log(`mermaid ok: ${f}:${line}`);
+    } else {
+      for (const [f, line, source] of blocks) {
+        const mmd = path4.join(tmp, "diagram.mmd");
+        writeFileSync3(mmd, source);
+        const res = mmdc(mmd, path4.join(tmp, "diagram.svg"));
+        if (res.status !== 0) {
+          failures += 1;
+          const detail = (res.stderr || res.stdout).trim();
+          console.error(`mermaid FAILED: ${f}:${line}
 ${detail}
 `);
-      } else {
-        console.log(`mermaid ok: ${f}:${line}`);
+        } else {
+          console.log(`mermaid ok: ${f}:${line}`);
+        }
       }
     }
   } finally {
@@ -8729,11 +8773,11 @@ var require_codegen = __commonJS({
         const rhs = this.rhs === void 0 ? "" : ` = ${this.rhs}`;
         return `${varKind} ${this.name}${rhs};` + _n;
       }
-      optimizeNames(names, constants) {
+      optimizeNames(names, constants2) {
         if (!names[this.name.str])
           return;
         if (this.rhs)
-          this.rhs = optimizeExpr(this.rhs, names, constants);
+          this.rhs = optimizeExpr(this.rhs, names, constants2);
         return this;
       }
       get names() {
@@ -8750,10 +8794,10 @@ var require_codegen = __commonJS({
       render({ _n }) {
         return `${this.lhs} = ${this.rhs};` + _n;
       }
-      optimizeNames(names, constants) {
+      optimizeNames(names, constants2) {
         if (this.lhs instanceof code_1.Name && !names[this.lhs.str] && !this.sideEffects)
           return;
-        this.rhs = optimizeExpr(this.rhs, names, constants);
+        this.rhs = optimizeExpr(this.rhs, names, constants2);
         return this;
       }
       get names() {
@@ -8814,8 +8858,8 @@ var require_codegen = __commonJS({
       optimizeNodes() {
         return `${this.code}` ? this : void 0;
       }
-      optimizeNames(names, constants) {
-        this.code = optimizeExpr(this.code, names, constants);
+      optimizeNames(names, constants2) {
+        this.code = optimizeExpr(this.code, names, constants2);
         return this;
       }
       get names() {
@@ -8844,12 +8888,12 @@ var require_codegen = __commonJS({
         }
         return nodes.length > 0 ? this : void 0;
       }
-      optimizeNames(names, constants) {
+      optimizeNames(names, constants2) {
         const { nodes } = this;
         let i = nodes.length;
         while (i--) {
           const n = nodes[i];
-          if (n.optimizeNames(names, constants))
+          if (n.optimizeNames(names, constants2))
             continue;
           subtractNames(names, n.names);
           nodes.splice(i, 1);
@@ -8902,12 +8946,12 @@ var require_codegen = __commonJS({
           return void 0;
         return this;
       }
-      optimizeNames(names, constants) {
+      optimizeNames(names, constants2) {
         var _a;
-        this.else = (_a = this.else) === null || _a === void 0 ? void 0 : _a.optimizeNames(names, constants);
-        if (!(super.optimizeNames(names, constants) || this.else))
+        this.else = (_a = this.else) === null || _a === void 0 ? void 0 : _a.optimizeNames(names, constants2);
+        if (!(super.optimizeNames(names, constants2) || this.else))
           return;
-        this.condition = optimizeExpr(this.condition, names, constants);
+        this.condition = optimizeExpr(this.condition, names, constants2);
         return this;
       }
       get names() {
@@ -8930,10 +8974,10 @@ var require_codegen = __commonJS({
       render(opts) {
         return `for(${this.iteration})` + super.render(opts);
       }
-      optimizeNames(names, constants) {
-        if (!super.optimizeNames(names, constants))
+      optimizeNames(names, constants2) {
+        if (!super.optimizeNames(names, constants2))
           return;
-        this.iteration = optimizeExpr(this.iteration, names, constants);
+        this.iteration = optimizeExpr(this.iteration, names, constants2);
         return this;
       }
       get names() {
@@ -8969,10 +9013,10 @@ var require_codegen = __commonJS({
       render(opts) {
         return `for(${this.varKind} ${this.name} ${this.loop} ${this.iterable})` + super.render(opts);
       }
-      optimizeNames(names, constants) {
-        if (!super.optimizeNames(names, constants))
+      optimizeNames(names, constants2) {
+        if (!super.optimizeNames(names, constants2))
           return;
-        this.iterable = optimizeExpr(this.iterable, names, constants);
+        this.iterable = optimizeExpr(this.iterable, names, constants2);
         return this;
       }
       get names() {
@@ -9014,11 +9058,11 @@ var require_codegen = __commonJS({
         (_b = this.finally) === null || _b === void 0 ? void 0 : _b.optimizeNodes();
         return this;
       }
-      optimizeNames(names, constants) {
+      optimizeNames(names, constants2) {
         var _a, _b;
-        super.optimizeNames(names, constants);
-        (_a = this.catch) === null || _a === void 0 ? void 0 : _a.optimizeNames(names, constants);
-        (_b = this.finally) === null || _b === void 0 ? void 0 : _b.optimizeNames(names, constants);
+        super.optimizeNames(names, constants2);
+        (_a = this.catch) === null || _a === void 0 ? void 0 : _a.optimizeNames(names, constants2);
+        (_b = this.finally) === null || _b === void 0 ? void 0 : _b.optimizeNames(names, constants2);
         return this;
       }
       get names() {
@@ -9319,7 +9363,7 @@ var require_codegen = __commonJS({
     function addExprNames(names, from) {
       return from instanceof code_1._CodeOrName ? addNames(names, from.names) : names;
     }
-    function optimizeExpr(expr, names, constants) {
+    function optimizeExpr(expr, names, constants2) {
       if (expr instanceof code_1.Name)
         return replaceName(expr);
       if (!canOptimize(expr))
@@ -9334,14 +9378,14 @@ var require_codegen = __commonJS({
         return items;
       }, []));
       function replaceName(n) {
-        const c = constants[n.str];
+        const c = constants2[n.str];
         if (c === void 0 || names[n.str] !== 1)
           return n;
         delete names[n.str];
         return c;
       }
       function canOptimize(e) {
-        return e instanceof code_1._Code && e._items.some((c) => c instanceof code_1.Name && names[c.str] === 1 && constants[c.str] !== void 0);
+        return e instanceof code_1._Code && e._items.some((c) => c instanceof code_1.Name && names[c.str] === 1 && constants2[c.str] !== void 0);
       }
     }
     function subtractNames(names, from) {
@@ -11581,8 +11625,8 @@ var require_utils = __commonJS({
       }
       return ind;
     }
-    function removeDotSegments(path9) {
-      let input = path9;
+    function removeDotSegments(path10) {
+      let input = path10;
       const output = [];
       let nextSlash = -1;
       let len = 0;
@@ -11991,8 +12035,8 @@ var require_schemes = __commonJS({
       }
       if (wsComponent.resourceName) {
         const queryIndex = wsComponent.resourceName.indexOf("?");
-        const path9 = queryIndex === -1 ? wsComponent.resourceName : wsComponent.resourceName.slice(0, queryIndex);
-        wsComponent.path = path9 && path9 !== "/" ? path9 : void 0;
+        const path10 = queryIndex === -1 ? wsComponent.resourceName : wsComponent.resourceName.slice(0, queryIndex);
+        wsComponent.path = path10 && path10 !== "/" ? path10 : void 0;
         wsComponent.query = queryIndex === -1 ? void 0 : wsComponent.resourceName.slice(queryIndex + 1);
         wsComponent.resourceName = void 0;
       }
@@ -20179,6 +20223,10 @@ var require__2 = __commonJS({
   }
 });
 
+// src/cli.ts
+import { realpathSync } from "fs";
+import { fileURLToPath as fileURLToPath4 } from "url";
+
 // src/args.ts
 init_util();
 var Args = class {
@@ -20243,7 +20291,7 @@ init_pins();
 init_util();
 import { mkdtempSync, readFileSync as readFileSync2, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
-import path from "path";
+import path2 from "path";
 
 // src/versioning.ts
 var import_yaml = __toESM(require_dist(), 1);
@@ -20364,13 +20412,13 @@ ${checked} gated artifact(s) changed, all versioned correctly.`);
 // src/compat.ts
 var PROSE_PATH = /\/(description|summary|title)$/;
 function writeTmp(text, suffix) {
-  const dir = mkdtempSync(path.join(tmpdir(), "sysspec-"));
-  const file = path.join(dir, `base${suffix}`);
+  const dir = mkdtempSync(path2.join(tmpdir(), "sysspec-"));
+  const file = path2.join(dir, `base${suffix}`);
   writeFileSync(file, text);
   return file;
 }
 function removeTmp(file) {
-  rmSync(path.dirname(file), { recursive: true, force: true });
+  rmSync(path2.dirname(file), { recursive: true, force: true });
 }
 function openapiBreaking(baseFile, current) {
   const res = run(["oasdiff", "breaking", baseFile, current, "--fail-on", "ERR"]);
@@ -20422,10 +20470,10 @@ function odcsBreakingDetail(output) {
     if (!inDetails || !/│\s*ERROR\s*│/.test(line)) continue;
     const cells = line.split("\u2502").map((c) => c.trim());
     const severity = cells.indexOf("ERROR");
-    const path9 = cells[severity + 2];
+    const path10 = cells[severity + 2];
     const oldValue = cells[severity + 3];
-    if (!path9) continue;
-    const detail = oldValue ? `${path9} (was ${oldValue})` : path9;
+    if (!path10) continue;
+    const detail = oldValue ? `${path10} (was ${oldValue})` : path10;
     if (!seen.has(detail)) seen.add(detail);
   }
   return [...seen];
@@ -20504,7 +20552,7 @@ function runGate2(base, only, specsDir, allowMissingBase = false) {
         continue;
       }
       checked += 1;
-      const baseFile = writeTmp(baseText, path.extname(rel));
+      const baseFile = writeTmp(baseText, path2.extname(rel));
       let breaking, detail;
       try {
         [breaking, detail] = classify(baseFile, full);
@@ -20557,8 +20605,8 @@ init_docs_data();
 
 // src/intent.ts
 var import_yaml5 = __toESM(require_dist(), 1);
-import { readdirSync as readdirSync2, readFileSync as readFileSync5 } from "fs";
-import path4 from "path";
+import { readdirSync as readdirSync3, readFileSync as readFileSync5 } from "fs";
+import path5 from "path";
 init_util();
 var BACKTICK = /`([^`]+)`/g;
 var PROSE_SUFFIX = /\/(description|summary|title|examples)$/;
@@ -20719,10 +20767,10 @@ function runGate3(base, only, specsDir, allowMissingBase = false) {
     const serviceDir = manifestPath.slice(0, manifestPath.lastIndexOf("/"));
     const service = serviceDir.split("/").pop();
     if (only && service !== only) continue;
-    const featuresDir = path4.join(serviceDir, "features");
+    const featuresDir = path5.join(serviceDir, "features");
     let featureFiles = [];
     try {
-      featureFiles = readdirSync2(featuresDir).filter((f) => f.endsWith(".feature")).sort().map((f) => path4.join(featuresDir, f));
+      featureFiles = readdirSync3(featuresDir).filter((f) => f.endsWith(".feature")).sort().map((f) => path5.join(featuresDir, f));
     } catch {
       featureFiles = [];
     }
@@ -20733,7 +20781,7 @@ function runGate3(base, only, specsDir, allowMissingBase = false) {
       if (!changed.has(full) || extract === void 0) continue;
       checked += 1;
       const baseText = blob(mb, full) ?? emptyBase(kind, readFileSync5(full, "utf-8"));
-      const baseFile = writeTmp(baseText, path4.extname(rel));
+      const baseFile = writeTmp(baseText, path5.extname(rel));
       let tokens;
       try {
         tokens = [...extract(baseFile, full)].sort();
@@ -20768,31 +20816,24 @@ ${checked} changed spec(s) checked for stated intent.`);
 // src/lint.ts
 var import__ = __toESM(require__(), 1);
 var import_yaml7 = __toESM(require_dist(), 1);
-import { readFileSync as readFileSync7, readdirSync as readdirSync4, statSync as statSync3 } from "fs";
-import path6 from "path";
+import { readFileSync as readFileSync7, statSync as statSync3 } from "fs";
+import path7 from "path";
 import { fileURLToPath as fileURLToPath2 } from "url";
 
 // src/mocks.ts
 init_util();
 var import_yaml6 = __toESM(require_dist(), 1);
-import { copyFileSync, mkdirSync as mkdirSync2, readdirSync as readdirSync3, readFileSync as readFileSync6, statSync as statSync2 } from "fs";
-import path5 from "path";
+import { copyFileSync, mkdirSync as mkdirSync2, readdirSync as readdirSync4, readFileSync as readFileSync6 } from "fs";
+import path6 from "path";
 import { fileURLToPath } from "url";
-function isFile2(p) {
-  try {
-    return statSync2(p).isFile();
-  } catch {
-    return false;
-  }
-}
 function composeFile(arg) {
   if (arg) return arg;
-  const local = path5.join("mocks", "docker-compose.yml");
-  if (isFile2(local)) return local;
-  const target = path5.join(".sysspec", "docker-compose.yml");
-  mkdirSync2(path5.dirname(target), { recursive: true });
-  const bundled = path5.join(
-    path5.dirname(fileURLToPath(import.meta.url)),
+  const local = path6.join("mocks", "docker-compose.yml");
+  if (isFile(local)) return local;
+  const target = path6.join(".sysspec", "docker-compose.yml");
+  mkdirSync2(path6.dirname(target), { recursive: true });
+  const bundled = path6.join(
+    path6.dirname(fileURLToPath(import.meta.url)),
     "..",
     "templates",
     "docker-compose.yml"
@@ -20807,12 +20848,20 @@ function dc(file, ...args) {
   }
 }
 async function http(method, url, body = null, headers = {}, timeoutSeconds = 10) {
-  const resp = await fetch(url, {
-    method,
-    body,
-    headers,
-    signal: AbortSignal.timeout(timeoutSeconds * 1e3)
-  });
+  let resp;
+  try {
+    resp = await fetch(url, {
+      method,
+      body,
+      headers,
+      signal: AbortSignal.timeout(timeoutSeconds * 1e3)
+    });
+  } catch (err) {
+    const cause = err.cause?.code ?? err.name;
+    throw new Exit(
+      `cannot reach ${new URL(url).origin} (${cause}) - is the mock stack running? Start it with 'task mocks:up' (or 'sysspec mocks up'), or pass the right URL flag.`
+    );
+  }
   return [resp.status, await resp.text()];
 }
 async function upload(microcksUrl, file, main2) {
@@ -20820,7 +20869,7 @@ async function upload(microcksUrl, file, main2) {
   form.append(
     "file",
     new Blob([readFileSync6(file)], { type: "application/x-yaml" }),
-    path5.basename(file)
+    path6.basename(file)
   );
   const [status, out] = await http(
     "POST",
@@ -20834,23 +20883,18 @@ async function upload(microcksUrl, file, main2) {
   }
   console.log(`loaded ${file}`);
 }
-function serviceDirs(specsDir, only) {
-  let dirs = [];
-  try {
-    dirs = readdirSync3(specsDir).sort().map((d) => path5.join(specsDir, d)).filter((d) => isFile2(path5.join(d, "service.yaml"))).filter((d) => !only || path5.basename(d) === only);
-  } catch {
-    dirs = [];
-  }
+function serviceDirs2(specsDir, only) {
+  const dirs = serviceDirs(specsDir).filter((d) => !only || path6.basename(d) === only);
   if (dirs.length === 0) {
     throw new Exit(`no services matching '${only || "*"}' under ${specsDir}/`);
   }
   return dirs;
 }
 function specDocs(serviceDir, kind) {
-  const dir = path5.join(serviceDir, kind);
+  const dir = path6.join(serviceDir, kind);
   let files = [];
   try {
-    files = readdirSync3(dir).filter((f) => /\.ya?ml$/.test(f)).sort().map((f) => path5.join(dir, f));
+    files = readdirSync4(dir).filter((f) => /\.ya?ml$/.test(f)).sort().map((f) => path6.join(dir, f));
   } catch {
     return [];
   }
@@ -20892,7 +20936,7 @@ function down(compose) {
 var sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 async function load(only, specsDir, mocksDir, microcksUrl, minionUrl, compose) {
   await up(compose);
-  for (const d of serviceDirs(specsDir, only)) {
+  for (const d of serviceDirs2(specsDir, only)) {
     for (const kind of ["asyncapi", "openapi"]) {
       for (const [spec] of specDocs(d, kind)) {
         await upload(microcksUrl, spec, true);
@@ -20900,7 +20944,7 @@ async function load(only, specsDir, mocksDir, microcksUrl, minionUrl, compose) {
     }
     let exampleFiles = [];
     try {
-      exampleFiles = readdirSync3(mocksDir).filter((f) => f.startsWith(`${path5.basename(d)}.`) && f.endsWith(".examples.yaml")).sort().map((f) => path5.join(mocksDir, f));
+      exampleFiles = readdirSync4(mocksDir).filter((f) => f.startsWith(`${path6.basename(d)}.`) && f.endsWith(".examples.yaml")).sort().map((f) => path6.join(mocksDir, f));
     } catch {
       exampleFiles = [];
     }
@@ -20976,7 +21020,7 @@ async function runTest(microcksUrl, serviceId, runner, endpoint, timeoutMs, oper
   console.log(`contract ok: ${serviceId} - ${exchanges} exchanges validated`);
 }
 async function contract(only, specsDir, microcksUrl, restEndpoint, asyncEndpoint) {
-  for (const d of serviceDirs(specsDir, only)) {
+  for (const d of serviceDirs2(specsDir, only)) {
     for (const [, doc] of specDocs(d, "openapi")) {
       const [title, version] = info(doc);
       const encoded = title.replaceAll(" ", "+");
@@ -21117,11 +21161,11 @@ async function eventSmoke(doc, minionUrl) {
 }
 async function test(only, specsDir, mocksDir, microcksUrl, minionUrl) {
   let checked = 0;
-  for (const d of serviceDirs(specsDir, only)) {
+  for (const d of serviceDirs2(specsDir, only)) {
     for (const [, doc] of specDocs(d, "openapi")) {
-      const examplesPath = path5.join(mocksDir, `${path5.basename(d)}.rest.examples.yaml`);
-      if (!isFile2(examplesPath)) {
-        console.log(`no REST examples for ${path5.basename(d)} (${examplesPath}) - skipping`);
+      const examplesPath = path6.join(mocksDir, `${path6.basename(d)}.rest.examples.yaml`);
+      if (!isFile(examplesPath)) {
+        console.log(`no REST examples for ${path6.basename(d)} (${examplesPath}) - skipping`);
         continue;
       }
       const [title, version] = info(doc);
@@ -21165,23 +21209,9 @@ async function watch(channel, minionUrl) {
 init_pins();
 init_util();
 var DC_RULESET_NAME = ".spectral-datacontracts.yaml";
-var TEMPLATES = path6.join(path6.dirname(fileURLToPath2(import.meta.url)), "..", "templates");
-var DC_RULESET_DEFAULT = path6.join(TEMPLATES, "spectral", "datacontracts.yaml");
-var ODCS_SCHEMA = path6.join(TEMPLATES, "odcs", "odcs-json-schema-v3.2.0.json");
-function isFile3(p) {
-  try {
-    return statSync3(p).isFile();
-  } catch {
-    return false;
-  }
-}
-function globYaml(dir) {
-  try {
-    return readdirSync4(dir).filter((f) => /\.ya?ml$/.test(f)).sort().map((f) => path6.join(dir, f));
-  } catch {
-    return [];
-  }
-}
+var TEMPLATES = path7.join(path7.dirname(fileURLToPath2(import.meta.url)), "..", "templates");
+var DC_RULESET_DEFAULT = path7.join(TEMPLATES, "spectral", "datacontracts.yaml");
+var ODCS_SCHEMA = path7.join(TEMPLATES, "odcs", "odcs-json-schema-v3.2.0.json");
 function spectral(files, ruleset = null) {
   const args = ["npx", "-y", SPECTRAL_CLI, "lint", ...files, "--fail-severity=warn"];
   if (ruleset !== null) args.push("--ruleset", ruleset);
@@ -21189,9 +21219,9 @@ function spectral(files, ruleset = null) {
 }
 function specs(only, specsDir) {
   const files = [];
-  for (const d of serviceDirs(specsDir, only)) {
+  for (const d of serviceDirs2(specsDir, only)) {
     for (const kind of ["asyncapi", "openapi"]) {
-      files.push(...globYaml(path6.join(d, kind)));
+      files.push(...globYaml(path7.join(d, kind)));
     }
   }
   if (files.length === 0) {
@@ -21201,7 +21231,7 @@ function specs(only, specsDir) {
   return spectral(files);
 }
 function features(only, specsDir) {
-  const dirs = serviceDirs(specsDir, only).map((d) => path6.join(d, "features")).filter((d) => {
+  const dirs = serviceDirs2(specsDir, only).map((d) => path7.join(d, "features")).filter((d) => {
     try {
       return statSync3(d).isDirectory();
     } catch {
@@ -21241,21 +21271,21 @@ function validateOdcs(files) {
     const problems = odcsSchemaProblems((0, import_yaml7.parse)(readFileSync7(dc2, "utf-8")), validate);
     if (problems.length === 0) continue;
     failed = 1;
-    console.error(`${dc2}: does not satisfy ${path6.basename(ODCS_SCHEMA)}`);
+    console.error(`${dc2}: does not satisfy ${path7.basename(ODCS_SCHEMA)}`);
     for (const p of problems) console.error(`  ${p}`);
   }
   return failed;
 }
 function datacontracts(only, specsDir) {
   const files = [];
-  for (const d of serviceDirs(specsDir, only)) {
-    files.push(...globYaml(path6.join(d, "data-contracts")));
+  for (const d of serviceDirs2(specsDir, only)) {
+    files.push(...globYaml(path7.join(d, "data-contracts")));
   }
   if (files.length === 0) {
     console.log(`no data contracts for '${only || "*"}'`);
     return 0;
   }
-  console.log(`validating against ${path6.basename(ODCS_SCHEMA)}`);
+  console.log(`validating against ${path7.basename(ODCS_SCHEMA)}`);
   const schemaRc = validateOdcs(files);
   if (schemaRc) return schemaRc;
   for (const dc2 of files) {
@@ -21265,7 +21295,7 @@ function datacontracts(only, specsDir) {
     }).status;
     if (rc) return rc;
   }
-  const ruleset = isFile3(DC_RULESET_NAME) ? DC_RULESET_NAME : DC_RULESET_DEFAULT;
+  const ruleset = isFile(DC_RULESET_NAME) ? DC_RULESET_NAME : DC_RULESET_DEFAULT;
   console.log(`checking data contract naming against ${ruleset}`);
   return spectral(files, ruleset);
 }
@@ -21273,8 +21303,9 @@ function datacontracts(only, specsDir) {
 // src/manifest-lint.ts
 var import_yaml8 = __toESM(require_dist(), 1);
 init_util();
-import { readdirSync as readdirSync5, readFileSync as readFileSync8, statSync as statSync4 } from "fs";
-import path7 from "path";
+init_util();
+import { readdirSync as readdirSync5, readFileSync as readFileSync8 } from "fs";
+import path8 from "path";
 var KIND_DIRS = [
   ["asyncapi", "asyncapi"],
   ["openapi", "openapi"],
@@ -21284,28 +21315,6 @@ var KIND_DIRS = [
 var SPEC_SUFFIXES = /* @__PURE__ */ new Set([".yaml", ".yml", ".feature"]);
 var MESSAGE_RE = /"([A-Z][a-z0-9]*(?:[A-Z][a-z0-9]*)+)"/g;
 var CHANNEL_RE = /"([a-z0-9]+(?:\.[a-z0-9-]+)*\.v\d+)"/g;
-function isFile4(p) {
-  try {
-    return statSync4(p).isFile();
-  } catch {
-    return false;
-  }
-}
-function isDir2(p) {
-  try {
-    return statSync4(p).isDirectory();
-  } catch {
-    return false;
-  }
-}
-function serviceDirs2(specsDir) {
-  if (!isDir2(specsDir)) return [];
-  return readdirSync5(specsDir).sort().map((d) => path7.join(specsDir, d)).filter((d) => isFile4(path7.join(d, "service.yaml")));
-}
-function globYaml2(dir) {
-  if (!isDir2(dir)) return [];
-  return readdirSync5(dir).filter((f) => /\.ya?ml$/.test(f)).sort().map((f) => path7.join(dir, f));
-}
 function readYaml2(file) {
   return (0, import_yaml8.parse)(readFileSync8(file, "utf-8")) ?? {};
 }
@@ -21317,7 +21326,7 @@ function messageIndex(dirs) {
   const own = /* @__PURE__ */ new Map();
   for (const d of dirs) {
     const names = /* @__PURE__ */ new Set();
-    for (const spec of globYaml2(path7.join(d, "asyncapi"))) {
+    for (const spec of globYaml(path8.join(d, "asyncapi"))) {
       const doc = readYaml2(spec);
       for (const name of Object.keys(doc.components?.messages ?? {})) names.add(name);
       for (const channel of Object.values(doc.channels ?? {})) {
@@ -21329,7 +21338,7 @@ function messageIndex(dirs) {
         }
       }
     }
-    own.set(path7.basename(d), names);
+    own.set(path8.basename(d), names);
   }
   return [byAddress, own];
 }
@@ -21347,7 +21356,6 @@ function channelOps(doc) {
   }
   return [sent, received];
 }
-var ORG_RE = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/;
 var MCP_URL_RE = /^https?:\/\/[^\s]+$/;
 function resolveOdcsTarget(doc, ref) {
   const parts = ref.split("/").filter(Boolean);
@@ -21373,7 +21381,7 @@ function relationshipProblems(doc, file) {
   const cache = /* @__PURE__ */ new Map();
   const load2 = (target) => {
     if (!cache.has(target)) {
-      cache.set(target, isFile4(target) ? readYaml2(target) : null);
+      cache.set(target, isFile(target) ? readYaml2(target) : null);
     }
     return cache.get(target) ?? null;
   };
@@ -21386,7 +21394,7 @@ function relationshipProblems(doc, file) {
         const [maybeFile, pointer] = text.includes("#") ? text.split("#") : [null, text];
         let doc2 = doc;
         if (maybeFile) {
-          const resolved = path7.resolve(path7.dirname(file), maybeFile);
+          const resolved = path8.resolve(path8.dirname(file), maybeFile);
           const loaded = load2(resolved);
           if (!loaded) {
             problems.push(`relationship ${side} '${text}': no contract at ${maybeFile}`);
@@ -21430,11 +21438,11 @@ function relationshipProblems(doc, file) {
   return problems;
 }
 function lintSystem(specsDir) {
-  const file = path7.join(specsDir, "system.yaml");
-  if (!isFile4(file)) return [];
+  const file = path8.join(specsDir, "system.yaml");
+  if (!isFile(file)) return [];
   const manifest = readYaml2(file);
   const problems = [];
-  const where = path7.join(specsDir, "system.yaml");
+  const where = path8.join(specsDir, "system.yaml");
   if (manifest.kind !== "System") {
     problems.push(`${where}: kind must be 'System', got ${pyRepr(manifest.kind ?? null)}`);
   }
@@ -21466,10 +21474,10 @@ function lintSystem(specsDir) {
 }
 function lintService(serviceDir, producedBy, messagesByAddress, ownMessages) {
   const problems = [];
-  const manifest = readYaml2(path7.join(serviceDir, "service.yaml"));
+  const manifest = readYaml2(path8.join(serviceDir, "service.yaml"));
   const name = manifest.name;
   const artifacts = manifest.artifacts ?? [];
-  const dirName = path7.basename(serviceDir);
+  const dirName = path8.basename(serviceDir);
   if (name !== dirName) {
     problems.push(
       `${dirName}: manifest name ${pyRepr(name ?? null)} must equal its directory name ${pyRepr(dirName)}`
@@ -21486,8 +21494,8 @@ function lintService(serviceDir, producedBy, messagesByAddress, ownMessages) {
   let sent = /* @__PURE__ */ new Set();
   let received = /* @__PURE__ */ new Set();
   for (const a of artifacts) {
-    const file = path7.join(serviceDir, a.path);
-    if (!isFile4(file)) {
+    const file = path8.join(serviceDir, a.path);
+    if (!isFile(file)) {
       problems.push(`${name}: declared artifact missing on disk: ${a.path}`);
       continue;
     }
@@ -21518,11 +21526,11 @@ function lintService(serviceDir, producedBy, messagesByAddress, ownMessages) {
     }
   }
   for (const [kind, subdir] of KIND_DIRS) {
-    const dir = path7.join(serviceDir, subdir);
-    if (!isDir2(dir)) continue;
+    const dir = path8.join(serviceDir, subdir);
+    if (!isDir(dir)) continue;
     for (const f of readdirSync5(dir).sort()) {
-      const rel = path7.join(subdir, f);
-      if (SPEC_SUFFIXES.has(path7.extname(f)) && !declared.has(rel)) {
+      const rel = path8.join(subdir, f);
+      if (SPEC_SUFFIXES.has(path8.extname(f)) && !declared.has(rel)) {
         problems.push(`${name}: ${kind} file on disk but not in manifest: ${rel}`);
       }
     }
@@ -21559,16 +21567,16 @@ function lintService(serviceDir, producedBy, messagesByAddress, ownMessages) {
       );
     }
   }
-  const allowedMessages = new Set(ownMessages.get(path7.basename(serviceDir)) ?? []);
+  const allowedMessages = new Set(ownMessages.get(path8.basename(serviceDir)) ?? []);
   for (const address of consumes) {
     for (const msg of messagesByAddress.get(address) ?? []) allowedMessages.add(msg);
   }
   const allowedChannels = /* @__PURE__ */ new Set([...produces, ...consumes]);
-  const featuresDir = path7.join(serviceDir, "features");
-  const featureFiles = isDir2(featuresDir) ? readdirSync5(featuresDir).filter((f) => f.endsWith(".feature")).sort() : [];
+  const featuresDir = path8.join(serviceDir, "features");
+  const featureFiles = isDir(featuresDir) ? readdirSync5(featuresDir).filter((f) => f.endsWith(".feature")).sort() : [];
   for (const f of featureFiles) {
-    const rel = path7.join("features", f);
-    const text = readFileSync8(path7.join(featuresDir, f), "utf-8");
+    const rel = path8.join("features", f);
+    const text = readFileSync8(path8.join(featuresDir, f), "utf-8");
     for (const token of pySorted([...findAll(MESSAGE_RE, text)].filter((t) => !allowedMessages.has(t)))) {
       problems.push(
         `${name}: ${rel} references message "${token}" which no owned or consumed AsyncAPI channel defines`
@@ -21583,14 +21591,14 @@ function lintService(serviceDir, producedBy, messagesByAddress, ownMessages) {
   return problems;
 }
 function runLint(only, specsDir) {
-  const dirs = serviceDirs2(specsDir);
+  const dirs = serviceDirs(specsDir);
   if (dirs.length === 0) {
     console.error(`no service manifests found under ${specsDir}/*/service.yaml`);
     return 1;
   }
   const producedBy = /* @__PURE__ */ new Map();
   for (const d of dirs) {
-    const manifest = readYaml2(path7.join(d, "service.yaml"));
+    const manifest = readYaml2(path8.join(d, "service.yaml"));
     for (const address of manifest.produces ?? []) {
       producedBy.set(address, [...producedBy.get(address) ?? [], manifest.name]);
     }
@@ -21599,7 +21607,7 @@ function runLint(only, specsDir) {
   const problems = only ? [] : lintSystem(specsDir);
   let checked = 0;
   for (const d of dirs) {
-    if (only && path7.basename(d) !== only) continue;
+    if (only && path8.basename(d) !== only) continue;
     checked += 1;
     problems.push(...lintService(d, producedBy, messagesByAddress, ownMessages));
   }
@@ -21741,8 +21749,8 @@ async function runNull(port, results, timeout, cmd) {
 // src/scaffold.ts
 init_pins();
 init_util();
-import { chmodSync, mkdirSync as mkdirSync3, readdirSync as readdirSync6, readFileSync as readFileSync10, statSync as statSync5, writeFileSync as writeFileSync4 } from "fs";
-import path8 from "path";
+import { chmodSync, mkdirSync as mkdirSync3, readdirSync as readdirSync6, readFileSync as readFileSync10, statSync as statSync4, writeFileSync as writeFileSync4 } from "fs";
+import path9 from "path";
 import { fileURLToPath as fileURLToPath3 } from "url";
 var RENAMES = {
   gitignore: ".gitignore",
@@ -21753,7 +21761,6 @@ var RENAMES = {
   githooks: ".githooks",
   gitkeep: ".gitkeep"
 };
-var ORG_RE2 = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/;
 function systemTitleFrom(org) {
   const label = org.split(".").pop() ?? org;
   return label.split("-").filter(Boolean).map((w) => w[0].toUpperCase() + w.slice(1)).join(" ");
@@ -21768,10 +21775,10 @@ var SKIP = /* @__PURE__ */ new Set([
   "docs-site/public/specs"
 ]);
 function templatesRoot() {
-  return path8.join(path8.dirname(fileURLToPath3(import.meta.url)), "..", "templates", "init");
+  return path9.join(path9.dirname(fileURLToPath3(import.meta.url)), "..", "templates", "init");
 }
 function ownVersion() {
-  const pkg = path8.join(path8.dirname(fileURLToPath3(import.meta.url)), "..", "package.json");
+  const pkg = path9.join(path9.dirname(fileURLToPath3(import.meta.url)), "..", "package.json");
   return JSON.parse(readFileSync10(pkg, "utf-8")).version;
 }
 function copy(node, target, subs, rel = "") {
@@ -21779,8 +21786,8 @@ function copy(node, target, subs, rel = "") {
   for (const child of readdirSync6(node, { withFileTypes: true })) {
     const childRel = rel ? `${rel}/${child.name}` : child.name;
     if (SKIP.has(childRel)) continue;
-    const out = path8.join(target, RENAMES[child.name] ?? child.name);
-    const source = path8.join(node, child.name);
+    const out = path9.join(target, RENAMES[child.name] ?? child.name);
+    const source = path9.join(node, child.name);
     if (child.isDirectory()) {
       mkdirSync3(out, { recursive: true });
       written.push(...copy(source, out, subs, childRel));
@@ -21789,16 +21796,16 @@ function copy(node, target, subs, rel = "") {
       for (const [key, value] of Object.entries(subs)) {
         text = text.replaceAll(key, value);
       }
-      mkdirSync3(path8.dirname(out), { recursive: true });
+      mkdirSync3(path9.dirname(out), { recursive: true });
       writeFileSync4(out, text);
-      chmodSync(out, statSync5(source).mode & 511);
+      chmodSync(out, statSync4(source).mode & 511);
       written.push(out);
     }
   }
   return written;
 }
 function runInit(targetDir, org, sysspecRepo, system = null, domain = null) {
-  if (!ORG_RE2.test(org)) {
+  if (!ORG_RE.test(org)) {
     throw new Exit(`--org must be reverse-DNS (e.g. com.acme), got '${org}'`);
   }
   const target = targetDir;
@@ -21831,7 +21838,7 @@ function runInit(targetDir, org, sysspecRepo, system = null, domain = null) {
   };
   const written = copy(templatesRoot(), target, subs);
   for (const p of written.sort()) {
-    console.log(`  ${path8.relative(target, p)}`);
+    console.log(`  ${path9.relative(target, p)}`);
   }
   console.log(
     `
@@ -22538,18 +22545,97 @@ ${versionFile} version is ${dotted(now)} (base ${dotted(before)}) - bump it semv
 
 // src/cli.ts
 init_util();
-var USAGE = `usage: sysspec <command> ...
+var USAGE = `usage: sysspec <command> <subcommand> [flags]
 
 commands:
   check version|compat|intent|surface   diff-based gates against a base ref
-                                        (--allow-missing-base: skip, even in CI,
-                                        when the base ref does not exist)
   lint manifest|specs|features|datacontracts
   docs data|diagrams
   init <dir> --org <reverse-dns> [--system <title>] [--domain <name>]
   mocks up|down|load|test|watch
   contract test
-  null run --results <file> -- <suite command>`;
+  null run --results <file> -- <suite command>
+
+sysspec <command> --help shows a command's flags; sysspec --version its version.`;
+var HELP = {
+  check: `usage: sysspec check version|compat|intent|surface [flags]
+
+  version   a changed gated artifact bumps its manifest version and the
+            service version, upwards only; an artifact major forces a
+            service major
+  compat    a breaking contract change carries a major bump
+  intent    every schema element added is named in a feature file
+  surface   changes under --paths bump the version in --version-file
+
+flags:
+  --base <ref>             base to diff against (default origin/main)
+  --specs-dir <dir>        specs root (default specs)
+  --service <name>         compat, intent: one service only
+  --version-file <file>    surface: the JSON or TOML file holding the version
+  --json-key <key>         surface: dotted key of the version (default version)
+  --paths <a/,b/>          surface: comma-separated path prefixes
+  --allow-missing-base     skip, even in CI, when the base ref does not exist`,
+  lint: `usage: sysspec lint manifest|specs|features|datacontracts [flags]
+
+  manifest       manifests against contracts and the spec graph
+  specs          Spectral over the OpenAPI and AsyncAPI contracts
+  features       gherkin-lint over the acceptance criteria
+  datacontracts  ODCS 3.2 schema, datacontract-cli and Spectral
+
+flags:
+  --specs-dir <dir>   specs root (default specs)
+  --service <name>    one service only`,
+  docs: `usage: sysspec docs data|diagrams [flags]
+
+  data       write the spec data the docs site renders
+  diagrams   parse every mermaid diagram in the generated site
+
+flags:
+  --specs-dir <dir>   specs root (default specs)
+  --site-dir <dir>    docs site (default docs-site)
+  --mocks-dir <dir>   data: mock examples (default mocks)
+  --docs-dir <dir>    diagrams: extra markdown docs (default docs)`,
+  init: `usage: sysspec init <dir> --org <reverse-dns> [flags]
+
+flags:
+  --org <reverse-dns>      event namespace, e.g. com.acme (required)
+  --system <title>         the system's display name
+  --domain <name>          the business domain
+  --sysspec-repo <o/r>     where the reusable workflows live
+                           (default hungovercoders/sysspec)`,
+  mocks: `usage: sysspec mocks up|down|load|test|watch [flags]
+
+  up, down   start or stop the Microcks stack
+  load       upload every contract and example to Microcks
+  test       smoke-test the loaded mocks
+  watch      print the events published on --channel
+
+flags:
+  --compose-file <file>      up, down, load: compose file (default: bundled)
+  --service <name>           load, test: one service only
+  --specs-dir <dir>          load, test: specs root (default specs)
+  --mocks-dir <dir>          load, test: examples (default mocks)
+  --microcks-url <url>       default http://localhost:8585
+  --async-minion-url <url>   default http://localhost:8081
+  --channel <address>        watch: the channel address (required)`,
+  contract: `usage: sysspec contract test [flags]
+
+flags:
+  --service <name>          one service only
+  --specs-dir <dir>         specs root (default specs)
+  --microcks-url <url>      default http://localhost:8585
+  --rest-endpoint <url>     the implementation's REST base URL
+  --async-endpoint <url>    the implementation's broker endpoint`,
+  null: `usage: sysspec null run --results <file> [flags] -- <suite command>
+
+  Runs the suite against a service that answers 200 {} to everything:
+  every scenario must fail, or its step bindings prove nothing.
+
+flags:
+  --results <file>   cucumber JSON the suite writes (required)
+  --port <n>         null service port (default 9099)
+  --timeout <s>      suite timeout in seconds (default 300)`
+};
 async function main(argv = process.argv.slice(2)) {
   let tail = [];
   const split = argv.indexOf("--");
@@ -22557,8 +22643,22 @@ async function main(argv = process.argv.slice(2)) {
     tail = argv.slice(split + 1);
     argv = argv.slice(0, split);
   }
+  if (argv[0] === "--version") {
+    console.log(ownVersion());
+    return 0;
+  }
+  if (argv.length === 0 || argv.includes("--help") || argv.includes("-h")) {
+    console.log(HELP[argv[0]] ?? USAGE);
+    return 0;
+  }
   const [command, sub, ...rest] = argv;
-  const args = new Args(rest, `sysspec ${command ?? ""} ${sub ?? ""}`.trim());
+  const usage = `sysspec ${command ?? ""} ${sub ?? ""}`.trim();
+  const args = new Args(rest, usage);
+  if (args.positional.length) {
+    throw new Exit(
+      `${usage}: unexpected argument '${args.positional[0]}'` + (command === "lint" || command === "check" ? " - did you mean --service?" : "")
+    );
+  }
   if (command === "check") {
     const base = args.get("base", "origin/main");
     const specsDir = args.get("specs-dir", "specs");
@@ -22626,20 +22726,23 @@ async function main(argv = process.argv.slice(2)) {
         args.get("async-minion-url", "http://localhost:8081")
       );
     }
-    if (sub === "up" || sub === "down") args.only("compose-file");
-    else args.only("compose-file", "service", "specs-dir", "mocks-dir", "microcks-url", "async-minion-url");
-    const compose = composeFile(args.get("compose-file"));
-    if (sub === "up") return up(compose);
-    if (sub === "down") return down(compose);
-    const service = args.get("service");
-    const specsDir = args.get("specs-dir", "specs");
-    const mocksDir = args.get("mocks-dir", "mocks");
-    const microcksUrl = args.get("microcks-url", "http://localhost:8585");
-    const minionUrl = args.get("async-minion-url", "http://localhost:8081");
-    if (sub === "load") {
-      return load(service, specsDir, mocksDir, microcksUrl, minionUrl, compose);
+    if (sub === "up" || sub === "down") {
+      args.only("compose-file");
+      const compose = composeFile(args.get("compose-file"));
+      return sub === "up" ? up(compose) : down(compose);
     }
-    if (sub === "test") {
+    if (sub === "load" || sub === "test") {
+      const service = args.get("service");
+      const specsDir = args.get("specs-dir", "specs");
+      const mocksDir = args.get("mocks-dir", "mocks");
+      const microcksUrl = args.get("microcks-url", "http://localhost:8585");
+      const minionUrl = args.get("async-minion-url", "http://localhost:8081");
+      if (sub === "load") {
+        args.only("compose-file", "service", "specs-dir", "mocks-dir", "microcks-url", "async-minion-url");
+        const compose = composeFile(args.get("compose-file"));
+        return load(service, specsDir, mocksDir, microcksUrl, minionUrl, compose);
+      }
+      args.only("service", "specs-dir", "mocks-dir", "microcks-url", "async-minion-url");
       return test(service, specsDir, mocksDir, microcksUrl, minionUrl);
     }
   }
@@ -22662,15 +22765,26 @@ async function main(argv = process.argv.slice(2)) {
       tail
     );
   }
-  console.error(USAGE);
+  console.error(HELP[command] ?? USAGE);
   return 2;
 }
-main().then((code) => {
-  process.exitCode = code;
-}).catch((err) => {
-  console.error(err instanceof Exit ? err.message : err);
-  process.exitCode = 1;
-});
+function isEntry() {
+  const entry = process.argv[1];
+  if (!entry) return false;
+  try {
+    return realpathSync(entry) === realpathSync(fileURLToPath4(import.meta.url));
+  } catch {
+    return false;
+  }
+}
+if (isEntry()) {
+  main().then((code) => {
+    process.exitCode = code;
+  }).catch((err) => {
+    console.error(err instanceof Exit ? err.message : err);
+    process.exitCode = 1;
+  });
+}
 export {
   main
 };

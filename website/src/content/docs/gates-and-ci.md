@@ -1,11 +1,13 @@
 ---
 title: Gates and CI
-description: task ci is the definition of green, identical locally, in the git hooks, and in CI.
+description: task ci is the definition of green, identical locally and in CI, with faster tiers in the git hooks.
 ---
 
 Everything runs through [Task](https://taskfile.dev). If a command is not a
-`task`, it is not part of the workflow, and the checks are identical
-locally, in the git hooks, and in CI:
+`task`, it is not part of the workflow. The checks are identical locally
+and in CI, and the git hooks run tiers of the same tasks: `task check:fast`
+(lint and the diff gates) before each commit, and `task lint check` (adding
+the docs build) before each push. The full run is:
 
 ```bash
 task ci

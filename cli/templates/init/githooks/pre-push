@@ -1,0 +1,5 @@
+#!/bin/sh
+# Before a push: lint, the diff gates and the docs build. CI adds the
+# mock cycle on top.
+unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE GIT_COMMON_DIR GIT_PREFIX
+exec task lint check

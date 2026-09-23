@@ -27,9 +27,13 @@ test("scaffold writes renamed dotfiles and substituted pins", () => {
   for (const dotfile of [".gitignore", ".gherkin-lintrc", ".spectral.yaml", ".mcp.json", ".github", ".githooks"]) {
     expect(existsSync(path.join(target, dotfile)), dotfile).toBe(true);
   }
-  // The README promises a pre-commit hook; git ignores one without its execute bit.
-  const hook = path.join(target, ".githooks", "pre-commit");
-  expect(statSync(hook).mode & 0o111, "pre-commit is executable").not.toBe(0);
+  // The README promises the hooks; git ignores one without its execute bit.
+  for (const name of ["pre-commit", "pre-push"]) {
+    const hook = path.join(target, ".githooks", name);
+    expect(statSync(hook).mode & 0o111, `${name} is executable`).not.toBe(0);
+  }
+  // The commit tier stays fast: no docs build before every commit.
+  expect(readFileSync(path.join(target, ".githooks", "pre-commit"), "utf-8")).toContain("task check:fast");
   expect(readFileSync(path.join(target, "Taskfile.yml"), "utf-8")).toContain("core.hooksPath .githooks");
   // npm's always-ignore list must not have eaten the docs-site lockfile.
   expect(existsSync(path.join(target, "docs-site", "package-lock.json"))).toBe(true);

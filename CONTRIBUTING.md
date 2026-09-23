@@ -1,7 +1,10 @@
 # Contributing
 
 This applies to humans and coding agents equally: the checks are the
-contract, and they are identical locally, in the git hooks, and in CI.
+contract, and they are identical locally and in CI. The git hooks run
+tiers of the same tasks: `task check:fast` before each commit (lint, the
+version gates, dist freshness) and `task check` before each push (plus
+both test suites and the site builds).
 
 This repo is both the `sysspec` toolkit and its living example
 (orders/payments). Contributions here change the product. Adopters running

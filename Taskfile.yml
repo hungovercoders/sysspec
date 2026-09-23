@@ -8,7 +8,7 @@ tasks:
       - git config core.hooksPath .githooks
 
   check:
-    desc: Fast checks (pre-commit tier) - branch name, lint, gated version gate, docs build
+    desc: Pre-push tier - check:fast plus both test suites and the docs and site builds
     cmds:
       - task: check:branch
       - task: lint
@@ -25,6 +25,18 @@ tasks:
       - task: docs:build
       - task: docs:diagrams
       - task: site:build
+
+  check:fast:
+    desc: Pre-commit tier - branch, lint, version gates and dist freshness; no test suites or site builds
+    cmds:
+      - task: check:branch
+      - task: lint
+      - task: check:version
+      - task: check:plugin
+      - task: check:cli
+      - task: check:cli:dist
+      - task: check:mcp
+      - task: check:mcp:dist
 
   check:plugin:
     desc: Plugin surface changes (cli, mcp, skills, manifests) must bump the plugin version
@@ -45,18 +57,32 @@ tasks:
   test:cli:
     desc: Unit + golden tests for the sysspec CLI
     dir: cli
+    deps: [deps:cli]
     cmds:
-      - if [ -n "$CI" ]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi
       - npm run typecheck
       - npx vitest run
 
   check:cli:dist:
     desc: The committed CLI bundle must match the source (Taskfile and plugin run it directly)
     dir: cli
+    deps: [deps:cli]
     cmds:
-      - if [ -n "$CI" ]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi
       - npm run build --silent
       - git diff --exit-code -- dist || { echo "cli/dist is stale - run 'npm run build' in cli/ and commit"; exit 1; }
+
+  deps:cli:
+    desc: Install the CLI package's dependencies (once per task run)
+    run: once
+    dir: cli
+    cmds:
+      - if [ -n "$CI" ]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi
+
+  deps:mcp:
+    desc: Install the MCP server package's dependencies (once per task run)
+    run: once
+    dir: mcp
+    cmds:
+      - if [ -n "$CI" ]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi
 
   check:mcp:
     desc: Changes under mcp/ must bump the sysspec-mcp package version
@@ -69,16 +95,16 @@ tasks:
   test:mcp:
     desc: Unit + e2e tests for the MCP server (both spec sources, stdio, http)
     dir: mcp
+    deps: [deps:mcp]
     cmds:
-      - if [ -n "$CI" ]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi
       - npm run typecheck
       - npx vitest run
 
   check:mcp:dist:
     desc: The committed dist bundle must match the source (plugin runs it directly)
     dir: mcp
+    deps: [deps:mcp]
     cmds:
-      - if [ -n "$CI" ]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi
       - npm run build --silent
       - git diff --exit-code -- dist || { echo "mcp/dist is stale - run 'npm run build' in mcp/ and commit"; exit 1; }
 

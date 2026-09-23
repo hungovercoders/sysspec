@@ -5,6 +5,8 @@
  */
 
 import { spawnSync } from "node:child_process";
+import { readdirSync, statSync } from "node:fs";
+import path from "node:path";
 
 /** An error whose message is printed plainly, without a stack trace. */
 export class Exit extends Error {
@@ -25,7 +27,16 @@ export function run(cmd: string[], opts: { inherit?: boolean; env?: NodeJS.Proce
     env: opts.env,
     maxBuffer: 64 * 1024 * 1024,
   });
-  if (res.error) throw res.error;
+  if (res.error) {
+    // A missing tool is a setup problem with a known fix, not a crash.
+    if ((res.error as NodeJS.ErrnoException).code === "ENOENT") {
+      throw new Exit(
+        `'${file}' is not installed or not on PATH - run 'mise install' ` +
+          "(the repo pins its toolchain in mise.toml) and retry",
+      );
+    }
+    throw res.error;
+  }
   return { status: res.status ?? 1, stdout: res.stdout ?? "", stderr: res.stderr ?? "" };
 }
 
@@ -136,4 +147,42 @@ export function pyRepr(v: unknown): string {
 
 export function pySorted(items: Iterable<string>): string[] {
   return [...items].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+}
+
+/** Reverse-DNS org namespace, e.g. com.acme - the CloudEvents type prefix. */
+export const ORG_RE = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/;
+
+export function isFile(p: string): boolean {
+  try {
+    return statSync(p).isFile();
+  } catch {
+    return false;
+  }
+}
+
+export function isDir(p: string): boolean {
+  try {
+    return statSync(p).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
+/** The .yaml/.yml files directly in dir, sorted; [] when dir is absent. */
+export function globYaml(dir: string): string[] {
+  if (!isDir(dir)) return [];
+  return readdirSync(dir)
+    .filter((f) => /\.ya?ml$/.test(f))
+    .sort()
+    .map((f) => path.join(dir, f));
+}
+
+/** Every <specsDir>/<service> directory holding a service.yaml, sorted;
+ * [] when specsDir is absent. */
+export function serviceDirs(specsDir: string): string[] {
+  if (!isDir(specsDir)) return [];
+  return readdirSync(specsDir)
+    .sort()
+    .map((d) => path.join(specsDir, d))
+    .filter((d) => isFile(path.join(d, "service.yaml")));
 }
