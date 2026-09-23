@@ -1,10 +1,13 @@
 /** Cross-check every service manifest against its contracts and the specs graph.
  *
  * Per service:
+ *   0. `name` must equal the service directory name (docs and mocks join
+ *      paths from either), and `summary` must be a non-empty string.
  *   1. `produces` must exactly match the channel addresses its AsyncAPI files
  *      publish with a `send` operation; documented `receive` channels must be
  *      listed in `consumes`.
- *   2. Every `consumes` entry must be produced by some service in the specs.
+ *   2. Every `consumes` entry must be produced by some service in the specs,
+ *      and no channel may be produced by more than one service.
  *   3. Every declared artifact path must exist on disk, and every file of a
  *      gated kind on disk must be declared in the manifest.
  *   4. For asyncapi/openapi artifacts, the spec's `info.version` must equal the
@@ -277,7 +280,7 @@ export function lintSystem(specsDir: string): string[] {
 
 function lintService(
   serviceDir: string,
-  producedBy: Map<string, string>,
+  producedBy: Map<string, string[]>,
   messagesByAddress: Map<string, Set<string>>,
   ownMessages: Map<string, Set<string>>,
 ): string[] {
@@ -285,6 +288,17 @@ function lintService(
   const manifest = readYaml(path.join(serviceDir, "service.yaml"));
   const name = manifest.name;
   const artifacts: any[] = manifest.artifacts ?? [];
+
+  const dirName = path.basename(serviceDir);
+  if (name !== dirName) {
+    problems.push(
+      `${dirName}: manifest name ${pyRepr(name ?? null)} must equal its directory name ` +
+        `${pyRepr(dirName)}`,
+    );
+  }
+  if (typeof manifest.summary !== "string" || !manifest.summary.trim()) {
+    problems.push(`${name}: summary is required and must be a non-empty string`);
+  }
 
   const version = manifest.version;
   if (!/^\d+\.\d+\.\d+$/.test(version ? String(version) : "")) {
@@ -365,6 +379,18 @@ function lintService(
       problems.push(`${name}: consumes '${address}' but no service produces it`);
     }
   }
+  // One channel, one owner: two producers make the channel's schema a
+  // negotiation and trace_channel's answer a coin toss.
+  for (const address of pySorted(produces)) {
+    const owners = producedBy.get(address) ?? [];
+    if (owners.length > 1) {
+      problems.push(
+        `${name}: produces '${address}', which is also produced by ` +
+          pySorted(owners.filter((o) => o !== name)).join(", ") +
+          " - a channel has exactly one producer",
+      );
+    }
+  }
 
   const allowedMessages = new Set(ownMessages.get(path.basename(serviceDir)) ?? []);
   for (const address of consumes) {
@@ -405,10 +431,12 @@ export function runLint(only: string | null, specsDir: string): number {
     return 1;
   }
 
-  const producedBy = new Map<string, string>();
+  const producedBy = new Map<string, string[]>();
   for (const d of dirs) {
     const manifest = readYaml(path.join(d, "service.yaml"));
-    for (const address of manifest.produces ?? []) producedBy.set(address, manifest.name);
+    for (const address of manifest.produces ?? []) {
+      producedBy.set(address, [...(producedBy.get(address) ?? []), manifest.name]);
+    }
   }
   const [messagesByAddress, ownMessages] = messageIndex(dirs);
 

@@ -25,7 +25,9 @@ import {
   openapiTokens,
   pathNames,
 } from "../src/intent.js";
+import { openapiBreaking } from "../src/compat.js";
 import { runGate as surfaceGate, versionOf } from "../src/surface.js";
+import { greater, versionParts } from "../src/util.js";
 import { manifestVersions, runGate as versionGate, serviceVersion } from "../src/versioning.js";
 
 describe("intent token extraction", () => {
@@ -213,6 +215,13 @@ describe("odcs data contracts", () => {
 });
 
 describe("versioning helpers", () => {
+  test("greater compares dotted versions numerically, not as strings", () => {
+    expect(greater(versionParts("1.10.0"), versionParts("1.9.0"))).toBe(true);
+    expect(greater(versionParts("1.1.0"), versionParts("1.2.0"))).toBe(false);
+    expect(greater(versionParts("2.0.0"), versionParts("2.0.0"))).toBe(false);
+    expect(versionParts("3.1.0-rc.1")).toEqual([3, 1, 0]);
+  });
+
   test("manifestVersions keeps gated artifacts only, honoring explicit gated:", () => {
     const text = [
       "artifacts:",
@@ -271,9 +280,68 @@ describe("gates in a scratch git repo", () => {
     vi.restoreAllMocks();
   });
 
-  test("version gate: missing base ref skips", () => {
+  test("version gate: missing base ref skips locally", () => {
+    vi.stubEnv("CI", "");
     expect(versionGate("origin/nope", "specs")).toBe(0);
     expect(logs.join("\n")).toContain("nothing to diff against");
+  });
+
+  test("diff gates: missing base ref fails in CI unless explicitly allowed", () => {
+    vi.stubEnv("CI", "true");
+    expect(versionGate("origin/nope", "specs")).toBe(1);
+    expect(logs.join("\n")).toContain("fetch-depth: 0");
+    expect(surfaceGate("origin/nope", "v.json", "version", ["surface.txt"])).toBe(1);
+
+    logs.length = 0;
+    expect(versionGate("origin/nope", "specs", true)).toBe(0);
+    expect(surfaceGate("origin/nope", "v.json", "version", ["surface.txt"], true)).toBe(0);
+    expect(logs.join("\n")).toContain("nothing to diff against");
+  });
+
+  test("version gate: an artifact version moving backwards is red", () => {
+    const manifest = path.join(repo, "specs", "svc", "service.yaml");
+    writeFileSync(
+      manifest,
+      [
+        "name: svc",
+        "version: 1.2.0",
+        "artifacts:",
+        "  - { kind: feature, path: features/a.feature, version: 1.2.0 }",
+        "",
+      ].join("\n"),
+    );
+    g("add", "-A");
+    g("-c", "user.email=t@e.c", "-c", "user.name=t", "commit", "-qm", "at 1.2.0");
+    g("checkout", "-q", "-b", "feature");
+    writeFileSync(path.join(repo, "specs", "svc", "features", "a.feature"), "Feature: a2\n");
+    writeFileSync(
+      manifest,
+      [
+        "name: svc",
+        "version: 1.3.0",
+        "artifacts:",
+        "  - { kind: feature, path: features/a.feature, version: 1.1.0 }",
+        "",
+      ].join("\n"),
+    );
+    expect(versionGate("main", "specs")).toBe(1);
+    expect(logs.join("\n")).toContain("version moved backwards 1.2.0 -> 1.1.0");
+  });
+
+  test("version gate: a service version moving backwards is red", () => {
+    writeFileSync(path.join(repo, "specs", "svc", "features", "a.feature"), "Feature: a2\n");
+    writeFileSync(
+      path.join(repo, "specs", "svc", "service.yaml"),
+      [
+        "name: svc",
+        "version: 0.9.0",
+        "artifacts:",
+        "  - { kind: feature, path: features/a.feature, version: 1.1.0 }",
+        "",
+      ].join("\n"),
+    );
+    expect(versionGate("main", "specs")).toBe(1);
+    expect(logs.join("\n")).toContain("service version moved backwards 1.0.0 -> 0.9.0");
   });
 
   test("version gate: gated edit without a bump is red, with a bump green", () => {
@@ -363,6 +431,21 @@ describe("gates in a scratch git repo", () => {
     writeFileSync(path.join(repo, "v.json"), JSON.stringify({ version: "1.0.1" }));
     expect(surfaceGate("main", "v.json", "version", ["surface.txt"])).toBe(0);
     expect(logs.join("\n")).toContain("1.0.0 -> 1.0.1 - ok");
+  });
+
+  test("compat: an oasdiff failure is a tool error, not a breaking verdict", () => {
+    const good = path.join(repo, "a.yaml");
+    writeFileSync(
+      good,
+      "openapi: 3.0.3\ninfo: {title: t, version: 1.0.0}\npaths:\n  /x:\n    get:\n      responses: {'200': {description: ok}}\n",
+    );
+    const gone = path.join(repo, "b.yaml");
+    writeFileSync(gone, "openapi: 3.0.3\ninfo: {title: t, version: 1.0.0}\npaths: {}\n");
+    expect(openapiBreaking(good, good)[0]).toBe(false);
+    expect(openapiBreaking(good, gone)[0]).toBe(true);
+    expect(() => openapiBreaking(good, path.join(repo, "missing.yaml"))).toThrow(
+      /oasdiff breaking failed .* \(exit 1\d\d\)/,
+    );
   });
 
   test("versionOf reads dotted keys from JSON and TOML", () => {

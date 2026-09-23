@@ -67,6 +67,25 @@ function mergeBase(base) {
   const res = run(["git", "merge-base", base, "HEAD"]);
   return res.status === 0 ? res.stdout.trim() : null;
 }
+function missingBase(base, allow) {
+  if (process.env.CI && !allow) {
+    console.error(
+      `base ref '${base}' not found - in CI a diff gate with nothing to diff against has checked nothing. Fetch the base (actions/checkout with fetch-depth: 0) or pass --allow-missing-base where skipping is intended.`
+    );
+    return 1;
+  }
+  console.log(`base ref '${base}' not found - nothing to diff against, skipping.`);
+  return 0;
+}
+function greater(a, b) {
+  for (let i = 0; i < Math.min(a.length, b.length); i++) {
+    if (a[i] !== b[i]) return a[i] > b[i];
+  }
+  return a.length > b.length;
+}
+function versionParts(version) {
+  return version.split(/[-+]/)[0].split(".").map((p) => parseInt(p, 10));
+}
 function gitLines(...args) {
   const res = run(["git", ...args]);
   if (res.status !== 0) return [];
@@ -20190,6 +20209,14 @@ var Args = class {
     if (v === true) throw new Exit(`${this.usage}: --${name} needs a value`);
     return v;
   }
+  /** A presence flag: `--name` alone is true, as is `--name=true`. */
+  bool(name) {
+    const v = this.flags.get(name);
+    if (v === void 0) return false;
+    if (v === true || v === "true") return true;
+    if (v === "false") return false;
+    throw new Exit(`${this.usage}: --${name} takes no value, got '${v}'`);
+  }
   require(name) {
     const v = this.get(name);
     if (v === null) throw new Exit(`${this.usage}: --${name} is required`);
@@ -20252,19 +20279,20 @@ function serviceVersion(text) {
   const doc = (0, import_yaml.parse)(text) ?? {};
   return doc.version != null ? String(doc.version) : null;
 }
-function runGate(base, specsDir) {
+function movedForward(now, before) {
+  if (now === null || before === null) return true;
+  return greater(versionParts(now), versionParts(before));
+}
+function runGate(base, specsDir, allowMissingBase = false) {
   const mb = mergeBase(base);
-  if (mb === null) {
-    console.log(`base ref '${base}' not found - nothing to diff against, skipping.`);
-    return 0;
-  }
+  if (mb === null) return missingBase(base, allowMissingBase);
   const changed = splitLines(git("diff", "--name-only", mb));
   const failures = [];
   let checked = 0;
   for (const manifestPath of listManifests(specsDir)) {
     const serviceDir = manifestPath.slice(0, manifestPath.lastIndexOf("/"));
     const service = serviceDir.split("/").pop();
-    const manifestText = readFileText(manifestPath);
+    const manifestText = readFileSync(manifestPath, "utf-8");
     const baseText = blob(mb, manifestPath);
     const now = manifestVersions(manifestText);
     const before = manifestVersions(baseText);
@@ -20280,6 +20308,10 @@ function runGate(base, specsDir) {
         artifactBumped = true;
       } else if (versionBefore === versionNow) {
         failures.push(`${full} (${kind}) changed but version stayed at ${versionBefore}`);
+      } else if (!movedForward(versionNow, versionBefore)) {
+        failures.push(
+          `${full} (${kind}) version moved backwards ${versionBefore} -> ${versionNow} - versions only go up`
+        );
       } else {
         console.log(`ok: ${full} ${versionBefore} -> ${versionNow}`);
         artifactBumped = true;
@@ -20304,6 +20336,10 @@ function runGate(base, specsDir) {
         failures.push(
           `${service}: gated artifact bumped but the service version stayed at ${svcBefore} - bump the top-level version`
         );
+      } else if (!movedForward(svcNow, svcBefore)) {
+        failures.push(
+          `${service}: service version moved backwards ${svcBefore} -> ${svcNow} - consumers pin it, so it only goes up`
+        );
       } else if (artifactMajorBumped && major(svcNow) <= major(svcBefore)) {
         failures.push(
           `${service}: an artifact took a major bump but the service version only moved ${svcBefore} -> ${svcNow} - a major artifact change is a major surface change`
@@ -20324,9 +20360,6 @@ function runGate(base, specsDir) {
 ${checked} gated artifact(s) changed, all versioned correctly.`);
   return 0;
 }
-function readFileText(path9) {
-  return readFileSync(path9, "utf-8");
-}
 
 // src/compat.ts
 var PROSE_PATH = /\/(description|summary|title)$/;
@@ -20341,7 +20374,11 @@ function removeTmp(file) {
 }
 function openapiBreaking(baseFile, current) {
   const res = run(["oasdiff", "breaking", baseFile, current, "--fail-on", "ERR"]);
-  return [res.status !== 0, (res.stdout + res.stderr).trim()];
+  const output = (res.stdout + res.stderr).trim();
+  if (res.status !== 0 && res.status !== 1) {
+    throw new Error(`oasdiff breaking failed on ${current} (exit ${res.status}): ${output}`);
+  }
+  return [res.status === 1, output];
 }
 function asyncapiBad(changes) {
   return changes.filter(
@@ -20439,12 +20476,9 @@ var CLASSIFIERS = {
   asyncapi: asyncapiBreaking,
   "data-contract": odcsBreaking
 };
-function runGate2(base, only, specsDir) {
+function runGate2(base, only, specsDir, allowMissingBase = false) {
   const mb = mergeBase(base);
-  if (mb === null) {
-    console.log(`base ref '${base}' not found - nothing to diff against, skipping.`);
-    return 0;
-  }
+  if (mb === null) return missingBase(base, allowMissingBase);
   const changed = new Set(splitLines(git("diff", "--name-only", mb)));
   const failures = [];
   let checked = 0;
@@ -20675,12 +20709,9 @@ function mentioned(token, corpus) {
   const right = /\w$/.test(token) ? "\\b" : "";
   return new RegExp(left + escapeRe(token) + right, "i").test(corpus);
 }
-function runGate3(base, only, specsDir) {
+function runGate3(base, only, specsDir, allowMissingBase = false) {
   const mb = mergeBase(base);
-  if (mb === null) {
-    console.log(`base ref '${base}' not found - nothing to diff against, skipping.`);
-    return 0;
-  }
+  if (mb === null) return missingBase(base, allowMissingBase);
   const changed = new Set(splitLines(git("diff", "--name-only", mb)));
   const failures = [];
   let checked = 0;
@@ -21438,6 +21469,15 @@ function lintService(serviceDir, producedBy, messagesByAddress, ownMessages) {
   const manifest = readYaml2(path7.join(serviceDir, "service.yaml"));
   const name = manifest.name;
   const artifacts = manifest.artifacts ?? [];
+  const dirName = path7.basename(serviceDir);
+  if (name !== dirName) {
+    problems.push(
+      `${dirName}: manifest name ${pyRepr(name ?? null)} must equal its directory name ${pyRepr(dirName)}`
+    );
+  }
+  if (typeof manifest.summary !== "string" || !manifest.summary.trim()) {
+    problems.push(`${name}: summary is required and must be a non-empty string`);
+  }
   const version = manifest.version;
   if (!/^\d+\.\d+\.\d+$/.test(version ? String(version) : "")) {
     problems.push(`${name}: manifest needs a top-level semver version, got ${pyRepr(version ?? null)}`);
@@ -21511,6 +21551,14 @@ function lintService(serviceDir, producedBy, messagesByAddress, ownMessages) {
       problems.push(`${name}: consumes '${address}' but no service produces it`);
     }
   }
+  for (const address of pySorted(produces)) {
+    const owners = producedBy.get(address) ?? [];
+    if (owners.length > 1) {
+      problems.push(
+        `${name}: produces '${address}', which is also produced by ` + pySorted(owners.filter((o) => o !== name)).join(", ") + " - a channel has exactly one producer"
+      );
+    }
+  }
   const allowedMessages = new Set(ownMessages.get(path7.basename(serviceDir)) ?? []);
   for (const address of consumes) {
     for (const msg of messagesByAddress.get(address) ?? []) allowedMessages.add(msg);
@@ -21543,7 +21591,9 @@ function runLint(only, specsDir) {
   const producedBy = /* @__PURE__ */ new Map();
   for (const d of dirs) {
     const manifest = readYaml2(path7.join(d, "service.yaml"));
-    for (const address of manifest.produces ?? []) producedBy.set(address, manifest.name);
+    for (const address of manifest.produces ?? []) {
+      producedBy.set(address, [...producedBy.get(address) ?? [], manifest.name]);
+    }
   }
   const [messagesByAddress, ownMessages] = messageIndex(dirs);
   const problems = only ? [] : lintSystem(specsDir);
@@ -22455,19 +22505,10 @@ function versionOf(text, versionFile, key) {
   for (const part of key.split(".")) doc = doc[part];
   return String(doc).split(".").map((p) => parseInt(p, 10));
 }
-function greater(a, b) {
-  for (let i = 0; i < Math.min(a.length, b.length); i++) {
-    if (a[i] !== b[i]) return a[i] > b[i];
-  }
-  return a.length > b.length;
-}
 var dotted = (v) => v.join(".");
-function runGate4(base, versionFile, jsonKey, paths) {
+function runGate4(base, versionFile, jsonKey, paths, allowMissingBase = false) {
   const mb = mergeBase(base);
-  if (mb === null) {
-    console.log(`base ref '${base}' not found - nothing to diff against, skipping.`);
-    return 0;
-  }
+  if (mb === null) return missingBase(base, allowMissingBase);
   const changed = splitLines(git("diff", "--name-only", mb)).filter(
     (f) => paths.some((p) => f.startsWith(p))
   );
@@ -22501,6 +22542,8 @@ var USAGE = `usage: sysspec <command> ...
 
 commands:
   check version|compat|intent|surface   diff-based gates against a base ref
+                                        (--allow-missing-base: skip, even in CI,
+                                        when the base ref does not exist)
   lint manifest|specs|features|datacontracts
   docs data|diagrams
   init <dir> --org <reverse-dns> [--system <title>] [--domain <name>]
@@ -22519,25 +22562,27 @@ async function main(argv = process.argv.slice(2)) {
   if (command === "check") {
     const base = args.get("base", "origin/main");
     const specsDir = args.get("specs-dir", "specs");
+    const allowMissing = args.bool("allow-missing-base");
     if (sub === "version") {
-      args.only("base", "specs-dir");
-      return runGate(base, specsDir);
+      args.only("base", "specs-dir", "allow-missing-base");
+      return runGate(base, specsDir, allowMissing);
     }
     if (sub === "compat") {
-      args.only("base", "specs-dir", "service");
-      return runGate2(base, args.get("service"), specsDir);
+      args.only("base", "specs-dir", "service", "allow-missing-base");
+      return runGate2(base, args.get("service"), specsDir, allowMissing);
     }
     if (sub === "intent") {
-      args.only("base", "specs-dir", "service");
-      return runGate3(base, args.get("service"), specsDir);
+      args.only("base", "specs-dir", "service", "allow-missing-base");
+      return runGate3(base, args.get("service"), specsDir, allowMissing);
     }
     if (sub === "surface") {
-      args.only("base", "specs-dir", "version-file", "json-key", "paths");
+      args.only("base", "specs-dir", "version-file", "json-key", "paths", "allow-missing-base");
       return runGate4(
         base,
         args.require("version-file"),
         args.get("json-key", "version"),
-        args.require("paths").split(",").filter(Boolean)
+        args.require("paths").split(",").filter(Boolean),
+        allowMissing
       );
     }
   }

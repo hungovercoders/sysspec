@@ -18,7 +18,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { parse, stringify } from "yaml";
 import { asyncapiChanges, removeTmp, writeTmp } from "./compat.js";
-import { blob, git, isDigits, mergeBase, run, splitLines } from "./util.js";
+import { blob, git, isDigits, mergeBase, missingBase, run, splitLines } from "./util.js";
 import { listManifests, manifestVersions } from "./versioning.js";
 
 const BACKTICK = /`([^`]+)`/g;
@@ -230,12 +230,14 @@ export function mentioned(token: string, corpus: string): boolean {
   return new RegExp(left + escapeRe(token) + right, "i").test(corpus);
 }
 
-export function runGate(base: string, only: string | null, specsDir: string): number {
+export function runGate(
+  base: string,
+  only: string | null,
+  specsDir: string,
+  allowMissingBase = false,
+): number {
   const mb = mergeBase(base);
-  if (mb === null) {
-    console.log(`base ref '${base}' not found - nothing to diff against, skipping.`);
-    return 0;
-  }
+  if (mb === null) return missingBase(base, allowMissingBase);
   const changed = new Set(splitLines(git("diff", "--name-only", mb)));
 
   const failures: string[] = [];

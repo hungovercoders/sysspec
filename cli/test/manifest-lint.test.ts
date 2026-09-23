@@ -136,3 +136,31 @@ test("no system manifest at all is fine - the catalog just reads generically", (
   unlinkSync(path.join(specs, "system.yaml"));
   expect(runLint(null, specs)).toBe(0);
 });
+
+test("a manifest name that differs from its directory is drift", () => {
+  const errs = captureErr();
+  const f = path.join(specs, "orders", "service.yaml");
+  writeFileSync(f, readFileSync(f, "utf-8").replace(/^name: orders$/m, "name: ordering"));
+  expect(runLint("orders", specs)).toBe(1);
+  expect(errs.join("\n")).toContain("manifest name 'ordering' must equal its directory name 'orders'");
+});
+
+test("a manifest without a summary is drift", () => {
+  const errs = captureErr();
+  const f = path.join(specs, "orders", "service.yaml");
+  const text = readFileSync(f, "utf-8");
+  // summary may be a folded block; drop it and any indented continuation.
+  writeFileSync(f, text.replace(/^summary:.*\n(?:[ \t]+.*\n)*/m, ""));
+  expect(runLint("orders", specs)).toBe(1);
+  expect(errs.join("\n")).toContain("orders: summary is required");
+});
+
+test("two services producing the same channel is drift", () => {
+  const errs = captureErr();
+  const orders = readFileSync(path.join(specs, "orders", "service.yaml"), "utf-8");
+  const address = /produces:\s*\n\s*-\s*([\w.-]+)/.exec(orders)![1];
+  const f = path.join(specs, "payments", "service.yaml");
+  writeFileSync(f, readFileSync(f, "utf-8").replace(/^produces:\s*\n/m, `produces:\n  - ${address}\n`));
+  expect(runLint(null, specs)).toBe(1);
+  expect(errs.join("\n")).toContain(`produces '${address}', which is also produced by`);
+});

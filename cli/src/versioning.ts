@@ -7,8 +7,18 @@
  * there is no second place to forget to update.
  */
 
+import { readFileSync } from "node:fs";
 import { parse } from "yaml";
-import { blob, Exit, git, mergeBase, splitLines } from "./util.js";
+import {
+  blob,
+  Exit,
+  git,
+  greater,
+  mergeBase,
+  missingBase,
+  splitLines,
+  versionParts,
+} from "./util.js";
 
 export const GATED_KINDS = new Set(["asyncapi", "openapi", "data-contract", "feature"]);
 
@@ -48,14 +58,18 @@ export function serviceVersion(text: string | null): string | null {
   return doc.version != null ? String(doc.version) : null;
 }
 
-export function runGate(base: string, specsDir: string): number {
+/** A version change counts only when it is semver-greater: a downgrade
+ * would re-tag a surface consumers may already have pinned. */
+function movedForward(now: string | null, before: string | null): boolean {
+  if (now === null || before === null) return true;
+  return greater(versionParts(now), versionParts(before));
+}
+
+export function runGate(base: string, specsDir: string, allowMissingBase = false): number {
   // Diff the working tree against the merge-base so the gate also bites in
   // the pre-commit hook, not only on committed CI state.
   const mb = mergeBase(base);
-  if (mb === null) {
-    console.log(`base ref '${base}' not found - nothing to diff against, skipping.`);
-    return 0;
-  }
+  if (mb === null) return missingBase(base, allowMissingBase);
   const changed = splitLines(git("diff", "--name-only", mb));
 
   const failures: string[] = [];
@@ -65,7 +79,7 @@ export function runGate(base: string, specsDir: string): number {
     const serviceDir = manifestPath.slice(0, manifestPath.lastIndexOf("/"));
     const service = serviceDir.split("/").pop()!;
 
-    const manifestText = readFileText(manifestPath);
+    const manifestText = readFileSync(manifestPath, "utf-8");
     // Baseline from the merge-base, matching the diff scope above — the
     // base ref's head may have moved past it.
     const baseText = blob(mb, manifestPath);
@@ -86,6 +100,11 @@ export function runGate(base: string, specsDir: string): number {
         artifactBumped = true;
       } else if (versionBefore === versionNow) {
         failures.push(`${full} (${kind}) changed but version stayed at ${versionBefore}`);
+      } else if (!movedForward(versionNow, versionBefore)) {
+        failures.push(
+          `${full} (${kind}) version moved backwards ${versionBefore} -> ${versionNow} - ` +
+            "versions only go up",
+        );
       } else {
         console.log(`ok: ${full} ${versionBefore} -> ${versionNow}`);
         artifactBumped = true;
@@ -116,6 +135,11 @@ export function runGate(base: string, specsDir: string): number {
           `${service}: gated artifact bumped but the service version ` +
             `stayed at ${svcBefore} - bump the top-level version`,
         );
+      } else if (!movedForward(svcNow, svcBefore)) {
+        failures.push(
+          `${service}: service version moved backwards ${svcBefore} -> ${svcNow} - ` +
+            "consumers pin it, so it only goes up",
+        );
       } else if (artifactMajorBumped && major(svcNow) <= major(svcBefore)) {
         failures.push(
           `${service}: an artifact took a major bump but the service ` +
@@ -139,9 +163,4 @@ export function runGate(base: string, specsDir: string): number {
 
   console.log(`\n${checked} gated artifact(s) changed, all versioned correctly.`);
   return 0;
-}
-
-import { readFileSync } from "node:fs";
-function readFileText(path: string): string {
-  return readFileSync(path, "utf-8");
 }

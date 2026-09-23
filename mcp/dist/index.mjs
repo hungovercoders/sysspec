@@ -28763,7 +28763,7 @@ var EMPTY_COMPLETION_RESULT = {
 // package.json
 var package_default = {
   name: "sysspec-mcp",
-  version: "1.0.5",
+  version: "1.0.6",
   description: "Read-only MCP access to versioned system specs: AsyncAPI, OpenAPI, ODCS data contracts and Gherkin acceptance criteria.",
   license: "MIT",
   repository: {
@@ -28832,23 +28832,31 @@ function bounded(text, maxBytes) {
 }
 
 // src/gherkin.ts
+var SCENARIO_KEYWORDS = ["Scenario:", "Scenario Outline:", "Scenario Template:", "Example:"];
+var BOUNDARY_KEYWORDS = ["Rule:", "Background:"];
 function splitGherkin(text) {
   const lines = text.match(/[^\n]*\n|[^\n]+/g) ?? [];
   let headerEnd = lines.length;
   const spans = [];
+  const blockStart = (i) => {
+    let start = i;
+    while (start > 0) {
+      const prev = lines[start - 1].trim();
+      if (prev.startsWith("@") || prev.startsWith("#")) start -= 1;
+      else break;
+    }
+    return start;
+  };
   for (let i = 0; i < lines.length; i++) {
     const stripped = lines[i].trim();
-    if (stripped.startsWith("Scenario:") || stripped.startsWith("Scenario Outline:")) {
-      let start = i;
-      while (start > 0) {
-        const prev = lines[start - 1].trim();
-        if (prev.startsWith("@") || prev.startsWith("#")) start -= 1;
-        else break;
-      }
-      if (spans.length === 0) headerEnd = start;
-      else spans[spans.length - 1].end = start;
+    if (SCENARIO_KEYWORDS.some((k) => stripped.startsWith(k))) {
+      const start = blockStart(i);
+      if (spans.length === 0) headerEnd = Math.min(headerEnd, start);
+      else spans[spans.length - 1].end = Math.min(spans[spans.length - 1].end, start);
       const name = stripped.slice(stripped.indexOf(":") + 1).trim();
       spans.push({ name, start, end: lines.length });
+    } else if (spans.length && BOUNDARY_KEYWORDS.some((k) => stripped.startsWith(k))) {
+      spans[spans.length - 1].end = Math.min(spans[spans.length - 1].end, blockStart(i));
     }
   }
   const header = lines.slice(0, headerEnd).join("").replace(/\n+$/, "");
@@ -28892,7 +28900,7 @@ function resolvePointer(doc, pointer) {
   let resolved = "";
   for (const rawToken of pointer.slice(1).split("/")) {
     const token = rawToken.replaceAll("~1", "/").replaceAll("~0", "~");
-    if (isRecord(node) && token in node) {
+    if (isRecord(node) && Object.hasOwn(node, token)) {
       node = node[token];
     } else if (Array.isArray(node) && /^\d+$/.test(token) && Number(token) < node.length) {
       node = node[Number(token)];
@@ -29126,13 +29134,31 @@ async function getAcceptanceCriteria(source, args) {
     const summary = summaryOf(a.summary);
     const { header, scenarios } = splitGherkin(text);
     if (names_only) {
-      out.features.push({ path: a.path, summary, scenarios: scenarios.map((s) => s.name) });
+      const names = scenarios.map((s) => s.name);
+      const size = utf8Len(JSON.stringify(names));
+      if (size > budget) {
+        out.truncated = true;
+        out.features.push({ path: a.path, summary, scenario_count: names.length, names_omitted: true });
+        continue;
+      }
+      budget -= size;
+      out.features.push({ path: a.path, summary, scenarios: names });
       continue;
     }
     if (scenario !== null && scenario !== void 0) {
       const needle = scenario.toLowerCase();
-      const matched = scenarios.filter((s) => s.name.toLowerCase().includes(needle));
-      if (matched.length) {
+      const hits = scenarios.filter((s) => s.name.toLowerCase().includes(needle));
+      if (hits.length) {
+        budget -= utf8Len(header);
+        const matched = hits.map((s) => {
+          const size = utf8Len(s.gherkin);
+          if (size > budget) {
+            out.truncated = true;
+            return { name: s.name, gherkin_omitted: true };
+          }
+          budget -= size;
+          return s;
+        });
         out.features.push({
           path: a.path,
           summary,
@@ -29165,7 +29191,7 @@ async function getAcceptanceCriteria(source, args) {
     throw new Error(`No scenario matching ${pyRepr(scenario)}. Scenarios: ${pyList(names)}`);
   }
   if (out.truncated) {
-    out.note = `Some Gherkin bodies omitted to stay under ${max_bytes} bytes. Fetch narrowly with path= or scenario=, or raise max_bytes.`;
+    out.note = `Some Gherkin bodies or names omitted to stay under ${max_bytes} bytes. Fetch narrowly with path= or scenario=, or raise max_bytes.`;
   }
   return out;
 }

@@ -185,6 +185,39 @@ describe.each(sources)("%s source", (_label, makeSource) => {
     expect(out.note).toContain("path=");
   });
 
+  test("acceptance_criteria_scenario_filter_respects_budget", async () => {
+    const index: any = await getAcceptanceCriteria(source, { service: "orders", names_only: true });
+    const out: any = await getAcceptanceCriteria(source, {
+      service: "orders",
+      scenario: index.features[0].scenarios[0],
+      max_bytes: 10,
+    });
+    expect(out.truncated).toBe(true);
+    expect(out.features[0].matched[0].gherkin_omitted).toBe(true);
+    expect(out.features[0].matched[0]).not.toHaveProperty("gherkin");
+  });
+
+  test("acceptance_criteria_names_only_respects_budget", async () => {
+    const out: any = await getAcceptanceCriteria(source, {
+      service: "orders",
+      names_only: true,
+      max_bytes: 5,
+    });
+    expect(out.truncated).toBe(true);
+    expect(out.features[0].names_omitted).toBe(true);
+    expect(out.features[0].scenario_count).toBeGreaterThan(0);
+  });
+
+  test("get_artifact_section_ignores_inherited_properties", async () => {
+    await expect(
+      getArtifact(source, {
+        service: "orders",
+        path: "asyncapi/orders.asyncapi.yaml",
+        section: "/constructor",
+      }),
+    ).rejects.toThrow(/'constructor' not found/);
+  });
+
   // -- trace_channel --------------------------------------------------------
 
   test("trace_channel_known_address", async () => {

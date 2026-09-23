@@ -25,6 +25,8 @@ const USAGE = `usage: sysspec <command> ...
 
 commands:
   check version|compat|intent|surface   diff-based gates against a base ref
+                                        (--allow-missing-base: skip, even in CI,
+                                        when the base ref does not exist)
   lint manifest|specs|features|datacontracts
   docs data|diagrams
   init <dir> --org <reverse-dns> [--system <title>] [--domain <name>]
@@ -46,25 +48,27 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<numb
   if (command === "check") {
     const base = args.get("base", "origin/main")!;
     const specsDir = args.get("specs-dir", "specs")!;
+    const allowMissing = args.bool("allow-missing-base");
     if (sub === "version") {
-      args.only("base", "specs-dir");
-      return versioning.runGate(base, specsDir);
+      args.only("base", "specs-dir", "allow-missing-base");
+      return versioning.runGate(base, specsDir, allowMissing);
     }
     if (sub === "compat") {
-      args.only("base", "specs-dir", "service");
-      return compat.runGate(base, args.get("service"), specsDir);
+      args.only("base", "specs-dir", "service", "allow-missing-base");
+      return compat.runGate(base, args.get("service"), specsDir, allowMissing);
     }
     if (sub === "intent") {
-      args.only("base", "specs-dir", "service");
-      return intent.runGate(base, args.get("service"), specsDir);
+      args.only("base", "specs-dir", "service", "allow-missing-base");
+      return intent.runGate(base, args.get("service"), specsDir, allowMissing);
     }
     if (sub === "surface") {
-      args.only("base", "specs-dir", "version-file", "json-key", "paths");
+      args.only("base", "specs-dir", "version-file", "json-key", "paths", "allow-missing-base");
       return surface.runGate(
         base,
         args.require("version-file"),
         args.get("json-key", "version")!,
         args.require("paths").split(",").filter(Boolean),
+        allowMissing,
       );
     }
   }

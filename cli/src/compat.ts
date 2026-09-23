@@ -19,7 +19,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { parse, stringify } from "yaml";
 import { ASYNCAPI_CLI, DATACONTRACT_CLI } from "./pins.js";
-import { blob, git, mergeBase, run, splitLines } from "./util.js";
+import { blob, git, mergeBase, missingBase, run, splitLines } from "./util.js";
 import {
   GATED_KINDS,
   listManifests,
@@ -41,9 +41,16 @@ export function removeTmp(file: string): void {
   rmSync(path.dirname(file), { recursive: true, force: true });
 }
 
+/** oasdiff exits 1 when --fail-on finds breaking changes; any other
+ * non-zero exit (a spec that fails to load, a bad flag) is the tool
+ * failing, not a verdict, and must not read as "needs a major bump". */
 export function openapiBreaking(baseFile: string, current: string): [boolean, string] {
   const res = run(["oasdiff", "breaking", baseFile, current, "--fail-on", "ERR"]);
-  return [res.status !== 0, (res.stdout + res.stderr).trim()];
+  const output = (res.stdout + res.stderr).trim();
+  if (res.status !== 0 && res.status !== 1) {
+    throw new Error(`oasdiff breaking failed on ${current} (exit ${res.status}): ${output}`);
+  }
+  return [res.status === 1, output];
 }
 
 /** The structural filter over @asyncapi/cli diff output — exported for
@@ -203,12 +210,14 @@ const CLASSIFIERS: Record<string, (base: string, current: string) => [boolean, s
   "data-contract": odcsBreaking,
 };
 
-export function runGate(base: string, only: string | null, specsDir: string): number {
+export function runGate(
+  base: string,
+  only: string | null,
+  specsDir: string,
+  allowMissingBase = false,
+): number {
   const mb = mergeBase(base);
-  if (mb === null) {
-    console.log(`base ref '${base}' not found - nothing to diff against, skipping.`);
-    return 0;
-  }
+  if (mb === null) return missingBase(base, allowMissingBase);
   const changed = new Set(splitLines(git("diff", "--name-only", mb)));
 
   const failures: string[] = [];

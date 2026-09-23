@@ -8,7 +8,7 @@
 
 import { readFileSync } from "node:fs";
 import { parse as parseToml } from "smol-toml";
-import { blob, git, mergeBase, splitLines } from "./util.js";
+import { blob, git, greater, mergeBase, missingBase, splitLines } from "./util.js";
 
 export function versionOf(
   text: string | null,
@@ -23,14 +23,6 @@ export function versionOf(
     .map((p) => parseInt(p, 10));
 }
 
-/** Element-wise version comparison; equal prefixes defer to length. */
-function greater(a: number[], b: number[]): boolean {
-  for (let i = 0; i < Math.min(a.length, b.length); i++) {
-    if (a[i] !== b[i]) return a[i] > b[i];
-  }
-  return a.length > b.length;
-}
-
 const dotted = (v: number[]) => v.join(".");
 
 export function runGate(
@@ -38,12 +30,10 @@ export function runGate(
   versionFile: string,
   jsonKey: string,
   paths: string[],
+  allowMissingBase = false,
 ): number {
   const mb = mergeBase(base);
-  if (mb === null) {
-    console.log(`base ref '${base}' not found - nothing to diff against, skipping.`);
-    return 0;
-  }
+  if (mb === null) return missingBase(base, allowMissingBase);
   const changed = splitLines(git("diff", "--name-only", mb)).filter((f) =>
     paths.some((p) => f.startsWith(p)),
   );

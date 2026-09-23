@@ -29,7 +29,7 @@ All four compare the working tree against a base ref (`--base`, default
 
 - `check version` fails unless a gated artifact change bumps its manifest
   version *and* the service's top-level version; an artifact major forces a
-  service major.
+  service major. Versions only go up, so a downgrade is red too.
 - `check compat` fails when a breaking contract change does not carry a
   major bump.
 - `check intent` requires every schema element added to an OpenAPI/AsyncAPI
@@ -47,9 +47,18 @@ All four compare the working tree against a base ref (`--base`, default
 | `--version-file <file>` | `surface` | required |
 | `--json-key <key>` | `surface` | `version` (dotted path into the version file) |
 | `--paths <a/,b/>` | `surface` | required, comma-separated path prefixes |
+| `--allow-missing-base` | all four | off |
 
 A typo'd or unknown flag is an error, never a silent fall-back to a
 default.
+
+When the base ref does not exist (a fresh repo with no remote yet), the
+gates have nothing to diff against. Locally they say so and skip. In CI,
+meaning whenever the `CI` environment variable is set, a missing base
+almost always means a shallow checkout, so the gates fail rather than pass
+without checking anything. Check out with `fetch-depth: 0`, as the reusable
+workflows do, or pass `--allow-missing-base` where skipping really is what
+you want.
 
 ### `lint`
 

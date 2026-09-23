@@ -33,6 +33,15 @@ export class Args {
     return v;
   }
 
+  /** A presence flag: `--name` alone is true, as is `--name=true`. */
+  bool(name: string): boolean {
+    const v = this.flags.get(name);
+    if (v === undefined) return false;
+    if (v === true || v === "true") return true;
+    if (v === "false") return false;
+    throw new Exit(`${this.usage}: --${name} takes no value, got '${v}'`);
+  }
+
   require(name: string): string {
     const v = this.get(name);
     if (v === null) throw new Exit(`${this.usage}: --${name} is required`);

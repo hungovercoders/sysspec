@@ -51,6 +51,41 @@ export function mergeBase(base: string): string | null {
   return res.status === 0 ? res.stdout.trim() : null;
 }
 
+/** Verdict for a diff gate whose base ref is missing. Locally that is a
+ * fresh repo with no origin and there is honestly nothing to compare, so
+ * the gate skips. In CI (the CI env var is set) it almost always means a
+ * shallow checkout, and skipping there would pass a gate that checked
+ * nothing - so it fails unless the caller opts out explicitly. */
+export function missingBase(base: string, allow: boolean): number {
+  if (process.env.CI && !allow) {
+    console.error(
+      `base ref '${base}' not found - in CI a diff gate with nothing to diff ` +
+        "against has checked nothing. Fetch the base (actions/checkout with " +
+        "fetch-depth: 0) or pass --allow-missing-base where skipping is intended.",
+    );
+    return 1;
+  }
+  console.log(`base ref '${base}' not found - nothing to diff against, skipping.`);
+  return 0;
+}
+
+/** Semver-ish comparison of dotted numeric versions: true when a is
+ * strictly greater than b. Equal prefixes defer to length. */
+export function greater(a: number[], b: number[]): boolean {
+  for (let i = 0; i < Math.min(a.length, b.length); i++) {
+    if (a[i] !== b[i]) return a[i] > b[i];
+  }
+  return a.length > b.length;
+}
+
+/** "1.2.3" -> [1, 2, 3]; any pre-release or build suffix is ignored. */
+export function versionParts(version: string): number[] {
+  return version
+    .split(/[-+]/)[0]
+    .split(".")
+    .map((p) => parseInt(p, 10));
+}
+
 /** Non-empty stdout lines of a git command, [] on any failure -
  * generation must degrade in a checkout without tags (a fresh scaffold,
  * a shallow CI clone) rather than fail or emit broken pages. */

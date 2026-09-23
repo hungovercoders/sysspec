@@ -293,13 +293,33 @@ export async function getAcceptanceCriteria(
     const summary = summaryOf(a.summary);
     const { header, scenarios } = splitGherkin(text);
     if (names_only) {
-      out.features.push({ path: a.path, summary, scenarios: scenarios.map((s) => s.name) });
+      const names = scenarios.map((s) => s.name);
+      const size = utf8Len(JSON.stringify(names));
+      if (size > budget) {
+        out.truncated = true;
+        out.features.push({ path: a.path, summary, scenario_count: names.length, names_omitted: true });
+        continue;
+      }
+      budget -= size;
+      out.features.push({ path: a.path, summary, scenarios: names });
       continue;
     }
     if (scenario !== null && scenario !== undefined) {
       const needle = scenario.toLowerCase();
-      const matched = scenarios.filter((s) => s.name.toLowerCase().includes(needle));
-      if (matched.length) {
+      const hits = scenarios.filter((s) => s.name.toLowerCase().includes(needle));
+      if (hits.length) {
+        // The header rides along once per file; each matched body spends
+        // the budget, and one that does not fit is named, not sent.
+        budget -= utf8Len(header);
+        const matched = hits.map((s) => {
+          const size = utf8Len(s.gherkin);
+          if (size > budget) {
+            out.truncated = true;
+            return { name: s.name, gherkin_omitted: true };
+          }
+          budget -= size;
+          return s;
+        });
         out.features.push({
           path: a.path,
           summary,
@@ -333,7 +353,7 @@ export async function getAcceptanceCriteria(
   }
   if (out.truncated) {
     out.note =
-      `Some Gherkin bodies omitted to stay under ${max_bytes} bytes. ` +
+      `Some Gherkin bodies or names omitted to stay under ${max_bytes} bytes. ` +
       "Fetch narrowly with path= or scenario=, or raise max_bytes.";
   }
   return out;

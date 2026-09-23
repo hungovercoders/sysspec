@@ -209,7 +209,7 @@ tasks:
         $sysspec lint features
         $sysspec lint datacontracts
         $sysspec lint manifest
-        $sysspec check version
+        $sysspec check version --allow-missing-base
         $sysspec docs data
         $sysspec docs diagrams
         cd / && rm -rf "$tmp"
