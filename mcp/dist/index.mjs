@@ -1079,12 +1079,12 @@ var require_util = __commonJS({
     }
     exports.alwaysValidSchema = alwaysValidSchema;
     function checkUnknownRules(it, schema = it.schema) {
-      const { opts, self } = it;
+      const { opts, self: self2 } = it;
       if (!opts.strictSchema)
         return;
       if (typeof schema === "boolean")
         return;
-      const rules = self.RULES.keywords;
+      const rules = self2.RULES.keywords;
       for (const key in schema) {
         if (!rules[key])
           checkStrictMode(it, `unknown keyword: "${key}"`);
@@ -1470,8 +1470,8 @@ var require_applicability = __commonJS({
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.shouldUseRule = exports.shouldUseGroup = exports.schemaHasRulesForType = void 0;
-    function schemaHasRulesForType({ schema, self }, type) {
-      const group = self.RULES.types[type];
+    function schemaHasRulesForType({ schema, self: self2 }, type) {
+      const group = self2.RULES.types[type];
       return group && group !== true && shouldUseGroup(schema, group);
     }
     exports.schemaHasRulesForType = schemaHasRulesForType;
@@ -1872,8 +1872,8 @@ var require_keyword = __commonJS({
       var _a;
       const { gen, keyword, schema, parentSchema, $data, it } = cxt;
       checkAsyncKeyword(it, def);
-      const validate = !$data && def.compile ? def.compile.call(it.self, schema, parentSchema, it) : def.validate;
-      const validateRef = useKeyword(gen, keyword, validate);
+      const validate2 = !$data && def.compile ? def.compile.call(it.self, schema, parentSchema, it) : def.validate;
+      const validateRef = useKeyword(gen, keyword, validate2);
       const valid = gen.let("valid");
       cxt.block$data(valid, validateKeyword);
       cxt.ok((_a = def.valid) !== null && _a !== void 0 ? _a : valid);
@@ -1936,7 +1936,7 @@ var require_keyword = __commonJS({
       return !schemaType.length || schemaType.some((st) => st === "array" ? Array.isArray(schema) : st === "object" ? schema && typeof schema == "object" && !Array.isArray(schema) : typeof schema == st || allowUndefined && typeof schema == "undefined");
     }
     exports.validSchemaType = validSchemaType;
-    function validateKeywordUsage({ schema, opts, self, errSchemaPath }, def, keyword) {
+    function validateKeywordUsage({ schema, opts, self: self2, errSchemaPath }, def, keyword) {
       if (Array.isArray(def.keyword) ? !def.keyword.includes(keyword) : def.keyword !== keyword) {
         throw new Error("ajv implementation error");
       }
@@ -1947,9 +1947,9 @@ var require_keyword = __commonJS({
       if (def.validateSchema) {
         const valid = def.validateSchema(schema[keyword]);
         if (!valid) {
-          const msg = `keyword "${keyword}" value is invalid at path "${errSchemaPath}": ` + self.errorsText(def.validateSchema.errors);
+          const msg = `keyword "${keyword}" value is invalid at path "${errSchemaPath}": ` + self2.errorsText(def.validateSchema.errors);
           if (opts.validateSchema === "log")
-            self.logger.error(msg);
+            self2.logger.error(msg);
           else
             throw new Error(msg);
         }
@@ -2416,11 +2416,11 @@ var require_validate = __commonJS({
       }
       (0, boolSchema_1.boolOrEmptySchema)(it, valid);
     }
-    function schemaCxtHasRules({ schema, self }) {
+    function schemaCxtHasRules({ schema, self: self2 }) {
       if (typeof schema == "boolean")
         return !schema;
       for (const key in schema)
-        if (self.RULES.all[key])
+        if (self2.RULES.all[key])
           return true;
       return false;
     }
@@ -2449,9 +2449,9 @@ var require_validate = __commonJS({
       schemaKeywords(it, types, !checkedTypes, errsCount);
     }
     function checkRefsAndKeywords(it) {
-      const { schema, errSchemaPath, opts, self } = it;
-      if (schema.$ref && opts.ignoreKeywordsWithRef && (0, util_1.schemaHasRulesButRef)(schema, self.RULES)) {
-        self.logger.warn(`$ref: keywords ignored in schema at path "${errSchemaPath}"`);
+      const { schema, errSchemaPath, opts, self: self2 } = it;
+      if (schema.$ref && opts.ignoreKeywordsWithRef && (0, util_1.schemaHasRulesButRef)(schema, self2.RULES)) {
+        self2.logger.warn(`$ref: keywords ignored in schema at path "${errSchemaPath}"`);
       }
     }
     function checkNoDefault(it) {
@@ -2497,8 +2497,8 @@ var require_validate = __commonJS({
         gen.assign((0, codegen_1._)`${evaluated}.items`, items);
     }
     function schemaKeywords(it, types, typeErrors, errsCount) {
-      const { gen, schema, data, allErrors, opts, self } = it;
-      const { RULES } = self;
+      const { gen, schema, data, allErrors, opts, self: self2 } = it;
+      const { RULES } = self2;
       if (schema.$ref && (opts.ignoreKeywordsWithRef || !(0, util_1.schemaHasRulesButRef)(schema, RULES))) {
         gen.block(() => keywordCode(it, "$ref", RULES.all.$ref.definition));
         return;
@@ -2783,20 +2783,20 @@ var require_validate = __commonJS({
         (0, keyword_1.funcKeywordCode)(cxt, def);
       }
     }
-    var JSON_POINTER = /^\/(?:[^~]|~0|~1)*$/;
-    var RELATIVE_JSON_POINTER = /^([0-9]+)(#|\/(?:[^~]|~0|~1)*)?$/;
+    var JSON_POINTER2 = /^\/(?:[^~]|~0|~1)*$/;
+    var RELATIVE_JSON_POINTER2 = /^([0-9]+)(#|\/(?:[^~]|~0|~1)*)?$/;
     function getData($data, { dataLevel, dataNames, dataPathArr }) {
       let jsonPointer;
       let data;
       if ($data === "")
         return names_1.default.rootData;
       if ($data[0] === "/") {
-        if (!JSON_POINTER.test($data))
+        if (!JSON_POINTER2.test($data))
           throw new Error(`Invalid JSON-pointer: ${$data}`);
         jsonPointer = $data;
         data = names_1.default.rootData;
       } else {
-        const matches = RELATIVE_JSON_POINTER.exec($data);
+        const matches = RELATIVE_JSON_POINTER2.exec($data);
         if (!matches)
           throw new Error(`Invalid JSON-pointer: ${$data}`);
         const up = +matches[1];
@@ -2946,28 +2946,28 @@ var require_compile = __commonJS({
         if (this.opts.code.process)
           sourceCode = this.opts.code.process(sourceCode, sch);
         const makeValidate = new Function(`${names_1.default.self}`, `${names_1.default.scope}`, sourceCode);
-        const validate = makeValidate(this, this.scope.get());
-        this.scope.value(validateName, { ref: validate });
-        validate.errors = null;
-        validate.schema = sch.schema;
-        validate.schemaEnv = sch;
+        const validate2 = makeValidate(this, this.scope.get());
+        this.scope.value(validateName, { ref: validate2 });
+        validate2.errors = null;
+        validate2.schema = sch.schema;
+        validate2.schemaEnv = sch;
         if (sch.$async)
-          validate.$async = true;
+          validate2.$async = true;
         if (this.opts.code.source === true) {
-          validate.source = { validateName, validateCode, scopeValues: gen._values };
+          validate2.source = { validateName, validateCode, scopeValues: gen._values };
         }
         if (this.opts.unevaluated) {
           const { props, items } = schemaCxt;
-          validate.evaluated = {
+          validate2.evaluated = {
             props: props instanceof codegen_1.Name ? void 0 : props,
             items: items instanceof codegen_1.Name ? void 0 : items,
             dynamicProps: props instanceof codegen_1.Name,
             dynamicItems: items instanceof codegen_1.Name
           };
-          if (validate.source)
-            validate.source.evaluated = (0, codegen_1.stringify)(validate.evaluated);
+          if (validate2.source)
+            validate2.source.evaluated = (0, codegen_1.stringify)(validate2.evaluated);
         }
-        sch.validate = validate;
+        sch.validate = validate2;
         return sch;
       } catch (e) {
         delete sch.validate;
@@ -3833,15 +3833,15 @@ var require_fast_uri = __commonJS({
       }
       return decodedScheme;
     }
-    function normalize(uri, options) {
-      if (typeof uri === "string") {
-        uri = /** @type {T} */
-        normalizeString(uri, options);
-      } else if (typeof uri === "object") {
-        uri = /** @type {T} */
-        parse6(serialize(uri, options), options);
+    function normalize(uri2, options) {
+      if (typeof uri2 === "string") {
+        uri2 = /** @type {T} */
+        normalizeString(uri2, options);
+      } else if (typeof uri2 === "object") {
+        uri2 = /** @type {T} */
+        parse7(serialize(uri2, options), options);
       }
-      return uri;
+      return uri2;
     }
     function resolve(baseURI, relativeURI, options) {
       const schemelessOptions = options ? Object.assign({ scheme: "null" }, options) : { scheme: "null" };
@@ -3879,8 +3879,8 @@ var require_fast_uri = __commonJS({
     function resolveComponent(base, relative, options, skipNormalization) {
       const target = {};
       if (!skipNormalization) {
-        base = parse6(serialize(base, options), options);
-        relative = parse6(serialize(relative, options), options);
+        base = parse7(serialize(base, options), options);
+        relative = parse7(serialize(relative, options), options);
       }
       options = options || {};
       if (!options.tolerant && relative.scheme) {
@@ -4043,7 +4043,7 @@ var require_fast_uri = __commonJS({
       }
       return false;
     }
-    function parseWithStatus(uri, opts) {
+    function parseWithStatus(uri2, opts) {
       const options = Object.assign({}, opts);
       const parsed = {
         scheme: void 0,
@@ -4063,17 +4063,17 @@ var require_fast_uri = __commonJS({
       let isIP = false;
       if (options.reference === "suffix") {
         if (options.scheme) {
-          uri = options.scheme + ":" + uri;
+          uri2 = options.scheme + ":" + uri2;
         } else {
-          uri = "//" + uri;
+          uri2 = "//" + uri2;
         }
       }
-      const authorityMatch = uri.match(AUTHORITY_PREFIX);
+      const authorityMatch = uri2.match(AUTHORITY_PREFIX);
       if (authorityMatch !== null && authorityMatch[1].indexOf("\\") !== -1) {
         parsed.error = "URI authority must not contain a literal backslash.";
         malformedAuthorityOrPort = true;
       }
-      const introducerMatch = uri.match(AUTHORITY_INTRODUCER_REGION);
+      const introducerMatch = uri2.match(AUTHORITY_INTRODUCER_REGION);
       if (introducerMatch !== null) {
         const region = introducerMatch[1];
         const normalizedRegion = region.replace(/[\t\n\r]/g, "");
@@ -4087,7 +4087,7 @@ var require_fast_uri = __commonJS({
           }
         }
       }
-      const matches = uri.match(URI_PARSE);
+      const matches = uri2.match(URI_PARSE);
       if (matches) {
         parsed.scheme = matches[1];
         parsed.userinfo = matches[3];
@@ -4151,7 +4151,7 @@ var require_fast_uri = __commonJS({
           malformedHost = canonicalizeHost(parsed, options, schemeHandler, isIP);
         }
         if (!schemeHandler || schemeHandler && !schemeHandler.skipNormalize) {
-          if (uri.indexOf("%") !== -1) {
+          if (uri2.indexOf("%") !== -1) {
             if (parsed.host !== void 0 && !malformedIPLiteral) {
               const host = isIP ? parsed.host : normalizePercentEncoding(parsed.host, true);
               parsed.host = reescapeHostDelimiters(host, isIP);
@@ -4178,16 +4178,16 @@ var require_fast_uri = __commonJS({
       }
       return { parsed, malformedAuthorityOrPort, malformedPercentEncoding, malformedSchemeSpecific, malformedHost, malformedScheme };
     }
-    function parse6(uri, opts) {
-      return parseWithStatus(uri, opts).parsed;
+    function parse7(uri2, opts) {
+      return parseWithStatus(uri2, opts).parsed;
     }
-    function normalizeString(uri, opts) {
-      return normalizeStringWithStatus(uri, opts).normalized;
+    function normalizeString(uri2, opts) {
+      return normalizeStringWithStatus(uri2, opts).normalized;
     }
-    function normalizeStringWithStatus(uri, opts) {
-      const { parsed, malformedAuthorityOrPort, malformedPercentEncoding, malformedSchemeSpecific, malformedHost, malformedScheme } = parseWithStatus(uri, opts);
+    function normalizeStringWithStatus(uri2, opts) {
+      const { parsed, malformedAuthorityOrPort, malformedPercentEncoding, malformedSchemeSpecific, malformedHost, malformedScheme } = parseWithStatus(uri2, opts);
       return {
-        normalized: malformedAuthorityOrPort || malformedPercentEncoding || malformedSchemeSpecific || malformedHost || malformedScheme ? uri : serialize(parsed, opts),
+        normalized: malformedAuthorityOrPort || malformedPercentEncoding || malformedSchemeSpecific || malformedHost || malformedScheme ? uri2 : serialize(parsed, opts),
         malformedAuthorityOrPort,
         malformedPercentEncoding,
         malformedSchemeSpecific,
@@ -4195,13 +4195,13 @@ var require_fast_uri = __commonJS({
         malformedScheme
       };
     }
-    function normalizeComparableURI(uri, opts) {
-      if (typeof uri !== "string" && typeof uri !== "object") {
+    function normalizeComparableURI(uri2, opts) {
+      if (typeof uri2 !== "string" && typeof uri2 !== "object") {
         return void 0;
       }
       let value;
       try {
-        value = typeof uri === "string" ? uri : serialize(uri, opts);
+        value = typeof uri2 === "string" ? uri2 : serialize(uri2, opts);
       } catch {
         return void 0;
       }
@@ -4215,7 +4215,7 @@ var require_fast_uri = __commonJS({
       resolveComponent,
       equal,
       serialize,
-      parse: parse6
+      parse: parse7
     };
     module.exports = fastUri;
     module.exports.default = fastUri;
@@ -4228,9 +4228,9 @@ var require_uri = __commonJS({
   "node_modules/ajv/dist/runtime/uri.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    var uri = require_fast_uri();
-    uri.code = 'require("ajv/dist/runtime/uri").default';
-    exports.default = uri;
+    var uri2 = require_fast_uri();
+    uri2.code = 'require("ajv/dist/runtime/uri").default';
+    exports.default = uri2;
   }
 });
 
@@ -4617,10 +4617,10 @@ var require_core = __commonJS({
         return this;
       }
       // Add format
-      addFormat(name, format) {
-        if (typeof format == "string")
-          format = new RegExp(format);
-        this.formats[name] = format;
+      addFormat(name, format2) {
+        if (typeof format2 == "string")
+          format2 = new RegExp(format2);
+        this.formats[name] = format2;
         return this;
       }
       errorsText(errors = this.errors, { separator = ", ", dataVar = "data" } = {}) {
@@ -4648,10 +4648,10 @@ var require_core = __commonJS({
         }
         return metaSchema;
       }
-      _removeAllSchemas(schemas, regex) {
+      _removeAllSchemas(schemas, regex2) {
         for (const keyRef in schemas) {
           const sch = schemas[keyRef];
-          if (!regex || regex.test(keyRef)) {
+          if (!regex2 || regex2.test(keyRef)) {
             if (typeof sch == "string") {
               delete schemas[keyRef];
             } else if (sch && !sch.meta) {
@@ -4738,9 +4738,9 @@ var require_core = __commonJS({
     }
     function addInitialFormats() {
       for (const name in this.opts.formats) {
-        const format = this.opts.formats[name];
-        if (format)
-          this.addFormat(name, format);
+        const format2 = this.opts.formats[name];
+        if (format2)
+          this.addFormat(name, format2);
       }
     }
     function addInitialKeywords(defs) {
@@ -4877,11 +4877,11 @@ var require_ref = __commonJS({
       schemaType: "string",
       code(cxt) {
         const { gen, schema: $ref, it } = cxt;
-        const { baseId, schemaEnv: env, validateName, opts, self } = it;
+        const { baseId, schemaEnv: env, validateName, opts, self: self2 } = it;
         const { root } = env;
         if (($ref === "#" || $ref === "#/") && baseId === root.baseId)
           return callRootRef();
-        const schOrEnv = compile_1.resolveRef.call(self, root, baseId, $ref);
+        const schOrEnv = compile_1.resolveRef.call(self2, root, baseId, $ref);
         if (schOrEnv === void 0)
           throw new ref_error_1.default(it.opts.uriResolver, baseId, $ref);
         if (schOrEnv instanceof compile_1.SchemaEnv)
@@ -5068,7 +5068,7 @@ var require_ucs2length = __commonJS({
   "node_modules/ajv/dist/runtime/ucs2length.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    function ucs2length(str) {
+    function ucs2length2(str) {
       const len = str.length;
       let length = 0;
       let pos = 0;
@@ -5084,8 +5084,8 @@ var require_ucs2length = __commonJS({
       }
       return length;
     }
-    exports.default = ucs2length;
-    ucs2length.code = 'require("ajv/dist/runtime/ucs2length").default';
+    exports.default = ucs2length2;
+    ucs2length2.code = 'require("ajv/dist/runtime/ucs2length").default';
   }
 });
 
@@ -6409,7 +6409,7 @@ var require_format = __commonJS({
       error: error2,
       code(cxt, ruleType) {
         const { gen, data, $data, schema, schemaCode, it } = cxt;
-        const { opts, errSchemaPath, schemaEnv, self } = it;
+        const { opts, errSchemaPath, schemaEnv, self: self2 } = it;
         if (!opts.validateFormats)
           return;
         if ($data)
@@ -6418,39 +6418,39 @@ var require_format = __commonJS({
           validateFormat();
         function validate$DataFormat() {
           const fmts = gen.scopeValue("formats", {
-            ref: self.formats,
+            ref: self2.formats,
             code: opts.code.formats
           });
           const fDef = gen.const("fDef", (0, codegen_1._)`${fmts}[${schemaCode}]`);
           const fType = gen.let("fType");
-          const format = gen.let("format");
-          gen.if((0, codegen_1._)`typeof ${fDef} == "object" && !(${fDef} instanceof RegExp)`, () => gen.assign(fType, (0, codegen_1._)`${fDef}.type || "string"`).assign(format, (0, codegen_1._)`${fDef}.validate`), () => gen.assign(fType, (0, codegen_1._)`"string"`).assign(format, fDef));
+          const format2 = gen.let("format");
+          gen.if((0, codegen_1._)`typeof ${fDef} == "object" && !(${fDef} instanceof RegExp)`, () => gen.assign(fType, (0, codegen_1._)`${fDef}.type || "string"`).assign(format2, (0, codegen_1._)`${fDef}.validate`), () => gen.assign(fType, (0, codegen_1._)`"string"`).assign(format2, fDef));
           cxt.fail$data((0, codegen_1.or)(unknownFmt(), invalidFmt()));
           function unknownFmt() {
             if (opts.strictSchema === false)
               return codegen_1.nil;
-            return (0, codegen_1._)`${schemaCode} && !${format}`;
+            return (0, codegen_1._)`${schemaCode} && !${format2}`;
           }
           function invalidFmt() {
-            const callFormat = schemaEnv.$async ? (0, codegen_1._)`(${fDef}.async ? await ${format}(${data}) : ${format}(${data}))` : (0, codegen_1._)`${format}(${data})`;
-            const validData = (0, codegen_1._)`(typeof ${format} == "function" ? ${callFormat} : ${format}.test(${data}))`;
-            return (0, codegen_1._)`${format} && ${format} !== true && ${fType} === ${ruleType} && !${validData}`;
+            const callFormat = schemaEnv.$async ? (0, codegen_1._)`(${fDef}.async ? await ${format2}(${data}) : ${format2}(${data}))` : (0, codegen_1._)`${format2}(${data})`;
+            const validData = (0, codegen_1._)`(typeof ${format2} == "function" ? ${callFormat} : ${format2}.test(${data}))`;
+            return (0, codegen_1._)`${format2} && ${format2} !== true && ${fType} === ${ruleType} && !${validData}`;
           }
         }
         function validateFormat() {
-          const formatDef = self.formats[schema];
+          const formatDef = self2.formats[schema];
           if (!formatDef) {
             unknownFormat();
             return;
           }
           if (formatDef === true)
             return;
-          const [fmtType, format, fmtRef] = getFormat(formatDef);
+          const [fmtType, format2, fmtRef] = getFormat(formatDef);
           if (fmtType === ruleType)
             cxt.pass(validCondition());
           function unknownFormat() {
             if (opts.strictSchema === false) {
-              self.logger.warn(unknownMsg());
+              self2.logger.warn(unknownMsg());
               return;
             }
             throw new Error(unknownMsg());
@@ -6472,7 +6472,7 @@ var require_format = __commonJS({
                 throw new Error("async format in sync schema");
               return (0, codegen_1._)`await ${fmtRef}(${data})`;
             }
-            return typeof format == "function" ? (0, codegen_1._)`${fmtRef}(${data})` : (0, codegen_1._)`${fmtRef}.test(${data})`;
+            return typeof format2 == "function" ? (0, codegen_1._)`${fmtRef}(${data})` : (0, codegen_1._)`${fmtRef}.test(${data})`;
           }
         }
       }
@@ -6487,8 +6487,8 @@ var require_format2 = __commonJS({
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var format_1 = require_format();
-    var format = [format_1.default];
-    exports.default = format;
+    var format2 = [format_1.default];
+    exports.default = format2;
   }
 });
 
@@ -6889,12 +6889,12 @@ var require_formats = __commonJS({
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.formatNames = exports.fastFormats = exports.fullFormats = void 0;
-    function fmtDef(validate, compare) {
-      return { validate, compare };
+    function fmtDef(validate2, compare) {
+      return { validate: validate2, compare };
     }
     exports.fullFormats = {
       // date: http://tools.ietf.org/html/rfc3339#section-5.6
-      date: fmtDef(date3, compareDate),
+      date: fmtDef(date4, compareDate),
       // date-time: http://tools.ietf.org/html/rfc3339#section-5.6
       time: fmtDef(getTime(true), compareTime),
       "date-time": fmtDef(getDateTime(true), compareDateTime),
@@ -6902,7 +6902,7 @@ var require_formats = __commonJS({
       "iso-date-time": fmtDef(getDateTime(), compareIsoDateTime),
       // duration: https://tools.ietf.org/html/rfc3339#appendix-A
       duration: /^P(?!$)((\d+Y)?(\d+M)?(\d+D)?(T(?=\d)(\d+H)?(\d+M)?(\d+S)?)?|(\d+W)?)$/,
-      uri,
+      uri: uri2,
       "uri-reference": /^(?:[a-z][a-z0-9+\-.]*:)?(?:\/?\/(?:(?:[a-z0-9\-._~!$&'()*+,;=:]|%[0-9a-f]{2})*@)?(?:\[(?:(?:(?:(?:[0-9a-f]{1,4}:){6}|::(?:[0-9a-f]{1,4}:){5}|(?:[0-9a-f]{1,4})?::(?:[0-9a-f]{1,4}:){4}|(?:(?:[0-9a-f]{1,4}:){0,1}[0-9a-f]{1,4})?::(?:[0-9a-f]{1,4}:){3}|(?:(?:[0-9a-f]{1,4}:){0,2}[0-9a-f]{1,4})?::(?:[0-9a-f]{1,4}:){2}|(?:(?:[0-9a-f]{1,4}:){0,3}[0-9a-f]{1,4})?::[0-9a-f]{1,4}:|(?:(?:[0-9a-f]{1,4}:){0,4}[0-9a-f]{1,4})?::)(?:[0-9a-f]{1,4}:[0-9a-f]{1,4}|(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?))|(?:(?:[0-9a-f]{1,4}:){0,5}[0-9a-f]{1,4})?::[0-9a-f]{1,4}|(?:(?:[0-9a-f]{1,4}:){0,6}[0-9a-f]{1,4})?::)|[Vv][0-9a-f]+\.[a-z0-9\-._~!$&'()*+,;=:]+)\]|(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?)|(?:[a-z0-9\-._~!$&'"()*+,;=]|%[0-9a-f]{2})*)(?::\d*)?(?:\/(?:[a-z0-9\-._~!$&'"()*+,;=:@]|%[0-9a-f]{2})*)*|\/(?:(?:[a-z0-9\-._~!$&'"()*+,;=:@]|%[0-9a-f]{2})+(?:\/(?:[a-z0-9\-._~!$&'"()*+,;=:@]|%[0-9a-f]{2})*)*)?|(?:[a-z0-9\-._~!$&'"()*+,;=:@]|%[0-9a-f]{2})+(?:\/(?:[a-z0-9\-._~!$&'"()*+,;=:@]|%[0-9a-f]{2})*)*)?(?:\?(?:[a-z0-9\-._~!$&'"()*+,;=:@/?]|%[0-9a-f]{2})*)?(?:#(?:[a-z0-9\-._~!$&'"()*+,;=:@/?]|%[0-9a-f]{2})*)?$/i,
       // uri-template: https://tools.ietf.org/html/rfc6570
       "uri-template": /^(?:(?:[^\x00-\x20"'<>%\\^`{|}]|%[0-9a-f]{2})|\{[+#./;?&=,!@|]?(?:[a-z0-9_]|%[0-9a-f]{2})+(?::[1-9][0-9]{0,3}|\*)?(?:,(?:[a-z0-9_]|%[0-9a-f]{2})+(?::[1-9][0-9]{0,3}|\*)?)*\})*$/i,
@@ -6914,7 +6914,7 @@ var require_formats = __commonJS({
       // optimized https://www.safaribooksonline.com/library/view/regular-expressions-cookbook/9780596802837/ch07s16.html
       ipv4: /^(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$/,
       ipv6: /^((([0-9a-f]{1,4}:){7}([0-9a-f]{1,4}|:))|(([0-9a-f]{1,4}:){6}(:[0-9a-f]{1,4}|((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9a-f]{1,4}:){5}(((:[0-9a-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9a-f]{1,4}:){4}(((:[0-9a-f]{1,4}){1,3})|((:[0-9a-f]{1,4})?:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9a-f]{1,4}:){3}(((:[0-9a-f]{1,4}){1,4})|((:[0-9a-f]{1,4}){0,2}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9a-f]{1,4}:){2}(((:[0-9a-f]{1,4}){1,5})|((:[0-9a-f]{1,4}){0,3}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9a-f]{1,4}:){1}(((:[0-9a-f]{1,4}){1,6})|((:[0-9a-f]{1,4}){0,4}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(:(((:[0-9a-f]{1,4}){1,7})|((:[0-9a-f]{1,4}){0,5}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:)))$/i,
-      regex,
+      regex: regex2,
       // uuid: http://tools.ietf.org/html/rfc4122
       uuid: /^(?:urn:uuid:)?[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i,
       // JSON-pointer: https://tools.ietf.org/html/rfc6901
@@ -6955,19 +6955,19 @@ var require_formats = __commonJS({
       email: /^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*$/i
     };
     exports.formatNames = Object.keys(exports.fullFormats);
-    function isLeapYear(year) {
+    function isLeapYear2(year) {
       return year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
     }
-    var DATE = /^(\d\d\d\d)-(\d\d)-(\d\d)$/;
-    var DAYS = [0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-    function date3(str) {
-      const matches = DATE.exec(str);
+    var DATE2 = /^(\d\d\d\d)-(\d\d)-(\d\d)$/;
+    var DAYS2 = [0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    function date4(str) {
+      const matches = DATE2.exec(str);
       if (!matches)
         return false;
       const year = +matches[1];
       const month = +matches[2];
       const day = +matches[3];
-      return month >= 1 && month <= 12 && day >= 1 && day <= (month === 2 && isLeapYear(year) ? 29 : DAYS[month]);
+      return month >= 1 && month <= 12 && day >= 1 && day <= (month === 2 && isLeapYear2(year) ? 29 : DAYS2[month]);
     }
     function compareDate(d1, d2) {
       if (!(d1 && d2))
@@ -6978,10 +6978,10 @@ var require_formats = __commonJS({
         return -1;
       return 0;
     }
-    var TIME = /^(\d\d):(\d\d):(\d\d(?:\.\d+)?)(z|([+-])(\d\d)(?::?(\d\d))?)?$/i;
+    var TIME2 = /^(\d\d):(\d\d):(\d\d(?:\.\d+)?)(z|([+-])(\d\d)(?::?(\d\d))?)?$/i;
     function getTime(strictTimeZone) {
-      return function time3(str) {
-        const matches = TIME.exec(str);
+      return function time4(str) {
+        const matches = TIME2.exec(str);
         if (!matches)
           return false;
         const hr = +matches[1];
@@ -7012,8 +7012,8 @@ var require_formats = __commonJS({
     function compareIsoTime(t1, t2) {
       if (!(t1 && t2))
         return void 0;
-      const a1 = TIME.exec(t1);
-      const a2 = TIME.exec(t2);
+      const a1 = TIME2.exec(t1);
+      const a2 = TIME2.exec(t2);
       if (!(a1 && a2))
         return void 0;
       t1 = a1[1] + a1[2] + a1[3];
@@ -7024,12 +7024,12 @@ var require_formats = __commonJS({
         return -1;
       return 0;
     }
-    var DATE_TIME_SEPARATOR = /t|\s/i;
+    var DATE_TIME_SEPARATOR2 = /t|\s/i;
     function getDateTime(strictTimeZone) {
-      const time3 = getTime(strictTimeZone);
-      return function date_time(str) {
-        const dateTime = str.split(DATE_TIME_SEPARATOR);
-        return dateTime.length === 2 && date3(dateTime[0]) && time3(dateTime[1]);
+      const time4 = getTime(strictTimeZone);
+      return function date_time2(str) {
+        const dateTime = str.split(DATE_TIME_SEPARATOR2);
+        return dateTime.length === 2 && date4(dateTime[0]) && time4(dateTime[1]);
       };
     }
     function compareDateTime(dt1, dt2) {
@@ -7044,17 +7044,17 @@ var require_formats = __commonJS({
     function compareIsoDateTime(dt1, dt2) {
       if (!(dt1 && dt2))
         return void 0;
-      const [d1, t1] = dt1.split(DATE_TIME_SEPARATOR);
-      const [d2, t2] = dt2.split(DATE_TIME_SEPARATOR);
+      const [d1, t1] = dt1.split(DATE_TIME_SEPARATOR2);
+      const [d2, t2] = dt2.split(DATE_TIME_SEPARATOR2);
       const res = compareDate(d1, d2);
       if (res === void 0)
         return void 0;
       return res || compareTime(t1, t2);
     }
-    var NOT_URI_FRAGMENT = /\/|:/;
+    var NOT_URI_FRAGMENT2 = /\/|:/;
     var URI = /^(?:[a-z][a-z0-9+\-.]*:)(?:\/?\/(?:(?:[a-z0-9\-._~!$&'()*+,;=:]|%[0-9a-f]{2})*@)?(?:\[(?:(?:(?:(?:[0-9a-f]{1,4}:){6}|::(?:[0-9a-f]{1,4}:){5}|(?:[0-9a-f]{1,4})?::(?:[0-9a-f]{1,4}:){4}|(?:(?:[0-9a-f]{1,4}:){0,1}[0-9a-f]{1,4})?::(?:[0-9a-f]{1,4}:){3}|(?:(?:[0-9a-f]{1,4}:){0,2}[0-9a-f]{1,4})?::(?:[0-9a-f]{1,4}:){2}|(?:(?:[0-9a-f]{1,4}:){0,3}[0-9a-f]{1,4})?::[0-9a-f]{1,4}:|(?:(?:[0-9a-f]{1,4}:){0,4}[0-9a-f]{1,4})?::)(?:[0-9a-f]{1,4}:[0-9a-f]{1,4}|(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?))|(?:(?:[0-9a-f]{1,4}:){0,5}[0-9a-f]{1,4})?::[0-9a-f]{1,4}|(?:(?:[0-9a-f]{1,4}:){0,6}[0-9a-f]{1,4})?::)|[Vv][0-9a-f]+\.[a-z0-9\-._~!$&'()*+,;=:]+)\]|(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?)|(?:[a-z0-9\-._~!$&'()*+,;=]|%[0-9a-f]{2})*)(?::\d*)?(?:\/(?:[a-z0-9\-._~!$&'()*+,;=:@]|%[0-9a-f]{2})*)*|\/(?:(?:[a-z0-9\-._~!$&'()*+,;=:@]|%[0-9a-f]{2})+(?:\/(?:[a-z0-9\-._~!$&'()*+,;=:@]|%[0-9a-f]{2})*)*)?|(?:[a-z0-9\-._~!$&'()*+,;=:@]|%[0-9a-f]{2})+(?:\/(?:[a-z0-9\-._~!$&'()*+,;=:@]|%[0-9a-f]{2})*)*)(?:\?(?:[a-z0-9\-._~!$&'()*+,;=:@/?]|%[0-9a-f]{2})*)?(?:#(?:[a-z0-9\-._~!$&'()*+,;=:@/?]|%[0-9a-f]{2})*)?$/i;
-    function uri(str) {
-      return NOT_URI_FRAGMENT.test(str) && URI.test(str);
+    function uri2(str) {
+      return NOT_URI_FRAGMENT2.test(str) && URI.test(str);
     }
     var BYTE = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/gm;
     function byte(str) {
@@ -7072,9 +7072,9 @@ var require_formats = __commonJS({
     function validateNumber() {
       return true;
     }
-    var Z_ANCHOR = /[^\\]\\Z/;
-    function regex(str) {
-      if (Z_ANCHOR.test(str))
+    var Z_ANCHOR2 = /[^\\]\\Z/;
+    function regex2(str) {
+      if (Z_ANCHOR2.test(str))
         return false;
       try {
         new RegExp(str);
@@ -7113,34 +7113,34 @@ var require_limit = __commonJS({
       error: error2,
       code(cxt) {
         const { gen, data, schemaCode, keyword, it } = cxt;
-        const { opts, self } = it;
+        const { opts, self: self2 } = it;
         if (!opts.validateFormats)
           return;
-        const fCxt = new ajv_1.KeywordCxt(it, self.RULES.all.format.definition, "format");
+        const fCxt = new ajv_1.KeywordCxt(it, self2.RULES.all.format.definition, "format");
         if (fCxt.$data)
           validate$DataFormat();
         else
           validateFormat();
         function validate$DataFormat() {
           const fmts = gen.scopeValue("formats", {
-            ref: self.formats,
+            ref: self2.formats,
             code: opts.code.formats
           });
           const fmt = gen.const("fmt", (0, codegen_1._)`${fmts}[${fCxt.schemaCode}]`);
           cxt.fail$data((0, codegen_1.or)((0, codegen_1._)`typeof ${fmt} != "object"`, (0, codegen_1._)`${fmt} instanceof RegExp`, (0, codegen_1._)`typeof ${fmt}.compare != "function"`, compareCode(fmt)));
         }
         function validateFormat() {
-          const format = fCxt.schema;
-          const fmtDef = self.formats[format];
+          const format2 = fCxt.schema;
+          const fmtDef = self2.formats[format2];
           if (!fmtDef || fmtDef === true)
             return;
           if (typeof fmtDef != "object" || fmtDef instanceof RegExp || typeof fmtDef.compare != "function") {
-            throw new Error(`"${keyword}": format "${format}" does not define "compare" function`);
+            throw new Error(`"${keyword}": format "${format2}" does not define "compare" function`);
           }
           const fmt = gen.scopeValue("formats", {
-            key: format,
+            key: format2,
             ref: fmtDef,
-            code: opts.code.formats ? (0, codegen_1._)`${opts.code.formats}${(0, codegen_1.getProperty)(format)}` : void 0
+            code: opts.code.formats ? (0, codegen_1._)`${opts.code.formats}${(0, codegen_1.getProperty)(format2)}` : void 0
           });
           cxt.fail$data(compareCode(fmt));
         }
@@ -7213,10 +7213,10 @@ var require_identity = __commonJS({
     var NODE_TYPE = /* @__PURE__ */ Symbol.for("yaml.node.type");
     var isAlias = (node) => !!node && typeof node === "object" && node[NODE_TYPE] === ALIAS;
     var isDocument = (node) => !!node && typeof node === "object" && node[NODE_TYPE] === DOC;
-    var isMap = (node) => !!node && typeof node === "object" && node[NODE_TYPE] === MAP;
+    var isMap2 = (node) => !!node && typeof node === "object" && node[NODE_TYPE] === MAP;
     var isPair = (node) => !!node && typeof node === "object" && node[NODE_TYPE] === PAIR;
-    var isScalar = (node) => !!node && typeof node === "object" && node[NODE_TYPE] === SCALAR;
-    var isSeq = (node) => !!node && typeof node === "object" && node[NODE_TYPE] === SEQ;
+    var isScalar2 = (node) => !!node && typeof node === "object" && node[NODE_TYPE] === SCALAR;
+    var isSeq2 = (node) => !!node && typeof node === "object" && node[NODE_TYPE] === SEQ;
     function isCollection(node) {
       if (node && typeof node === "object")
         switch (node[NODE_TYPE]) {
@@ -7237,7 +7237,7 @@ var require_identity = __commonJS({
         }
       return false;
     }
-    var hasAnchor = (node) => (isScalar(node) || isCollection(node)) && !!node.anchor;
+    var hasAnchor = (node) => (isScalar2(node) || isCollection(node)) && !!node.anchor;
     exports.ALIAS = ALIAS;
     exports.DOC = DOC;
     exports.MAP = MAP;
@@ -7249,11 +7249,11 @@ var require_identity = __commonJS({
     exports.isAlias = isAlias;
     exports.isCollection = isCollection;
     exports.isDocument = isDocument;
-    exports.isMap = isMap;
+    exports.isMap = isMap2;
     exports.isNode = isNode;
     exports.isPair = isPair;
-    exports.isScalar = isScalar;
-    exports.isSeq = isSeq;
+    exports.isScalar = isScalar2;
+    exports.isSeq = isSeq2;
   }
 });
 
@@ -9540,14 +9540,14 @@ var require_bool = __commonJS({
 var require_stringifyNumber = __commonJS({
   "node_modules/yaml/dist/stringify/stringifyNumber.js"(exports) {
     "use strict";
-    function stringifyNumber({ format, minFractionDigits, tag, value }) {
+    function stringifyNumber({ format: format2, minFractionDigits, tag, value }) {
       if (typeof value === "bigint")
         return String(value);
       const num = typeof value === "number" ? value : Number(value);
       if (!isFinite(num))
         return isNaN(num) ? ".nan" : num < 0 ? "-.inf" : ".inf";
       let n = Object.is(value, -0) ? "-0" : JSON.stringify(value);
-      if (!format && minFractionDigits && (!tag || tag === "tag:yaml.org,2002:float") && /^-?\d/.test(n) && !n.includes("e")) {
+      if (!format2 && minFractionDigits && (!tag || tag === "tag:yaml.org,2002:float") && /^-?\d/.test(n) && !n.includes("e")) {
         let i = n.indexOf(".");
         if (i < 0) {
           i = n.length;
@@ -10290,15 +10290,15 @@ var require_timestamp = __commonJS({
           throw new Error("!!timestamp expects a date, starting with yyyy-mm-dd");
         const [, year, month, day, hour, minute, second] = match.map(Number);
         const millisec = match[7] ? Number((match[7] + "00").substr(1, 3)) : 0;
-        let date3 = Date.UTC(year, month - 1, day, hour || 0, minute || 0, second || 0, millisec);
+        let date4 = Date.UTC(year, month - 1, day, hour || 0, minute || 0, second || 0, millisec);
         const tz = match[8];
         if (tz && tz !== "Z") {
           let d = parseSexagesimal(tz, false);
           if (Math.abs(d) < 30)
             d *= 60;
-          date3 -= 6e4 * d;
+          date4 -= 6e4 * d;
         }
-        return new Date(date3);
+        return new Date(date4);
       },
       stringify: ({ value }) => value?.toISOString().replace(/(T00:00:00)?\.000Z$/, "") ?? ""
     };
@@ -11359,9 +11359,9 @@ var require_resolve_flow_collection = __commonJS({
     var blockMsg = "Block collections are not allowed within flow collections";
     var isBlock = (token) => token && (token.type === "block-map" || token.type === "block-seq");
     function resolveFlowCollection({ composeNode, composeEmptyNode }, ctx, fc, onError, tag) {
-      const isMap = fc.start.source === "{";
-      const fcName = isMap ? "flow map" : "flow sequence";
-      const NodeClass = tag?.nodeClass ?? (isMap ? YAMLMap.YAMLMap : YAMLSeq.YAMLSeq);
+      const isMap2 = fc.start.source === "{";
+      const fcName = isMap2 ? "flow map" : "flow sequence";
+      const NodeClass = tag?.nodeClass ?? (isMap2 ? YAMLMap.YAMLMap : YAMLSeq.YAMLSeq);
       const coll = new NodeClass(ctx.schema);
       coll.flow = true;
       const atRoot = ctx.atRoot;
@@ -11397,7 +11397,7 @@ var require_resolve_flow_collection = __commonJS({
             offset = props.end;
             continue;
           }
-          if (!isMap && ctx.options.strict && utilContainsNewline.containsNewline(key))
+          if (!isMap2 && ctx.options.strict && utilContainsNewline.containsNewline(key))
             onError(
               key,
               // checked by containsNewline()
@@ -11437,7 +11437,7 @@ var require_resolve_flow_collection = __commonJS({
             }
           }
         }
-        if (!isMap && !sep && !props.found) {
+        if (!isMap2 && !sep && !props.found) {
           const valueNode = value ? composeNode(ctx, value, props, onError) : composeEmptyNode(ctx, props.end, sep, null, props, onError);
           coll.items.push(valueNode);
           offset = valueNode.range[2];
@@ -11460,7 +11460,7 @@ var require_resolve_flow_collection = __commonJS({
             startOnNewline: false
           });
           if (valueProps.found) {
-            if (!isMap && !props.found && ctx.options.strict) {
+            if (!isMap2 && !props.found && ctx.options.strict) {
               if (sep)
                 for (const st of sep) {
                   if (st === valueProps.found)
@@ -11492,7 +11492,7 @@ var require_resolve_flow_collection = __commonJS({
           const pair = new Pair.Pair(keyNode, valueNode);
           if (ctx.options.keepSourceTokens)
             pair.srcToken = collItem;
-          if (isMap) {
+          if (isMap2) {
             const map = coll;
             if (utilMapIncludes.mapIncludes(ctx, map.items, keyNode))
               onError(keyStart, "DUPLICATE_KEY", "Map keys must be unique");
@@ -11508,7 +11508,7 @@ var require_resolve_flow_collection = __commonJS({
           offset = valueNode ? valueNode.range[2] : valueProps.end;
         }
       }
-      const expectedEnd = isMap ? "}" : "]";
+      const expectedEnd = isMap2 ? "}" : "]";
       const [ce, ...ee] = fc.end;
       let cePos = offset;
       if (ce?.source === expectedEnd)
@@ -12794,7 +12794,7 @@ var require_cst = __commonJS({
     var FLOW_END = "";
     var SCALAR = "";
     var isCollection = (token) => !!token && "items" in token;
-    var isScalar = (token) => !!token && (token.type === "scalar" || token.type === "single-quoted-scalar" || token.type === "double-quoted-scalar" || token.type === "block-scalar");
+    var isScalar2 = (token) => !!token && (token.type === "scalar" || token.type === "single-quoted-scalar" || token.type === "double-quoted-scalar" || token.type === "block-scalar");
     function prettyToken(token) {
       switch (token) {
         case BOM:
@@ -12878,7 +12878,7 @@ var require_cst = __commonJS({
     exports.FLOW_END = FLOW_END;
     exports.SCALAR = SCALAR;
     exports.isCollection = isCollection;
-    exports.isScalar = isScalar;
+    exports.isScalar = isScalar2;
     exports.prettyToken = prettyToken;
     exports.tokenType = tokenType;
   }
@@ -14408,7 +14408,7 @@ var require_public_api = __commonJS({
         return docs;
       return Object.assign([], { empty: true }, composer$1.streamInfo());
     }
-    function parseDocument(source, options = {}) {
+    function parseDocument2(source, options = {}) {
       const { lineCounter: lineCounter2, prettyErrors } = parseOptions(options);
       const parser$1 = new parser.Parser(lineCounter2?.addNewLine);
       const composer$1 = new composer.Composer(options);
@@ -14427,14 +14427,14 @@ var require_public_api = __commonJS({
       }
       return doc;
     }
-    function parse6(src, reviver, options) {
+    function parse7(src, reviver, options) {
       let _reviver = void 0;
       if (typeof reviver === "function") {
         _reviver = reviver;
       } else if (options === void 0 && reviver && typeof reviver === "object") {
         options = reviver;
       }
-      const doc = parseDocument(src, options);
+      const doc = parseDocument2(src, options);
       if (!doc)
         return null;
       doc.warnings.forEach((warning) => log.warn(doc.options.logLevel, warning));
@@ -14468,9 +14468,9 @@ var require_public_api = __commonJS({
         return value.toString(options);
       return new Document.Document(value, _replacer, options).toString(options);
     }
-    exports.parse = parse6;
+    exports.parse = parse7;
     exports.parseAllDocuments = parseAllDocuments;
-    exports.parseDocument = parseDocument;
+    exports.parseDocument = parseDocument2;
     exports.stringify = stringify2;
   }
 });
@@ -14537,9 +14537,9 @@ var require_content_type = __commonJS({
     var QESC_REGEXP = /\\([\u000b\u0020-\u00ff])/g;
     var QUOTE_REGEXP = /([\\"])/g;
     var TYPE_REGEXP = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+\/[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
-    exports.format = format;
-    exports.parse = parse6;
-    function format(obj) {
+    exports.format = format2;
+    exports.parse = parse7;
+    function format2(obj) {
       if (!obj || typeof obj !== "object") {
         throw new TypeError("argument obj is required");
       }
@@ -14562,7 +14562,7 @@ var require_content_type = __commonJS({
       }
       return string3;
     }
-    function parse6(string3) {
+    function parse7(string3) {
       if (!string3) {
         throw new TypeError("argument string is required");
       }
@@ -15601,13 +15601,13 @@ function timeRegex(args) {
   return new RegExp(`^${timeRegexSource(args)}$`);
 }
 function datetimeRegex(args) {
-  let regex = `${dateRegexSource}T${timeRegexSource(args)}`;
+  let regex2 = `${dateRegexSource}T${timeRegexSource(args)}`;
   const opts = [];
   opts.push(args.local ? `Z?` : `Z`);
   if (args.offset)
     opts.push(`([+-]\\d{2}:?\\d{2})`);
-  regex = `${regex}(${opts.join("|")})`;
-  return new RegExp(`^${regex}$`);
+  regex2 = `${regex2}(${opts.join("|")})`;
+  return new RegExp(`^${regex2}$`);
 }
 function isValidIP(ip, version2) {
   if ((version2 === "v4" || !version2) && ipv4Regex.test(ip)) {
@@ -15853,8 +15853,8 @@ var ZodString = class _ZodString2 extends ZodType {
           status.dirty();
         }
       } else if (check2.kind === "datetime") {
-        const regex = datetimeRegex(check2);
-        if (!regex.test(input.data)) {
+        const regex2 = datetimeRegex(check2);
+        if (!regex2.test(input.data)) {
           ctx = this._getOrReturnCtx(input, ctx);
           addIssueToContext(ctx, {
             code: ZodIssueCode.invalid_string,
@@ -15864,8 +15864,8 @@ var ZodString = class _ZodString2 extends ZodType {
           status.dirty();
         }
       } else if (check2.kind === "date") {
-        const regex = dateRegex;
-        if (!regex.test(input.data)) {
+        const regex2 = dateRegex;
+        if (!regex2.test(input.data)) {
           ctx = this._getOrReturnCtx(input, ctx);
           addIssueToContext(ctx, {
             code: ZodIssueCode.invalid_string,
@@ -15875,8 +15875,8 @@ var ZodString = class _ZodString2 extends ZodType {
           status.dirty();
         }
       } else if (check2.kind === "time") {
-        const regex = timeRegex(check2);
-        if (!regex.test(input.data)) {
+        const regex2 = timeRegex(check2);
+        if (!regex2.test(input.data)) {
           ctx = this._getOrReturnCtx(input, ctx);
           addIssueToContext(ctx, {
             code: ZodIssueCode.invalid_string,
@@ -15951,8 +15951,8 @@ var ZodString = class _ZodString2 extends ZodType {
     }
     return { status: status.value, value: input.data };
   }
-  _regex(regex, validation, message) {
-    return this.refinement((data) => regex.test(data), {
+  _regex(regex2, validation, message) {
+    return this.refinement((data) => regex2.test(data), {
       validation,
       code: ZodIssueCode.invalid_string,
       ...errorUtil.errToObj(message)
@@ -16044,10 +16044,10 @@ var ZodString = class _ZodString2 extends ZodType {
   duration(message) {
     return this._addCheck({ kind: "duration", ...errorUtil.errToObj(message) });
   }
-  regex(regex, message) {
+  regex(regex2, message) {
     return this._addCheck({
       kind: "regex",
-      regex,
+      regex: regex2,
       ...errorUtil.errToObj(message)
     });
   }
@@ -19410,25 +19410,25 @@ var dateSource = `(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][
 var date = /* @__PURE__ */ new RegExp(`^${dateSource}$`);
 function timeSource(args) {
   const hhmm = `(?:[01]\\d|2[0-3]):[0-5]\\d`;
-  const regex = typeof args.precision === "number" ? args.precision === -1 ? `${hhmm}` : args.precision === 0 ? `${hhmm}:[0-5]\\d` : `${hhmm}:[0-5]\\d\\.\\d{${args.precision}}` : `${hhmm}(?::[0-5]\\d(?:\\.\\d+)?)?`;
-  return regex;
+  const regex2 = typeof args.precision === "number" ? args.precision === -1 ? `${hhmm}` : args.precision === 0 ? `${hhmm}:[0-5]\\d` : `${hhmm}:[0-5]\\d\\.\\d{${args.precision}}` : `${hhmm}(?::[0-5]\\d(?:\\.\\d+)?)?`;
+  return regex2;
 }
 function time(args) {
   return new RegExp(`^${timeSource(args)}$`);
 }
 function datetime(args) {
-  const time3 = timeSource({ precision: args.precision });
+  const time4 = timeSource({ precision: args.precision });
   const opts = ["Z"];
   if (args.local)
     opts.push("");
   if (args.offset)
     opts.push(`([+-]\\d{2}:\\d{2})`);
-  const timeRegex2 = `${time3}(?:${opts.join("|")})`;
+  const timeRegex2 = `${time4}(?:${opts.join("|")})`;
   return new RegExp(`^${dateSource}T(?:${timeRegex2})$`);
 }
 var string = (params) => {
-  const regex = params ? `[\\s\\S]{${params?.minimum ?? 0},${params?.maximum ?? ""}}` : `[\\s\\S]*`;
-  return new RegExp(`^${regex}$`);
+  const regex2 = params ? `[\\s\\S]{${params?.minimum ?? 0},${params?.maximum ?? ""}}` : `[\\s\\S]*`;
+  return new RegExp(`^${regex2}$`);
 };
 var integer = /^\d+$/;
 var number = /^-?\d+(?:\.\d+)?/i;
@@ -21762,13 +21762,13 @@ var JSONSchemaGenerator = class {
           case "string": {
             const json2 = _json;
             json2.type = "string";
-            const { minimum, maximum, format, patterns, contentEncoding } = schema._zod.bag;
+            const { minimum, maximum, format: format2, patterns, contentEncoding } = schema._zod.bag;
             if (typeof minimum === "number")
               json2.minLength = minimum;
             if (typeof maximum === "number")
               json2.maxLength = maximum;
-            if (format) {
-              json2.format = formatMap[format] ?? format;
+            if (format2) {
+              json2.format = formatMap[format2] ?? format2;
               if (json2.format === "")
                 delete json2.format;
             }
@@ -21780,9 +21780,9 @@ var JSONSchemaGenerator = class {
                 json2.pattern = regexes[0].source;
               else if (regexes.length > 1) {
                 result.schema.allOf = [
-                  ...regexes.map((regex) => ({
+                  ...regexes.map((regex2) => ({
                     ...this.target === "draft-7" ? { type: "string" } : {},
-                    pattern: regex.source
+                    pattern: regex2.source
                   }))
                 ];
               }
@@ -21791,8 +21791,8 @@ var JSONSchemaGenerator = class {
           }
           case "number": {
             const json2 = _json;
-            const { minimum, maximum, format, multipleOf, exclusiveMaximum, exclusiveMinimum } = schema._zod.bag;
-            if (typeof format === "string" && format.includes("int"))
+            const { minimum, maximum, format: format2, multipleOf, exclusiveMaximum, exclusiveMinimum } = schema._zod.bag;
+            if (typeof format2 === "string" && format2.includes("int"))
               json2.type = "integer";
             else
               json2.type = "number";
@@ -25461,7 +25461,7 @@ function addFormat(schema, value, message, refs) {
     setResponseValueAndErrors(schema, "format", value, message, refs);
   }
 }
-function addPattern(schema, regex, message, refs) {
+function addPattern(schema, regex2, message, refs) {
   if (schema.pattern || schema.allOf?.some((x) => x.pattern)) {
     if (!schema.allOf) {
       schema.allOf = [];
@@ -25482,24 +25482,24 @@ function addPattern(schema, regex, message, refs) {
       }
     }
     schema.allOf.push({
-      pattern: stringifyRegExpWithFlags(regex, refs),
+      pattern: stringifyRegExpWithFlags(regex2, refs),
       ...message && refs.errorMessages && { errorMessage: { pattern: message } }
     });
   } else {
-    setResponseValueAndErrors(schema, "pattern", stringifyRegExpWithFlags(regex, refs), message, refs);
+    setResponseValueAndErrors(schema, "pattern", stringifyRegExpWithFlags(regex2, refs), message, refs);
   }
 }
-function stringifyRegExpWithFlags(regex, refs) {
-  if (!refs.applyRegexFlags || !regex.flags) {
-    return regex.source;
+function stringifyRegExpWithFlags(regex2, refs) {
+  if (!refs.applyRegexFlags || !regex2.flags) {
+    return regex2.source;
   }
   const flags = {
-    i: regex.flags.includes("i"),
-    m: regex.flags.includes("m"),
-    s: regex.flags.includes("s")
+    i: regex2.flags.includes("i"),
+    m: regex2.flags.includes("m"),
+    s: regex2.flags.includes("s")
     // `.` matches newlines
   };
-  const source = flags.i ? regex.source.toLowerCase() : regex.source;
+  const source = flags.i ? regex2.source.toLowerCase() : regex2.source;
   let pattern = "";
   let isEscaped = false;
   let inCharGroup = false;
@@ -25560,7 +25560,7 @@ function stringifyRegExpWithFlags(regex, refs) {
     new RegExp(pattern);
   } catch {
     console.warn(`Could not convert regex pattern at ${refs.currentPath.join("/")} to a flag-independent form! Falling back to the flag-ignorant source`);
-    return regex.source;
+    return regex2.source;
   }
   return pattern;
 }
@@ -28274,8 +28274,8 @@ var McpServer = class {
       }
     });
     this.server.setRequestHandler(ListResourcesRequestSchema, async (request, extra) => {
-      const resources = Object.entries(this._registeredResources).filter(([_, resource]) => resource.enabled).map(([uri, resource]) => ({
-        uri,
+      const resources = Object.entries(this._registeredResources).filter(([_, resource]) => resource.enabled).map(([uri2, resource]) => ({
+        uri: uri2,
         name: resource.name,
         ...resource.metadata
       }));
@@ -28304,21 +28304,21 @@ var McpServer = class {
       return { resourceTemplates };
     });
     this.server.setRequestHandler(ReadResourceRequestSchema, async (request, extra) => {
-      const uri = new URL(request.params.uri);
-      const resource = this._registeredResources[uri.toString()];
+      const uri2 = new URL(request.params.uri);
+      const resource = this._registeredResources[uri2.toString()];
       if (resource) {
         if (!resource.enabled) {
-          throw new McpError(ErrorCode.InvalidParams, `Resource ${uri} disabled`);
+          throw new McpError(ErrorCode.InvalidParams, `Resource ${uri2} disabled`);
         }
-        return resource.readCallback(uri, extra);
+        return resource.readCallback(uri2, extra);
       }
       for (const template of Object.values(this._registeredResourceTemplates)) {
-        const variables = template.resourceTemplate.uriTemplate.match(uri.toString());
+        const variables = template.resourceTemplate.uriTemplate.match(uri2.toString());
         if (variables) {
-          return template.readCallback(uri, variables, extra);
+          return template.readCallback(uri2, variables, extra);
         }
       }
-      throw new McpError(ErrorCode.InvalidParams, `Resource ${uri} not found`);
+      throw new McpError(ErrorCode.InvalidParams, `Resource ${uri2} not found`);
     });
     this._resourceHandlersInitialized = true;
   }
@@ -28412,7 +28412,7 @@ var McpServer = class {
       return registeredResourceTemplate;
     }
   }
-  _createRegisteredResource(name, title, uri, metadata, readCallback) {
+  _createRegisteredResource(name, title, uri2, metadata, readCallback) {
     const registeredResource = {
       name,
       title,
@@ -28423,8 +28423,8 @@ var McpServer = class {
       enable: () => registeredResource.update({ enabled: true }),
       remove: () => registeredResource.update({ uri: null }),
       update: (updates) => {
-        if (typeof updates.uri !== "undefined" && updates.uri !== uri) {
-          delete this._registeredResources[uri];
+        if (typeof updates.uri !== "undefined" && updates.uri !== uri2) {
+          delete this._registeredResources[uri2];
           if (updates.uri)
             this._registeredResources[updates.uri] = registeredResource;
         }
@@ -28441,7 +28441,7 @@ var McpServer = class {
         this.sendResourceListChanged();
       }
     };
-    this._registeredResources[uri] = registeredResource;
+    this._registeredResources[uri2] = registeredResource;
     return registeredResource;
   }
   _createRegisteredResourceTemplate(name, title, template, metadata, readCallback) {
@@ -28763,7 +28763,7 @@ var EMPTY_COMPLETION_RESULT = {
 // package.json
 var package_default = {
   name: "sysspec-mcp",
-  version: "1.0.6",
+  version: "1.1.0",
   description: "Read-only MCP access to versioned system specs: AsyncAPI, OpenAPI, ODCS data contracts and Gherkin acceptance criteria.",
   license: "MIT",
   repository: {
@@ -28790,6 +28790,7 @@ var package_default = {
     typecheck: "node scripts/bundle-specs.mjs && tsc --noEmit"
   },
   dependencies: {
+    "@cfworker/json-schema": "^4.1.1",
     "@modelcontextprotocol/sdk": "^1.21.1",
     yaml: "^2.8.2",
     zod: "^3.25.76"
@@ -28802,19 +28803,1103 @@ var package_default = {
   }
 };
 
+// node_modules/@cfworker/json-schema/dist/esm/deep-compare-strict.js
+function deepCompareStrict(a, b) {
+  const typeofa = typeof a;
+  if (typeofa !== typeof b) {
+    return false;
+  }
+  if (Array.isArray(a)) {
+    if (!Array.isArray(b)) {
+      return false;
+    }
+    const length = a.length;
+    if (length !== b.length) {
+      return false;
+    }
+    for (let i = 0; i < length; i++) {
+      if (!deepCompareStrict(a[i], b[i])) {
+        return false;
+      }
+    }
+    return true;
+  }
+  if (typeofa === "object") {
+    if (!a || !b) {
+      return a === b;
+    }
+    const aKeys = Object.keys(a);
+    const bKeys = Object.keys(b);
+    const length = aKeys.length;
+    if (length !== bKeys.length) {
+      return false;
+    }
+    for (const k of aKeys) {
+      if (!deepCompareStrict(a[k], b[k])) {
+        return false;
+      }
+    }
+    return true;
+  }
+  return a === b;
+}
+
+// node_modules/@cfworker/json-schema/dist/esm/pointer.js
+function encodePointer(p) {
+  return encodeURI(escapePointer(p));
+}
+function escapePointer(p) {
+  return p.replace(/~/g, "~0").replace(/\//g, "~1");
+}
+
+// node_modules/@cfworker/json-schema/dist/esm/dereference.js
+var schemaArrayKeyword = {
+  prefixItems: true,
+  items: true,
+  allOf: true,
+  anyOf: true,
+  oneOf: true
+};
+var schemaMapKeyword = {
+  $defs: true,
+  definitions: true,
+  properties: true,
+  patternProperties: true,
+  dependentSchemas: true
+};
+var ignoredKeyword = {
+  id: true,
+  $id: true,
+  $ref: true,
+  $schema: true,
+  $anchor: true,
+  $vocabulary: true,
+  $comment: true,
+  default: true,
+  enum: true,
+  const: true,
+  required: true,
+  type: true,
+  maximum: true,
+  minimum: true,
+  exclusiveMaximum: true,
+  exclusiveMinimum: true,
+  multipleOf: true,
+  maxLength: true,
+  minLength: true,
+  pattern: true,
+  format: true,
+  maxItems: true,
+  minItems: true,
+  uniqueItems: true,
+  maxProperties: true,
+  minProperties: true
+};
+var initialBaseURI = typeof self !== "undefined" && self.location && self.location.origin !== "null" ? new URL(self.location.origin + self.location.pathname + location.search) : new URL("https://github.com/cfworker");
+function dereference(schema, lookup = /* @__PURE__ */ Object.create(null), baseURI = initialBaseURI, basePointer = "") {
+  if (schema && typeof schema === "object" && !Array.isArray(schema)) {
+    const id = schema.$id || schema.id;
+    if (id) {
+      const url = new URL(id, baseURI.href);
+      if (url.hash.length > 1) {
+        lookup[url.href] = schema;
+      } else {
+        url.hash = "";
+        if (basePointer === "") {
+          baseURI = url;
+        } else {
+          dereference(schema, lookup, baseURI);
+        }
+      }
+    }
+  } else if (schema !== true && schema !== false) {
+    return lookup;
+  }
+  const schemaURI = baseURI.href + (basePointer ? "#" + basePointer : "");
+  if (lookup[schemaURI] !== void 0) {
+    throw new Error(`Duplicate schema URI "${schemaURI}".`);
+  }
+  lookup[schemaURI] = schema;
+  if (schema === true || schema === false) {
+    return lookup;
+  }
+  if (schema.__absolute_uri__ === void 0) {
+    Object.defineProperty(schema, "__absolute_uri__", {
+      enumerable: false,
+      value: schemaURI
+    });
+  }
+  if (schema.$ref && schema.__absolute_ref__ === void 0) {
+    const url = new URL(schema.$ref, baseURI.href);
+    url.hash = url.hash;
+    Object.defineProperty(schema, "__absolute_ref__", {
+      enumerable: false,
+      value: url.href
+    });
+  }
+  if (schema.$recursiveRef && schema.__absolute_recursive_ref__ === void 0) {
+    const url = new URL(schema.$recursiveRef, baseURI.href);
+    url.hash = url.hash;
+    Object.defineProperty(schema, "__absolute_recursive_ref__", {
+      enumerable: false,
+      value: url.href
+    });
+  }
+  if (schema.$anchor) {
+    const url = new URL("#" + schema.$anchor, baseURI.href);
+    lookup[url.href] = schema;
+  }
+  for (let key in schema) {
+    if (ignoredKeyword[key]) {
+      continue;
+    }
+    const keyBase = `${basePointer}/${encodePointer(key)}`;
+    const subSchema = schema[key];
+    if (Array.isArray(subSchema)) {
+      if (schemaArrayKeyword[key]) {
+        const length = subSchema.length;
+        for (let i = 0; i < length; i++) {
+          dereference(subSchema[i], lookup, baseURI, `${keyBase}/${i}`);
+        }
+      }
+    } else if (schemaMapKeyword[key]) {
+      for (let subKey in subSchema) {
+        dereference(subSchema[subKey], lookup, baseURI, `${keyBase}/${encodePointer(subKey)}`);
+      }
+    } else {
+      dereference(subSchema, lookup, baseURI, keyBase);
+    }
+  }
+  return lookup;
+}
+
+// node_modules/@cfworker/json-schema/dist/esm/format.js
+var DATE = /^(\d\d\d\d)-(\d\d)-(\d\d)$/;
+var DAYS = [0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+var TIME = /^(\d\d):(\d\d):(\d\d)(\.\d+)?(z|[+-]\d\d(?::?\d\d)?)?$/i;
+var HOSTNAME = /^(?=.{1,253}\.?$)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[-0-9a-z]{0,61}[0-9a-z])?)*\.?$/i;
+var URIREF = /^(?:[a-z][a-z0-9+\-.]*:)?(?:\/?\/(?:(?:[a-z0-9\-._~!$&'()*+,;=:]|%[0-9a-f]{2})*@)?(?:\[(?:(?:(?:(?:[0-9a-f]{1,4}:){6}|::(?:[0-9a-f]{1,4}:){5}|(?:[0-9a-f]{1,4})?::(?:[0-9a-f]{1,4}:){4}|(?:(?:[0-9a-f]{1,4}:){0,1}[0-9a-f]{1,4})?::(?:[0-9a-f]{1,4}:){3}|(?:(?:[0-9a-f]{1,4}:){0,2}[0-9a-f]{1,4})?::(?:[0-9a-f]{1,4}:){2}|(?:(?:[0-9a-f]{1,4}:){0,3}[0-9a-f]{1,4})?::[0-9a-f]{1,4}:|(?:(?:[0-9a-f]{1,4}:){0,4}[0-9a-f]{1,4})?::)(?:[0-9a-f]{1,4}:[0-9a-f]{1,4}|(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?))|(?:(?:[0-9a-f]{1,4}:){0,5}[0-9a-f]{1,4})?::[0-9a-f]{1,4}|(?:(?:[0-9a-f]{1,4}:){0,6}[0-9a-f]{1,4})?::)|[Vv][0-9a-f]+\.[a-z0-9\-._~!$&'()*+,;=:]+)\]|(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?)|(?:[a-z0-9\-._~!$&'"()*+,;=]|%[0-9a-f]{2})*)(?::\d*)?(?:\/(?:[a-z0-9\-._~!$&'"()*+,;=:@]|%[0-9a-f]{2})*)*|\/(?:(?:[a-z0-9\-._~!$&'"()*+,;=:@]|%[0-9a-f]{2})+(?:\/(?:[a-z0-9\-._~!$&'"()*+,;=:@]|%[0-9a-f]{2})*)*)?|(?:[a-z0-9\-._~!$&'"()*+,;=:@]|%[0-9a-f]{2})+(?:\/(?:[a-z0-9\-._~!$&'"()*+,;=:@]|%[0-9a-f]{2})*)*)?(?:\?(?:[a-z0-9\-._~!$&'"()*+,;=:@/?]|%[0-9a-f]{2})*)?(?:#(?:[a-z0-9\-._~!$&'"()*+,;=:@/?]|%[0-9a-f]{2})*)?$/i;
+var URITEMPLATE = /^(?:(?:[^\x00-\x20"'<>%\\^`{|}]|%[0-9a-f]{2})|\{[+#./;?&=,!@|]?(?:[a-z0-9_]|%[0-9a-f]{2})+(?::[1-9][0-9]{0,3}|\*)?(?:,(?:[a-z0-9_]|%[0-9a-f]{2})+(?::[1-9][0-9]{0,3}|\*)?)*\})*$/i;
+var URL_ = /^(?:(?:https?|ftp):\/\/)(?:\S+(?::\S*)?@)?(?:(?!10(?:\.\d{1,3}){3})(?!127(?:\.\d{1,3}){3})(?!169\.254(?:\.\d{1,3}){2})(?!192\.168(?:\.\d{1,3}){2})(?!172\.(?:1[6-9]|2\d|3[0-1])(?:\.\d{1,3}){2})(?:[1-9]\d?|1\d\d|2[01]\d|22[0-3])(?:\.(?:1?\d{1,2}|2[0-4]\d|25[0-5])){2}(?:\.(?:[1-9]\d?|1\d\d|2[0-4]\d|25[0-4]))|(?:(?:[a-z\u{00a1}-\u{ffff}0-9]+-?)*[a-z\u{00a1}-\u{ffff}0-9]+)(?:\.(?:[a-z\u{00a1}-\u{ffff}0-9]+-?)*[a-z\u{00a1}-\u{ffff}0-9]+)*(?:\.(?:[a-z\u{00a1}-\u{ffff}]{2,})))(?::\d{2,5})?(?:\/[^\s]*)?$/iu;
+var UUID = /^(?:urn:uuid:)?[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
+var JSON_POINTER = /^(?:\/(?:[^~/]|~0|~1)*)*$/;
+var JSON_POINTER_URI_FRAGMENT = /^#(?:\/(?:[a-z0-9_\-.!$&'()*+,;:=@]|%[0-9a-f]{2}|~0|~1)*)*$/i;
+var RELATIVE_JSON_POINTER = /^(?:0|[1-9][0-9]*)(?:#|(?:\/(?:[^~/]|~0|~1)*)*)$/;
+var EMAIL = (input) => {
+  if (input[0] === '"')
+    return false;
+  const [name, host, ...rest] = input.split("@");
+  if (!name || !host || rest.length !== 0 || name.length > 64 || host.length > 253)
+    return false;
+  if (name[0] === "." || name.endsWith(".") || name.includes(".."))
+    return false;
+  if (!/^[a-z0-9.-]+$/i.test(host) || !/^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+$/i.test(name))
+    return false;
+  return host.split(".").every((part) => /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/i.test(part));
+};
+var IPV4 = /^(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?)$/;
+var IPV6 = /^((([0-9a-f]{1,4}:){7}([0-9a-f]{1,4}|:))|(([0-9a-f]{1,4}:){6}(:[0-9a-f]{1,4}|((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9a-f]{1,4}:){5}(((:[0-9a-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9a-f]{1,4}:){4}(((:[0-9a-f]{1,4}){1,3})|((:[0-9a-f]{1,4})?:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9a-f]{1,4}:){3}(((:[0-9a-f]{1,4}){1,4})|((:[0-9a-f]{1,4}){0,2}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9a-f]{1,4}:){2}(((:[0-9a-f]{1,4}){1,5})|((:[0-9a-f]{1,4}){0,3}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9a-f]{1,4}:){1}(((:[0-9a-f]{1,4}){1,6})|((:[0-9a-f]{1,4}){0,4}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(:(((:[0-9a-f]{1,4}){1,7})|((:[0-9a-f]{1,4}){0,5}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:)))$/i;
+var DURATION = (input) => input.length > 1 && input.length < 80 && (/^P\d+([.,]\d+)?W$/.test(input) || /^P[\dYMDTHS]*(\d[.,]\d+)?[YMDHS]$/.test(input) && /^P([.,\d]+Y)?([.,\d]+M)?([.,\d]+D)?(T([.,\d]+H)?([.,\d]+M)?([.,\d]+S)?)?$/.test(input));
+function bind(r) {
+  return r.test.bind(r);
+}
+var format = {
+  date: date3,
+  time: time3.bind(void 0, false),
+  "date-time": date_time,
+  duration: DURATION,
+  uri,
+  "uri-reference": bind(URIREF),
+  "uri-template": bind(URITEMPLATE),
+  url: bind(URL_),
+  email: EMAIL,
+  hostname: bind(HOSTNAME),
+  ipv4: bind(IPV4),
+  ipv6: bind(IPV6),
+  regex,
+  uuid: bind(UUID),
+  "json-pointer": bind(JSON_POINTER),
+  "json-pointer-uri-fragment": bind(JSON_POINTER_URI_FRAGMENT),
+  "relative-json-pointer": bind(RELATIVE_JSON_POINTER)
+};
+function isLeapYear(year) {
+  return year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+}
+function date3(str) {
+  const matches = str.match(DATE);
+  if (!matches)
+    return false;
+  const year = +matches[1];
+  const month = +matches[2];
+  const day = +matches[3];
+  return month >= 1 && month <= 12 && day >= 1 && day <= (month == 2 && isLeapYear(year) ? 29 : DAYS[month]);
+}
+function time3(full, str) {
+  const matches = str.match(TIME);
+  if (!matches)
+    return false;
+  const hour = +matches[1];
+  const minute = +matches[2];
+  const second = +matches[3];
+  const timeZone = !!matches[5];
+  return (hour <= 23 && minute <= 59 && second <= 59 || hour == 23 && minute == 59 && second == 60) && (!full || timeZone);
+}
+var DATE_TIME_SEPARATOR = /t|\s/i;
+function date_time(str) {
+  const dateTime = str.split(DATE_TIME_SEPARATOR);
+  return dateTime.length == 2 && date3(dateTime[0]) && time3(true, dateTime[1]);
+}
+var NOT_URI_FRAGMENT = /\/|:/;
+var URI_PATTERN = /^(?:[a-z][a-z0-9+\-.]*:)(?:\/?\/(?:(?:[a-z0-9\-._~!$&'()*+,;=:]|%[0-9a-f]{2})*@)?(?:\[(?:(?:(?:(?:[0-9a-f]{1,4}:){6}|::(?:[0-9a-f]{1,4}:){5}|(?:[0-9a-f]{1,4})?::(?:[0-9a-f]{1,4}:){4}|(?:(?:[0-9a-f]{1,4}:){0,1}[0-9a-f]{1,4})?::(?:[0-9a-f]{1,4}:){3}|(?:(?:[0-9a-f]{1,4}:){0,2}[0-9a-f]{1,4})?::(?:[0-9a-f]{1,4}:){2}|(?:(?:[0-9a-f]{1,4}:){0,3}[0-9a-f]{1,4})?::[0-9a-f]{1,4}:|(?:(?:[0-9a-f]{1,4}:){0,4}[0-9a-f]{1,4})?::)(?:[0-9a-f]{1,4}:[0-9a-f]{1,4}|(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?))|(?:(?:[0-9a-f]{1,4}:){0,5}[0-9a-f]{1,4})?::[0-9a-f]{1,4}|(?:(?:[0-9a-f]{1,4}:){0,6}[0-9a-f]{1,4})?::)|[Vv][0-9a-f]+\.[a-z0-9\-._~!$&'()*+,;=:]+)\]|(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?)|(?:[a-z0-9\-._~!$&'()*+,;=]|%[0-9a-f]{2})*)(?::\d*)?(?:\/(?:[a-z0-9\-._~!$&'()*+,;=:@]|%[0-9a-f]{2})*)*|\/(?:(?:[a-z0-9\-._~!$&'()*+,;=:@]|%[0-9a-f]{2})+(?:\/(?:[a-z0-9\-._~!$&'()*+,;=:@]|%[0-9a-f]{2})*)*)?|(?:[a-z0-9\-._~!$&'()*+,;=:@]|%[0-9a-f]{2})+(?:\/(?:[a-z0-9\-._~!$&'()*+,;=:@]|%[0-9a-f]{2})*)*)(?:\?(?:[a-z0-9\-._~!$&'()*+,;=:@/?]|%[0-9a-f]{2})*)?(?:#(?:[a-z0-9\-._~!$&'()*+,;=:@/?]|%[0-9a-f]{2})*)?$/i;
+function uri(str) {
+  return NOT_URI_FRAGMENT.test(str) && URI_PATTERN.test(str);
+}
+var Z_ANCHOR = /[^\\]\\Z/;
+function regex(str) {
+  if (Z_ANCHOR.test(str))
+    return false;
+  try {
+    new RegExp(str, "u");
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+// node_modules/@cfworker/json-schema/dist/esm/types.js
+var OutputFormat;
+(function(OutputFormat2) {
+  OutputFormat2[OutputFormat2["Flag"] = 1] = "Flag";
+  OutputFormat2[OutputFormat2["Basic"] = 2] = "Basic";
+  OutputFormat2[OutputFormat2["Detailed"] = 4] = "Detailed";
+})(OutputFormat || (OutputFormat = {}));
+
+// node_modules/@cfworker/json-schema/dist/esm/ucs2-length.js
+function ucs2length(s) {
+  let result = 0;
+  let length = s.length;
+  let index = 0;
+  let charCode;
+  while (index < length) {
+    result++;
+    charCode = s.charCodeAt(index++);
+    if (charCode >= 55296 && charCode <= 56319 && index < length) {
+      charCode = s.charCodeAt(index);
+      if ((charCode & 64512) == 56320) {
+        index++;
+      }
+    }
+  }
+  return result;
+}
+
+// node_modules/@cfworker/json-schema/dist/esm/validate.js
+function validate(instance, schema, draft = "2019-09", lookup = dereference(schema), shortCircuit = true, recursiveAnchor = null, instanceLocation = "#", schemaLocation = "#", evaluated = /* @__PURE__ */ Object.create(null)) {
+  if (schema === true) {
+    return { valid: true, errors: [] };
+  }
+  if (schema === false) {
+    return {
+      valid: false,
+      errors: [
+        {
+          instanceLocation,
+          keyword: "false",
+          keywordLocation: instanceLocation,
+          error: "False boolean schema."
+        }
+      ]
+    };
+  }
+  const rawInstanceType = typeof instance;
+  let instanceType;
+  switch (rawInstanceType) {
+    case "boolean":
+    case "number":
+    case "string":
+      instanceType = rawInstanceType;
+      break;
+    case "object":
+      if (instance === null) {
+        instanceType = "null";
+      } else if (Array.isArray(instance)) {
+        instanceType = "array";
+      } else {
+        instanceType = "object";
+      }
+      break;
+    default:
+      throw new Error(`Instances of "${rawInstanceType}" type are not supported.`);
+  }
+  const { $ref, $recursiveRef, $recursiveAnchor, type: $type, const: $const, enum: $enum, required: $required, not: $not, anyOf: $anyOf, allOf: $allOf, oneOf: $oneOf, if: $if, then: $then, else: $else, format: $format, properties: $properties, patternProperties: $patternProperties, additionalProperties: $additionalProperties, unevaluatedProperties: $unevaluatedProperties, minProperties: $minProperties, maxProperties: $maxProperties, propertyNames: $propertyNames, dependentRequired: $dependentRequired, dependentSchemas: $dependentSchemas, dependencies: $dependencies, prefixItems: $prefixItems, items: $items, additionalItems: $additionalItems, unevaluatedItems: $unevaluatedItems, contains: $contains, minContains: $minContains, maxContains: $maxContains, minItems: $minItems, maxItems: $maxItems, uniqueItems: $uniqueItems, minimum: $minimum, maximum: $maximum, exclusiveMinimum: $exclusiveMinimum, exclusiveMaximum: $exclusiveMaximum, multipleOf: $multipleOf, minLength: $minLength, maxLength: $maxLength, pattern: $pattern, __absolute_ref__, __absolute_recursive_ref__ } = schema;
+  const errors = [];
+  if ($recursiveAnchor === true && recursiveAnchor === null) {
+    recursiveAnchor = schema;
+  }
+  if ($recursiveRef === "#") {
+    const refSchema = recursiveAnchor === null ? lookup[__absolute_recursive_ref__] : recursiveAnchor;
+    const keywordLocation = `${schemaLocation}/$recursiveRef`;
+    const result = validate(instance, recursiveAnchor === null ? schema : recursiveAnchor, draft, lookup, shortCircuit, refSchema, instanceLocation, keywordLocation, evaluated);
+    if (!result.valid) {
+      errors.push({
+        instanceLocation,
+        keyword: "$recursiveRef",
+        keywordLocation,
+        error: "A subschema had errors."
+      }, ...result.errors);
+    }
+  }
+  if ($ref !== void 0) {
+    const uri2 = __absolute_ref__ || $ref;
+    const refSchema = lookup[uri2];
+    if (refSchema === void 0) {
+      let message = `Unresolved $ref "${$ref}".`;
+      if (__absolute_ref__ && __absolute_ref__ !== $ref) {
+        message += `  Absolute URI "${__absolute_ref__}".`;
+      }
+      message += `
+Known schemas:
+- ${Object.keys(lookup).join("\n- ")}`;
+      throw new Error(message);
+    }
+    const keywordLocation = `${schemaLocation}/$ref`;
+    const result = validate(instance, refSchema, draft, lookup, shortCircuit, recursiveAnchor, instanceLocation, keywordLocation, evaluated);
+    if (!result.valid) {
+      errors.push({
+        instanceLocation,
+        keyword: "$ref",
+        keywordLocation,
+        error: "A subschema had errors."
+      }, ...result.errors);
+    }
+    if (draft === "4" || draft === "7") {
+      return { valid: errors.length === 0, errors };
+    }
+  }
+  if (Array.isArray($type)) {
+    let length = $type.length;
+    let valid = false;
+    for (let i = 0; i < length; i++) {
+      if (instanceType === $type[i] || $type[i] === "integer" && instanceType === "number" && instance % 1 === 0 && instance === instance) {
+        valid = true;
+        break;
+      }
+    }
+    if (!valid) {
+      errors.push({
+        instanceLocation,
+        keyword: "type",
+        keywordLocation: `${schemaLocation}/type`,
+        error: `Instance type "${instanceType}" is invalid. Expected "${$type.join('", "')}".`
+      });
+    }
+  } else if ($type === "integer") {
+    if (instanceType !== "number" || instance % 1 || instance !== instance) {
+      errors.push({
+        instanceLocation,
+        keyword: "type",
+        keywordLocation: `${schemaLocation}/type`,
+        error: `Instance type "${instanceType}" is invalid. Expected "${$type}".`
+      });
+    }
+  } else if ($type !== void 0 && instanceType !== $type) {
+    errors.push({
+      instanceLocation,
+      keyword: "type",
+      keywordLocation: `${schemaLocation}/type`,
+      error: `Instance type "${instanceType}" is invalid. Expected "${$type}".`
+    });
+  }
+  if ($const !== void 0) {
+    if (instanceType === "object" || instanceType === "array") {
+      if (!deepCompareStrict(instance, $const)) {
+        errors.push({
+          instanceLocation,
+          keyword: "const",
+          keywordLocation: `${schemaLocation}/const`,
+          error: `Instance does not match ${JSON.stringify($const)}.`
+        });
+      }
+    } else if (instance !== $const) {
+      errors.push({
+        instanceLocation,
+        keyword: "const",
+        keywordLocation: `${schemaLocation}/const`,
+        error: `Instance does not match ${JSON.stringify($const)}.`
+      });
+    }
+  }
+  if ($enum !== void 0) {
+    if (instanceType === "object" || instanceType === "array") {
+      if (!$enum.some((value) => deepCompareStrict(instance, value))) {
+        errors.push({
+          instanceLocation,
+          keyword: "enum",
+          keywordLocation: `${schemaLocation}/enum`,
+          error: `Instance does not match any of ${JSON.stringify($enum)}.`
+        });
+      }
+    } else if (!$enum.some((value) => instance === value)) {
+      errors.push({
+        instanceLocation,
+        keyword: "enum",
+        keywordLocation: `${schemaLocation}/enum`,
+        error: `Instance does not match any of ${JSON.stringify($enum)}.`
+      });
+    }
+  }
+  if ($not !== void 0) {
+    const keywordLocation = `${schemaLocation}/not`;
+    const result = validate(instance, $not, draft, lookup, shortCircuit, recursiveAnchor, instanceLocation, keywordLocation);
+    if (result.valid) {
+      errors.push({
+        instanceLocation,
+        keyword: "not",
+        keywordLocation,
+        error: 'Instance matched "not" schema.'
+      });
+    }
+  }
+  let subEvaluateds = [];
+  if ($anyOf !== void 0) {
+    const keywordLocation = `${schemaLocation}/anyOf`;
+    const errorsLength = errors.length;
+    let anyValid = false;
+    for (let i = 0; i < $anyOf.length; i++) {
+      const subSchema = $anyOf[i];
+      const subEvaluated = Object.create(evaluated);
+      const result = validate(instance, subSchema, draft, lookup, shortCircuit, $recursiveAnchor === true ? recursiveAnchor : null, instanceLocation, `${keywordLocation}/${i}`, subEvaluated);
+      errors.push(...result.errors);
+      anyValid = anyValid || result.valid;
+      if (result.valid) {
+        subEvaluateds.push(subEvaluated);
+      }
+    }
+    if (anyValid) {
+      errors.length = errorsLength;
+    } else {
+      errors.splice(errorsLength, 0, {
+        instanceLocation,
+        keyword: "anyOf",
+        keywordLocation,
+        error: "Instance does not match any subschemas."
+      });
+    }
+  }
+  if ($allOf !== void 0) {
+    const keywordLocation = `${schemaLocation}/allOf`;
+    const errorsLength = errors.length;
+    let allValid = true;
+    for (let i = 0; i < $allOf.length; i++) {
+      const subSchema = $allOf[i];
+      const subEvaluated = Object.create(evaluated);
+      const result = validate(instance, subSchema, draft, lookup, shortCircuit, $recursiveAnchor === true ? recursiveAnchor : null, instanceLocation, `${keywordLocation}/${i}`, subEvaluated);
+      errors.push(...result.errors);
+      allValid = allValid && result.valid;
+      if (result.valid) {
+        subEvaluateds.push(subEvaluated);
+      }
+    }
+    if (allValid) {
+      errors.length = errorsLength;
+    } else {
+      errors.splice(errorsLength, 0, {
+        instanceLocation,
+        keyword: "allOf",
+        keywordLocation,
+        error: `Instance does not match every subschema.`
+      });
+    }
+  }
+  if ($oneOf !== void 0) {
+    const keywordLocation = `${schemaLocation}/oneOf`;
+    const errorsLength = errors.length;
+    const matches = $oneOf.filter((subSchema, i) => {
+      const subEvaluated = Object.create(evaluated);
+      const result = validate(instance, subSchema, draft, lookup, shortCircuit, $recursiveAnchor === true ? recursiveAnchor : null, instanceLocation, `${keywordLocation}/${i}`, subEvaluated);
+      errors.push(...result.errors);
+      if (result.valid) {
+        subEvaluateds.push(subEvaluated);
+      }
+      return result.valid;
+    }).length;
+    if (matches === 1) {
+      errors.length = errorsLength;
+    } else {
+      errors.splice(errorsLength, 0, {
+        instanceLocation,
+        keyword: "oneOf",
+        keywordLocation,
+        error: `Instance does not match exactly one subschema (${matches} matches).`
+      });
+    }
+  }
+  if (instanceType === "object" || instanceType === "array") {
+    Object.assign(evaluated, ...subEvaluateds);
+  }
+  if ($if !== void 0) {
+    const keywordLocation = `${schemaLocation}/if`;
+    const conditionResult = validate(instance, $if, draft, lookup, shortCircuit, recursiveAnchor, instanceLocation, keywordLocation, evaluated).valid;
+    if (conditionResult) {
+      if ($then !== void 0) {
+        const thenResult = validate(instance, $then, draft, lookup, shortCircuit, recursiveAnchor, instanceLocation, `${schemaLocation}/then`, evaluated);
+        if (!thenResult.valid) {
+          errors.push({
+            instanceLocation,
+            keyword: "if",
+            keywordLocation,
+            error: `Instance does not match "then" schema.`
+          }, ...thenResult.errors);
+        }
+      }
+    } else if ($else !== void 0) {
+      const elseResult = validate(instance, $else, draft, lookup, shortCircuit, recursiveAnchor, instanceLocation, `${schemaLocation}/else`, evaluated);
+      if (!elseResult.valid) {
+        errors.push({
+          instanceLocation,
+          keyword: "if",
+          keywordLocation,
+          error: `Instance does not match "else" schema.`
+        }, ...elseResult.errors);
+      }
+    }
+  }
+  if (instanceType === "object") {
+    if ($required !== void 0) {
+      for (const key of $required) {
+        if (!(key in instance)) {
+          errors.push({
+            instanceLocation,
+            keyword: "required",
+            keywordLocation: `${schemaLocation}/required`,
+            error: `Instance does not have required property "${key}".`
+          });
+        }
+      }
+    }
+    const keys = Object.keys(instance);
+    if ($minProperties !== void 0 && keys.length < $minProperties) {
+      errors.push({
+        instanceLocation,
+        keyword: "minProperties",
+        keywordLocation: `${schemaLocation}/minProperties`,
+        error: `Instance does not have at least ${$minProperties} properties.`
+      });
+    }
+    if ($maxProperties !== void 0 && keys.length > $maxProperties) {
+      errors.push({
+        instanceLocation,
+        keyword: "maxProperties",
+        keywordLocation: `${schemaLocation}/maxProperties`,
+        error: `Instance does not have at least ${$maxProperties} properties.`
+      });
+    }
+    if ($propertyNames !== void 0) {
+      const keywordLocation = `${schemaLocation}/propertyNames`;
+      for (const key in instance) {
+        const subInstancePointer = `${instanceLocation}/${encodePointer(key)}`;
+        const result = validate(key, $propertyNames, draft, lookup, shortCircuit, recursiveAnchor, subInstancePointer, keywordLocation);
+        if (!result.valid) {
+          errors.push({
+            instanceLocation,
+            keyword: "propertyNames",
+            keywordLocation,
+            error: `Property name "${key}" does not match schema.`
+          }, ...result.errors);
+        }
+      }
+    }
+    if ($dependentRequired !== void 0) {
+      const keywordLocation = `${schemaLocation}/dependantRequired`;
+      for (const key in $dependentRequired) {
+        if (key in instance) {
+          const required2 = $dependentRequired[key];
+          for (const dependantKey of required2) {
+            if (!(dependantKey in instance)) {
+              errors.push({
+                instanceLocation,
+                keyword: "dependentRequired",
+                keywordLocation,
+                error: `Instance has "${key}" but does not have "${dependantKey}".`
+              });
+            }
+          }
+        }
+      }
+    }
+    if ($dependentSchemas !== void 0) {
+      for (const key in $dependentSchemas) {
+        const keywordLocation = `${schemaLocation}/dependentSchemas`;
+        if (key in instance) {
+          const result = validate(instance, $dependentSchemas[key], draft, lookup, shortCircuit, recursiveAnchor, instanceLocation, `${keywordLocation}/${encodePointer(key)}`, evaluated);
+          if (!result.valid) {
+            errors.push({
+              instanceLocation,
+              keyword: "dependentSchemas",
+              keywordLocation,
+              error: `Instance has "${key}" but does not match dependant schema.`
+            }, ...result.errors);
+          }
+        }
+      }
+    }
+    if ($dependencies !== void 0) {
+      const keywordLocation = `${schemaLocation}/dependencies`;
+      for (const key in $dependencies) {
+        if (key in instance) {
+          const propsOrSchema = $dependencies[key];
+          if (Array.isArray(propsOrSchema)) {
+            for (const dependantKey of propsOrSchema) {
+              if (!(dependantKey in instance)) {
+                errors.push({
+                  instanceLocation,
+                  keyword: "dependencies",
+                  keywordLocation,
+                  error: `Instance has "${key}" but does not have "${dependantKey}".`
+                });
+              }
+            }
+          } else {
+            const result = validate(instance, propsOrSchema, draft, lookup, shortCircuit, recursiveAnchor, instanceLocation, `${keywordLocation}/${encodePointer(key)}`);
+            if (!result.valid) {
+              errors.push({
+                instanceLocation,
+                keyword: "dependencies",
+                keywordLocation,
+                error: `Instance has "${key}" but does not match dependant schema.`
+              }, ...result.errors);
+            }
+          }
+        }
+      }
+    }
+    const thisEvaluated = /* @__PURE__ */ Object.create(null);
+    let stop = false;
+    if ($properties !== void 0) {
+      const keywordLocation = `${schemaLocation}/properties`;
+      for (const key in $properties) {
+        if (!(key in instance)) {
+          continue;
+        }
+        const subInstancePointer = `${instanceLocation}/${encodePointer(key)}`;
+        const result = validate(instance[key], $properties[key], draft, lookup, shortCircuit, recursiveAnchor, subInstancePointer, `${keywordLocation}/${encodePointer(key)}`);
+        if (result.valid) {
+          evaluated[key] = thisEvaluated[key] = true;
+        } else {
+          stop = shortCircuit;
+          errors.push({
+            instanceLocation,
+            keyword: "properties",
+            keywordLocation,
+            error: `Property "${key}" does not match schema.`
+          }, ...result.errors);
+          if (stop)
+            break;
+        }
+      }
+    }
+    if (!stop && $patternProperties !== void 0) {
+      const keywordLocation = `${schemaLocation}/patternProperties`;
+      for (const pattern in $patternProperties) {
+        const regex2 = new RegExp(pattern, "u");
+        const subSchema = $patternProperties[pattern];
+        for (const key in instance) {
+          if (!regex2.test(key)) {
+            continue;
+          }
+          const subInstancePointer = `${instanceLocation}/${encodePointer(key)}`;
+          const result = validate(instance[key], subSchema, draft, lookup, shortCircuit, recursiveAnchor, subInstancePointer, `${keywordLocation}/${encodePointer(pattern)}`);
+          if (result.valid) {
+            evaluated[key] = thisEvaluated[key] = true;
+          } else {
+            stop = shortCircuit;
+            errors.push({
+              instanceLocation,
+              keyword: "patternProperties",
+              keywordLocation,
+              error: `Property "${key}" matches pattern "${pattern}" but does not match associated schema.`
+            }, ...result.errors);
+          }
+        }
+      }
+    }
+    if (!stop && $additionalProperties !== void 0) {
+      const keywordLocation = `${schemaLocation}/additionalProperties`;
+      for (const key in instance) {
+        if (thisEvaluated[key]) {
+          continue;
+        }
+        const subInstancePointer = `${instanceLocation}/${encodePointer(key)}`;
+        const result = validate(instance[key], $additionalProperties, draft, lookup, shortCircuit, recursiveAnchor, subInstancePointer, keywordLocation);
+        if (result.valid) {
+          evaluated[key] = true;
+        } else {
+          stop = shortCircuit;
+          errors.push({
+            instanceLocation,
+            keyword: "additionalProperties",
+            keywordLocation,
+            error: `Property "${key}" does not match additional properties schema.`
+          }, ...result.errors);
+        }
+      }
+    } else if (!stop && $unevaluatedProperties !== void 0) {
+      const keywordLocation = `${schemaLocation}/unevaluatedProperties`;
+      for (const key in instance) {
+        if (!evaluated[key]) {
+          const subInstancePointer = `${instanceLocation}/${encodePointer(key)}`;
+          const result = validate(instance[key], $unevaluatedProperties, draft, lookup, shortCircuit, recursiveAnchor, subInstancePointer, keywordLocation);
+          if (result.valid) {
+            evaluated[key] = true;
+          } else {
+            errors.push({
+              instanceLocation,
+              keyword: "unevaluatedProperties",
+              keywordLocation,
+              error: `Property "${key}" does not match unevaluated properties schema.`
+            }, ...result.errors);
+          }
+        }
+      }
+    }
+  } else if (instanceType === "array") {
+    if ($maxItems !== void 0 && instance.length > $maxItems) {
+      errors.push({
+        instanceLocation,
+        keyword: "maxItems",
+        keywordLocation: `${schemaLocation}/maxItems`,
+        error: `Array has too many items (${instance.length} > ${$maxItems}).`
+      });
+    }
+    if ($minItems !== void 0 && instance.length < $minItems) {
+      errors.push({
+        instanceLocation,
+        keyword: "minItems",
+        keywordLocation: `${schemaLocation}/minItems`,
+        error: `Array has too few items (${instance.length} < ${$minItems}).`
+      });
+    }
+    const length = instance.length;
+    let i = 0;
+    let stop = false;
+    if ($prefixItems !== void 0) {
+      const keywordLocation = `${schemaLocation}/prefixItems`;
+      const length2 = Math.min($prefixItems.length, length);
+      for (; i < length2; i++) {
+        const result = validate(instance[i], $prefixItems[i], draft, lookup, shortCircuit, recursiveAnchor, `${instanceLocation}/${i}`, `${keywordLocation}/${i}`);
+        evaluated[i] = true;
+        if (!result.valid) {
+          stop = shortCircuit;
+          errors.push({
+            instanceLocation,
+            keyword: "prefixItems",
+            keywordLocation,
+            error: `Items did not match schema.`
+          }, ...result.errors);
+          if (stop)
+            break;
+        }
+      }
+    }
+    if ($items !== void 0) {
+      const keywordLocation = `${schemaLocation}/items`;
+      if (Array.isArray($items)) {
+        const length2 = Math.min($items.length, length);
+        for (; i < length2; i++) {
+          const result = validate(instance[i], $items[i], draft, lookup, shortCircuit, recursiveAnchor, `${instanceLocation}/${i}`, `${keywordLocation}/${i}`);
+          evaluated[i] = true;
+          if (!result.valid) {
+            stop = shortCircuit;
+            errors.push({
+              instanceLocation,
+              keyword: "items",
+              keywordLocation,
+              error: `Items did not match schema.`
+            }, ...result.errors);
+            if (stop)
+              break;
+          }
+        }
+      } else {
+        for (; i < length; i++) {
+          const result = validate(instance[i], $items, draft, lookup, shortCircuit, recursiveAnchor, `${instanceLocation}/${i}`, keywordLocation);
+          evaluated[i] = true;
+          if (!result.valid) {
+            stop = shortCircuit;
+            errors.push({
+              instanceLocation,
+              keyword: "items",
+              keywordLocation,
+              error: `Items did not match schema.`
+            }, ...result.errors);
+            if (stop)
+              break;
+          }
+        }
+      }
+      if (!stop && $additionalItems !== void 0) {
+        const keywordLocation2 = `${schemaLocation}/additionalItems`;
+        for (; i < length; i++) {
+          const result = validate(instance[i], $additionalItems, draft, lookup, shortCircuit, recursiveAnchor, `${instanceLocation}/${i}`, keywordLocation2);
+          evaluated[i] = true;
+          if (!result.valid) {
+            stop = shortCircuit;
+            errors.push({
+              instanceLocation,
+              keyword: "additionalItems",
+              keywordLocation: keywordLocation2,
+              error: `Items did not match additional items schema.`
+            }, ...result.errors);
+          }
+        }
+      }
+    }
+    if ($contains !== void 0) {
+      if (length === 0 && $minContains === void 0) {
+        errors.push({
+          instanceLocation,
+          keyword: "contains",
+          keywordLocation: `${schemaLocation}/contains`,
+          error: `Array is empty. It must contain at least one item matching the schema.`
+        });
+      } else if ($minContains !== void 0 && length < $minContains) {
+        errors.push({
+          instanceLocation,
+          keyword: "minContains",
+          keywordLocation: `${schemaLocation}/minContains`,
+          error: `Array has less items (${length}) than minContains (${$minContains}).`
+        });
+      } else {
+        const keywordLocation = `${schemaLocation}/contains`;
+        const errorsLength = errors.length;
+        let contained = 0;
+        for (let j = 0; j < length; j++) {
+          const result = validate(instance[j], $contains, draft, lookup, shortCircuit, recursiveAnchor, `${instanceLocation}/${j}`, keywordLocation);
+          if (result.valid) {
+            evaluated[j] = true;
+            contained++;
+          } else {
+            errors.push(...result.errors);
+          }
+        }
+        if (contained >= ($minContains || 0)) {
+          errors.length = errorsLength;
+        }
+        if ($minContains === void 0 && $maxContains === void 0 && contained === 0) {
+          errors.splice(errorsLength, 0, {
+            instanceLocation,
+            keyword: "contains",
+            keywordLocation,
+            error: `Array does not contain item matching schema.`
+          });
+        } else if ($minContains !== void 0 && contained < $minContains) {
+          errors.push({
+            instanceLocation,
+            keyword: "minContains",
+            keywordLocation: `${schemaLocation}/minContains`,
+            error: `Array must contain at least ${$minContains} items matching schema. Only ${contained} items were found.`
+          });
+        } else if ($maxContains !== void 0 && contained > $maxContains) {
+          errors.push({
+            instanceLocation,
+            keyword: "maxContains",
+            keywordLocation: `${schemaLocation}/maxContains`,
+            error: `Array may contain at most ${$maxContains} items matching schema. ${contained} items were found.`
+          });
+        }
+      }
+    }
+    if (!stop && $unevaluatedItems !== void 0) {
+      const keywordLocation = `${schemaLocation}/unevaluatedItems`;
+      for (i; i < length; i++) {
+        if (evaluated[i]) {
+          continue;
+        }
+        const result = validate(instance[i], $unevaluatedItems, draft, lookup, shortCircuit, recursiveAnchor, `${instanceLocation}/${i}`, keywordLocation);
+        evaluated[i] = true;
+        if (!result.valid) {
+          errors.push({
+            instanceLocation,
+            keyword: "unevaluatedItems",
+            keywordLocation,
+            error: `Items did not match unevaluated items schema.`
+          }, ...result.errors);
+        }
+      }
+    }
+    if ($uniqueItems) {
+      for (let j = 0; j < length; j++) {
+        const a = instance[j];
+        const ao = typeof a === "object" && a !== null;
+        for (let k = 0; k < length; k++) {
+          if (j === k) {
+            continue;
+          }
+          const b = instance[k];
+          const bo = typeof b === "object" && b !== null;
+          if (a === b || ao && bo && deepCompareStrict(a, b)) {
+            errors.push({
+              instanceLocation,
+              keyword: "uniqueItems",
+              keywordLocation: `${schemaLocation}/uniqueItems`,
+              error: `Duplicate items at indexes ${j} and ${k}.`
+            });
+            j = Number.MAX_SAFE_INTEGER;
+            k = Number.MAX_SAFE_INTEGER;
+          }
+        }
+      }
+    }
+  } else if (instanceType === "number") {
+    if (draft === "4") {
+      if ($minimum !== void 0 && ($exclusiveMinimum === true && instance <= $minimum || instance < $minimum)) {
+        errors.push({
+          instanceLocation,
+          keyword: "minimum",
+          keywordLocation: `${schemaLocation}/minimum`,
+          error: `${instance} is less than ${$exclusiveMinimum ? "or equal to " : ""} ${$minimum}.`
+        });
+      }
+      if ($maximum !== void 0 && ($exclusiveMaximum === true && instance >= $maximum || instance > $maximum)) {
+        errors.push({
+          instanceLocation,
+          keyword: "maximum",
+          keywordLocation: `${schemaLocation}/maximum`,
+          error: `${instance} is greater than ${$exclusiveMaximum ? "or equal to " : ""} ${$maximum}.`
+        });
+      }
+    } else {
+      if ($minimum !== void 0 && instance < $minimum) {
+        errors.push({
+          instanceLocation,
+          keyword: "minimum",
+          keywordLocation: `${schemaLocation}/minimum`,
+          error: `${instance} is less than ${$minimum}.`
+        });
+      }
+      if ($maximum !== void 0 && instance > $maximum) {
+        errors.push({
+          instanceLocation,
+          keyword: "maximum",
+          keywordLocation: `${schemaLocation}/maximum`,
+          error: `${instance} is greater than ${$maximum}.`
+        });
+      }
+      if ($exclusiveMinimum !== void 0 && instance <= $exclusiveMinimum) {
+        errors.push({
+          instanceLocation,
+          keyword: "exclusiveMinimum",
+          keywordLocation: `${schemaLocation}/exclusiveMinimum`,
+          error: `${instance} is less than ${$exclusiveMinimum}.`
+        });
+      }
+      if ($exclusiveMaximum !== void 0 && instance >= $exclusiveMaximum) {
+        errors.push({
+          instanceLocation,
+          keyword: "exclusiveMaximum",
+          keywordLocation: `${schemaLocation}/exclusiveMaximum`,
+          error: `${instance} is greater than or equal to ${$exclusiveMaximum}.`
+        });
+      }
+    }
+    if ($multipleOf !== void 0) {
+      const remainder = instance % $multipleOf;
+      if (Math.abs(0 - remainder) >= 11920929e-14 && Math.abs($multipleOf - remainder) >= 11920929e-14) {
+        errors.push({
+          instanceLocation,
+          keyword: "multipleOf",
+          keywordLocation: `${schemaLocation}/multipleOf`,
+          error: `${instance} is not a multiple of ${$multipleOf}.`
+        });
+      }
+    }
+  } else if (instanceType === "string") {
+    const length = $minLength === void 0 && $maxLength === void 0 ? 0 : ucs2length(instance);
+    if ($minLength !== void 0 && length < $minLength) {
+      errors.push({
+        instanceLocation,
+        keyword: "minLength",
+        keywordLocation: `${schemaLocation}/minLength`,
+        error: `String is too short (${length} < ${$minLength}).`
+      });
+    }
+    if ($maxLength !== void 0 && length > $maxLength) {
+      errors.push({
+        instanceLocation,
+        keyword: "maxLength",
+        keywordLocation: `${schemaLocation}/maxLength`,
+        error: `String is too long (${length} > ${$maxLength}).`
+      });
+    }
+    if ($pattern !== void 0 && !new RegExp($pattern, "u").test(instance)) {
+      errors.push({
+        instanceLocation,
+        keyword: "pattern",
+        keywordLocation: `${schemaLocation}/pattern`,
+        error: `String does not match pattern.`
+      });
+    }
+    if ($format !== void 0 && format[$format] && !format[$format](instance)) {
+      errors.push({
+        instanceLocation,
+        keyword: "format",
+        keywordLocation: `${schemaLocation}/format`,
+        error: `String does not match format "${$format}".`
+      });
+    }
+  }
+  return { valid: errors.length === 0, errors };
+}
+
+// node_modules/@cfworker/json-schema/dist/esm/validator.js
+var Validator = class {
+  schema;
+  draft;
+  shortCircuit;
+  lookup;
+  constructor(schema, draft = "2019-09", shortCircuit = true) {
+    this.schema = schema;
+    this.draft = draft;
+    this.shortCircuit = shortCircuit;
+    this.lookup = dereference(schema);
+  }
+  validate(instance) {
+    return validate(instance, this.schema, this.draft, this.lookup, this.shortCircuit);
+  }
+  addSchema(schema, id) {
+    if (id) {
+      schema = { ...schema, $id: id };
+    }
+    dereference(schema, this.lookup);
+  }
+};
+
+// src/contracts.ts
+var import_yaml2 = __toESM(require_dist2(), 1);
+
 // src/core.ts
 var core_exports3 = {};
 __export(core_exports3, {
   DEFAULT_MAX_BYTES: () => DEFAULT_MAX_BYTES,
   GATED_KINDS: () => GATED_KINDS,
   SEARCH_KINDS: () => SEARCH_KINDS,
+  artifactMeta: () => artifactMeta,
+  artifacts: () => artifacts,
   getAcceptanceCriteria: () => getAcceptanceCriteria,
   getArtifact: () => getArtifact,
   getMessageSchema: () => getMessageSchema,
   getService: () => getService,
+  getSystem: () => getSystem,
+  isGated: () => isGated,
   listServices: () => listServices,
+  normalizeForSearch: () => normalizeForSearch,
+  pointerAt: () => pointerAt,
+  read: () => read,
   searchSpecs: () => searchSpecs,
-  traceChannel: () => traceChannel
+  service: () => service,
+  summaryOf: () => summaryOf,
+  traceChannel: () => traceChannel,
+  utf8Len: () => utf8Len
 });
 var import_yaml = __toESM(require_dist2(), 1);
 
@@ -28927,7 +30012,7 @@ var ArtifactMissingError = class extends Error {
 
 // src/core.ts
 var GATED_KINDS = /* @__PURE__ */ new Set(["asyncapi", "openapi", "data-contract", "feature"]);
-var SEARCH_KINDS = /* @__PURE__ */ new Set(["asyncapi", "openapi", "data-contract", "feature", "doc"]);
+var SEARCH_KINDS = /* @__PURE__ */ new Set(["asyncapi", "openapi", "data-contract", "feature", "doc", "manifest"]);
 var DEFAULT_MAX_BYTES = 5e4;
 function artifacts(svc) {
   return svc.manifest.artifacts ?? [];
@@ -28976,6 +30061,7 @@ async function listServices(source) {
       title: m.title ?? svc.name,
       domain: m.domain ?? "",
       owner: m.owner ?? "",
+      version: m.version != null ? String(m.version) : null,
       summary: summaryOf(m.summary),
       artifact_count: artifacts(svc).length
     });
@@ -28990,6 +30076,7 @@ async function getService(source, name) {
     title: m.title ?? svc.name,
     domain: m.domain ?? "",
     owner: m.owner ?? "",
+    version: m.version != null ? String(m.version) : null,
     summary: summaryOf(m.summary),
     produces: m.produces ?? [],
     consumes: m.consumes ?? [],
@@ -29000,6 +30087,27 @@ async function getService(source, name) {
       gated: isGated(a),
       summary: summaryOf(a.summary)
     }))
+  };
+}
+async function getSystem(source) {
+  const system = await source.loadSystem();
+  const services = await source.loadServices();
+  if (system === null) {
+    return {
+      present: false,
+      service_count: services.size,
+      note: "This suite has no system.yaml. Use list_services for what it contains."
+    };
+  }
+  return {
+    present: true,
+    name: system.name ?? null,
+    title: system.title ?? null,
+    domain: system.domain ?? null,
+    org: system.org ?? null,
+    mcp: system.mcp ?? null,
+    summary: summaryOf(system.summary),
+    service_count: services.size
   };
 }
 async function getArtifact(source, args) {
@@ -29213,9 +30321,55 @@ async function traceChannel(source, address) {
     note
   };
 }
+function normalizeForSearch(text) {
+  return text.replace(/([a-z0-9])([A-Z])/g, "$1 $2").toLowerCase().replace(/[_\-./]+/g, " ").replace(/\s+/g, " ").trim();
+}
+function pointerAt(text, offset) {
+  let doc;
+  try {
+    doc = (0, import_yaml.parseDocument)(text);
+  } catch {
+    return null;
+  }
+  if (doc.errors.length) return null;
+  const tokens = [];
+  let node = doc.contents;
+  for (; ; ) {
+    let next = null;
+    if ((0, import_yaml.isMap)(node)) {
+      for (const pair of node.items) {
+        const key = pair.key;
+        const value = pair.value;
+        const start = key?.range?.[0];
+        const end = value?.range?.[2] ?? key?.range?.[2];
+        if (start === void 0 || end === void 0) continue;
+        if (start <= offset && offset < Math.max(end, start + 1)) {
+          tokens.push(String((0, import_yaml.isScalar)(pair.key) ? pair.key.value : pair.key));
+          next = pair.value;
+          break;
+        }
+      }
+    } else if ((0, import_yaml.isSeq)(node)) {
+      node.items.forEach((item, i) => {
+        const range = item?.range;
+        if (next === null && range && range[0] <= offset && offset < range[2]) {
+          tokens.push(String(i));
+          next = item;
+        }
+      });
+    }
+    if (next === null) break;
+    node = next;
+  }
+  if (tokens.length === 0) return null;
+  return "/" + tokens.map((t) => t.replaceAll("~", "~0").replaceAll("/", "~1")).join("/");
+}
 async function searchSpecs(source, args) {
   const { query, kind = null, service: serviceName = null } = args;
   let limit = args.limit ?? 20;
+  if (!query || !query.trim()) {
+    throw new Error("query must not be empty. Search for a message, field, channel or phrase.");
+  }
   if (kind !== null && kind !== void 0 && !SEARCH_KINDS.has(kind)) {
     throw new Error(`Unknown kind ${pyRepr(kind)}. Valid kinds: ${pyList(pySorted(SEARCH_KINDS))}`);
   }
@@ -29223,13 +30377,267 @@ async function searchSpecs(source, args) {
     await service(source, serviceName);
   }
   limit = Math.max(1, Math.min(limit, 100));
-  const needle = query.toLowerCase();
+  const needle = query.trim().toLowerCase();
+  const phrase = normalizeForSearch(query);
+  const terms = [...new Set(phrase.split(" ").filter(Boolean))];
+  const score = (line) => {
+    const norm = normalizeForSearch(line);
+    let points = 0;
+    for (const t of terms) if (norm.includes(t)) points += 1;
+    if (points === 0) return 0;
+    if (terms.length > 1 && norm.includes(phrase)) points += terms.length;
+    if (line.toLowerCase().includes(needle)) points += terms.length + 1;
+    return points;
+  };
   const hits = [];
-  let totalMatches = 0;
   for (const svc of (await source.loadServices()).values()) {
     if (serviceName && svc.name !== serviceName) continue;
-    for (const a of artifacts(svc)) {
-      if (kind && a.kind !== kind) continue;
+    const files = artifacts(svc).map((a) => ({
+      kind: a.kind,
+      path: a.path
+    }));
+    files.push({ kind: "manifest", path: "service.yaml" });
+    for (const f of files) {
+      if (kind && f.kind !== kind) continue;
+      let text;
+      try {
+        text = f.kind === "manifest" ? await source.readFile(svc, f.path) : await read(source, svc, f.path);
+      } catch (err) {
+        if (err instanceof ArtifactMissingError) continue;
+        throw err;
+      }
+      const isYaml = /\.ya?ml$/.test(f.path);
+      const lines = splitLines(text);
+      let offset = 0;
+      const offsets = [];
+      for (const line of lines) {
+        offsets.push(offset);
+        offset += line.length + 1;
+      }
+      for (let i = 0; i < lines.length; i++) {
+        const points = score(lines[i]);
+        if (points === 0) continue;
+        const hit = {
+          service: svc.name,
+          kind: f.kind,
+          path: f.path,
+          line: i + 1,
+          text: lines[i].trim().slice(0, 200),
+          score: points
+        };
+        if (isYaml) {
+          const indent = lines[i].length - lines[i].trimStart().length;
+          hit.pointer = pointerAt(text, offsets[i] + indent);
+        }
+        hits.push(hit);
+      }
+    }
+  }
+  const ranked = [];
+  for (const points of [...new Set(hits.map((h) => h.score))].sort((a, b) => b - a)) {
+    const queues = /* @__PURE__ */ new Map();
+    for (const h of hits.filter((x) => x.score === points)) {
+      queues.set(h.service, [...queues.get(h.service) ?? [], h]);
+    }
+    while ([...queues.values()].some((q) => q.length)) {
+      for (const q of queues.values()) {
+        const h = q.shift();
+        if (h) ranked.push(h);
+      }
+    }
+  }
+  const page = ranked.slice(0, limit);
+  return {
+    query,
+    kind: kind ?? null,
+    service: serviceName ?? null,
+    terms,
+    hits: page,
+    total_matches: hits.length,
+    returned: page.length,
+    truncated: hits.length > page.length
+  };
+}
+
+// src/contracts.ts
+var HTTP_METHODS = ["get", "put", "post", "delete", "options", "head", "patch", "trace"];
+function isRecord2(v) {
+  return typeof v === "object" && v !== null && !Array.isArray(v);
+}
+async function yamlDoc(source, svc, a) {
+  return (0, import_yaml2.parse)(await read(source, svc, a.path)) ?? {};
+}
+function resolveRefs(node, doc, stack = []) {
+  if (Array.isArray(node)) return node.map((n) => resolveRefs(n, doc, stack));
+  if (!isRecord2(node)) return node;
+  const ref = node.$ref;
+  if (typeof ref === "string" && ref.startsWith("#/")) {
+    if (stack.includes(ref)) return { $ref: ref, circular: true };
+    return resolveRefs(resolvePointer(doc, ref.slice(1)), doc, [...stack, ref]);
+  }
+  const out = {};
+  for (const [k, v] of Object.entries(node)) out[k] = resolveRefs(v, doc, stack);
+  return out;
+}
+async function getOperation(source, args) {
+  const { operation_id = null, method = null, path: route = null, max_bytes = DEFAULT_MAX_BYTES } = args;
+  const svc = await service(source, args.service);
+  const specs = artifacts(svc).filter((a) => a.kind === "openapi");
+  if (specs.length === 0) {
+    throw new Error(`Service ${pyRepr(svc.name)} declares no OpenAPI contract`);
+  }
+  if (method === null !== (route === null)) {
+    throw new Error("method and path go together: pass both, or operation_id instead");
+  }
+  const index = [];
+  for (const a of specs) {
+    const doc = await yamlDoc(source, svc, a);
+    for (const [p, item] of Object.entries(doc.paths ?? {})) {
+      if (!isRecord2(item)) continue;
+      for (const m of HTTP_METHODS) {
+        const op = item[m];
+        if (!isRecord2(op)) continue;
+        const hit = operation_id !== null && op.operationId === operation_id || method !== null && m === method.toLowerCase() && p === route;
+        if (!hit) {
+          index.push({
+            operation_id: op.operationId ?? null,
+            method: m.toUpperCase(),
+            path: p,
+            summary: summaryOf(op.summary)
+          });
+          continue;
+        }
+        const raw = {
+          ...op,
+          // Path-level parameters apply to every operation under the path.
+          parameters: [...item.parameters ?? [], ...op.parameters ?? []]
+        };
+        const resolved = resolveRefs(raw, doc);
+        const out = {
+          service: svc.name,
+          artifact: a.path,
+          contract_version: a.version ?? null,
+          authority: "contract of record",
+          method: m.toUpperCase(),
+          path: p,
+          operation_id: op.operationId ?? null,
+          summary: summaryOf(op.summary),
+          operation: resolved,
+          refs_resolved: true,
+          truncated: false
+        };
+        if (utf8Len(JSON.stringify(out)) > max_bytes) {
+          out.operation = raw;
+          out.refs_resolved = false;
+          out.truncated = true;
+          out.note = `The resolved operation exceeds ${max_bytes} bytes, so its $refs are left as pointers - fetch each with get_artifact(section=...) or raise max_bytes.`;
+        }
+        return out;
+      }
+    }
+  }
+  if (operation_id === null && method === null) {
+    return { service: svc.name, operations: index };
+  }
+  const wanted = operation_id !== null ? `operation_id ${pyRepr(operation_id)}` : `${method} ${route}`;
+  const known = index.map((o) => `${o.method} ${o.path} (${o.operation_id ?? "no operationId"})`);
+  throw new Error(`No operation ${wanted} on ${pyRepr(svc.name)}. Operations: ${pyList(known)}`);
+}
+function column(p) {
+  const out = {
+    name: p.name ?? null,
+    logical_type: p.logicalType ?? null,
+    physical_type: p.physicalType ?? null,
+    required: p.required === true,
+    unique: p.unique === true,
+    primary_key: p.primaryKey === true,
+    description: summaryOf(p.description)
+  };
+  if (Array.isArray(p.enum)) out.enum = p.enum;
+  if (Array.isArray(p.synonyms)) out.synonyms = p.synonyms;
+  if (Array.isArray(p.quality)) out.quality = p.quality;
+  if (Array.isArray(p.relationships)) out.relationships = p.relationships;
+  if (p.partitioned === true) out.partitioned = true;
+  return out;
+}
+function tableRelationships(t) {
+  const out = [...t.relationships ?? []];
+  for (const p of t.properties ?? []) {
+    for (const r of p?.relationships ?? []) out.push({ ...r, from: `${t.name}.${p.name}` });
+  }
+  return out;
+}
+async function getDataContract(source, args) {
+  const { path: path2 = null, table = null } = args;
+  const svc = await service(source, args.service);
+  let contracts = artifacts(svc).filter((a2) => a2.kind === "data-contract");
+  if (contracts.length === 0) {
+    throw new Error(`Service ${pyRepr(svc.name)} declares no data contracts`);
+  }
+  if (path2 !== null) {
+    artifactMeta(svc, path2);
+    contracts = contracts.filter((a2) => a2.path === path2);
+    if (contracts.length === 0) {
+      throw new Error(`${pyRepr(path2)} is not a data contract`);
+    }
+  }
+  const docs = [];
+  for (const a2 of contracts) docs.push([a2, await yamlDoc(source, svc, a2)]);
+  if (table !== null) {
+    const names = [];
+    for (const [a2, doc2] of docs) {
+      for (const t of doc2.schema ?? []) {
+        names.push(String(t?.name));
+        if (t?.name !== table && t?.physicalName !== table) continue;
+        return {
+          service: svc.name,
+          path: a2.path,
+          contract: doc2.id ?? null,
+          contract_version: a2.version ?? null,
+          authority: "contract of record",
+          table: t.name,
+          physical_name: t.physicalName ?? null,
+          description: summaryOf(t.description),
+          columns: (t.properties ?? []).map(column),
+          relationships: tableRelationships(t),
+          quality: t.quality ?? []
+        };
+      }
+    }
+    throw new Error(`No table ${pyRepr(table)} on ${pyRepr(svc.name)}. Tables: ${pyList(names)}`);
+  }
+  const overview = ([a2, doc2]) => ({
+    path: a2.path,
+    id: doc2.id ?? null,
+    name: doc2.name ?? null,
+    version: doc2.version ?? null,
+    status: doc2.status ?? null,
+    purpose: summaryOf(doc2.description?.purpose),
+    tables: (doc2.schema ?? []).map((t) => ({
+      name: t?.name ?? null,
+      description: summaryOf(t?.description),
+      column_count: (t?.properties ?? []).length,
+      relationships: tableRelationships(t ?? {}).length
+    }))
+  });
+  if (path2 === null) {
+    return { service: svc.name, contracts: docs.map(overview) };
+  }
+  const [a, doc] = docs[0];
+  return {
+    service: svc.name,
+    ...overview([a, doc]),
+    authority: "contract of record",
+    description: doc.description ?? null,
+    // Reader guidance is part of the gated contract, not a comment.
+    context: doc.context ?? null,
+    quality: doc.quality ?? []
+  };
+}
+async function featureMentions(source, needles) {
+  const out = [];
+  for (const svc of (await source.loadServices()).values()) {
+    for (const a of artifacts(svc).filter((x) => x.kind === "feature")) {
       let text;
       try {
         text = await read(source, svc, a.path);
@@ -29237,32 +30645,219 @@ async function searchSpecs(source, args) {
         if (err instanceof ArtifactMissingError) continue;
         throw err;
       }
-      const lines = splitLines(text);
-      for (let i = 0; i < lines.length; i++) {
-        if (lines[i].toLowerCase().includes(needle)) {
-          totalMatches += 1;
-          if (hits.length < limit) {
-            hits.push({
-              service: svc.name,
-              kind: a.kind,
-              path: a.path,
-              line: i + 1,
-              text: lines[i].trim().slice(0, 200)
-            });
+      const scenarios = splitGherkin(text).scenarios.filter((s) => needles.some((n) => s.gherkin.includes(n))).map((s) => s.name);
+      if (scenarios.length) out.push({ service: svc.name, path: a.path, scenarios });
+    }
+  }
+  return out;
+}
+async function messageImpact(source, svc, message) {
+  const addresses = /* @__PURE__ */ new Set();
+  const known = [];
+  for (const a of artifacts(svc).filter((x) => x.kind === "asyncapi")) {
+    const doc = await yamlDoc(source, svc, a);
+    known.push(...Object.keys(doc.components?.messages ?? {}));
+    for (const channel of Object.values(doc.channels ?? {})) {
+      if (!isRecord2(channel) || !channel.address) continue;
+      for (const [key, m] of Object.entries(channel.messages ?? {})) {
+        const ref = isRecord2(m) && typeof m.$ref === "string" ? m.$ref.split("/").pop() : null;
+        if (key === message || ref === message) addresses.add(String(channel.address));
+      }
+    }
+  }
+  if (!known.includes(message)) {
+    throw new Error(
+      `No message ${pyRepr(message)} on ${pyRepr(svc.name)}. Messages: ${pyList(pySorted(known))}`
+    );
+  }
+  const services = await source.loadServices();
+  const channels = pySorted(addresses).map((address) => ({
+    address,
+    produced_by: pySorted(
+      [...services.values()].filter((s) => (s.manifest.produces ?? []).includes(address)).map((s) => s.name)
+    ),
+    consumed_by: pySorted(
+      [...services.values()].filter((s) => (s.manifest.consumes ?? []).includes(address)).map((s) => s.name)
+    )
+  }));
+  const records = [];
+  for (const s of services.values()) {
+    for (const a of artifacts(s).filter((x) => x.kind === "data-contract")) {
+      let text;
+      try {
+        text = await read(source, s, a.path);
+      } catch (err) {
+        if (err instanceof ArtifactMissingError) continue;
+        throw err;
+      }
+      const hits = [...addresses].filter((addr) => text.includes(addr));
+      if (hits.length) records.push({ service: s.name, path: a.path, mentions: pySorted(hits) });
+    }
+  }
+  const consumers = pySorted(new Set(channels.flatMap((c) => c.consumed_by)));
+  return {
+    service: svc.name,
+    message,
+    channels,
+    consumers,
+    features: await featureMentions(source, [`"${message}"`, ...[...addresses].map((a) => `"${a}"`)]),
+    data_contracts: records,
+    note: consumers.length === 0 ? "No service consumes this message's channels; a change still takes the version gates." : `A breaking change to ${message} breaks ${consumers.join(", ")}: it needs a new major channel (.vN) or their agreement, and a major service bump.`
+  };
+}
+function refersTo(ref, target) {
+  const raw = String(ref ?? "");
+  const [file, pointer] = raw.includes("#") ? raw.split("#") : [null, raw];
+  if (file && file.split("/").pop() !== target.file.split("/").pop()) return false;
+  if (pointer === `${target.table}.${target.col}`) return true;
+  const parts = pointer.split("/").filter(Boolean);
+  const at = parts.indexOf("properties");
+  return parts[0] === "schema" && parts[1] === target.tableId && at !== -1 && parts[at + 1] === target.colId;
+}
+async function columnImpact(source, svc, target) {
+  const [table, col] = target.split(".");
+  if (!table || !col) {
+    throw new Error(`column must be <table>.<column>, got ${pyRepr(target)}`);
+  }
+  let found = null;
+  const tables = [];
+  for (const a of artifacts(svc).filter((x) => x.kind === "data-contract")) {
+    for (const t of (await yamlDoc(source, svc, a)).schema ?? []) {
+      tables.push(String(t?.name));
+      const p = t?.name === table ? (t.properties ?? []).find((x) => x?.name === col) : null;
+      if (p && !found) {
+        found = {
+          table,
+          tableId: String(t.id ?? t.name),
+          col,
+          colId: String(p.id ?? p.name),
+          file: a.path
+        };
+      }
+    }
+  }
+  if (!found) {
+    throw new Error(
+      `No column ${pyRepr(target)} in ${pyRepr(svc.name)}'s data contracts. Tables: ${pyList(tables)}`
+    );
+  }
+  const relationships = [];
+  for (const s of (await source.loadServices()).values()) {
+    for (const a of artifacts(s).filter((x) => x.kind === "data-contract")) {
+      let doc;
+      try {
+        doc = await yamlDoc(source, s, a);
+      } catch (err) {
+        if (err instanceof ArtifactMissingError) continue;
+        throw err;
+      }
+      for (const t of doc.schema ?? []) {
+        for (const r of tableRelationships(t ?? {})) {
+          const ends = [...[r.to].flat(), ...[r.from].flat()];
+          const local = (e) => String(e ?? "").includes("#") || s.name === svc.name && a.path === found.file;
+          if (ends.some((e) => local(e) && refersTo(e, found))) {
+            relationships.push({ service: s.name, path: a.path, table: t.name, ...r });
           }
         }
       }
     }
   }
   return {
-    query,
-    kind: kind ?? null,
-    service: serviceName ?? null,
-    hits,
-    total_matches: totalMatches,
-    returned: hits.length,
-    truncated: totalMatches > hits.length
+    service: svc.name,
+    column: target,
+    relationships,
+    features: await featureMentions(source, [col]),
+    note: "Removing or retyping a column is breaking (check:compat asks for a major); every relationship listed above stops resolving if it goes."
   };
+}
+async function impact(source, args) {
+  const { message = null, column: col = null } = args;
+  if (message === null === (col === null)) {
+    throw new Error("Pass exactly one of message= (an AsyncAPI message) or column= (<table>.<column>)");
+  }
+  const svc = await service(source, args.service);
+  return message !== null ? messageImpact(source, svc, message) : columnImpact(source, svc, col);
+}
+function nullableToUnion(node) {
+  if (Array.isArray(node)) return node.map(nullableToUnion);
+  if (!isRecord2(node)) return node;
+  const out = {};
+  for (const [k, v] of Object.entries(node)) out[k] = nullableToUnion(v);
+  if (out.nullable === true && typeof out.type === "string") out.type = [out.type, "null"];
+  delete out.nullable;
+  return out;
+}
+async function validatePayload(source, args) {
+  const svc = await service(source, args.service);
+  let payload = args.payload;
+  if (typeof payload === "string") {
+    try {
+      payload = JSON.parse(payload);
+    } catch (err) {
+      throw new Error(`payload is not valid JSON: ${err instanceof Error ? err.message : err}`);
+    }
+  }
+  let schema = null;
+  let origin = "";
+  let version2 = null;
+  const known = [];
+  for (const kind of ["asyncapi", "openapi"]) {
+    for (const a of artifacts(svc).filter((x) => x.kind === kind)) {
+      const doc = await yamlDoc(source, svc, a);
+      const pool = (kind === "asyncapi" ? doc.components?.messages : doc.components?.schemas) ?? {};
+      known.push(...Object.keys(pool));
+      if (schema === null && isRecord2(pool[args.message])) {
+        const body = pool[args.message];
+        schema = resolveRefs(kind === "asyncapi" ? body.payload ?? {} : body, doc);
+        if (kind === "openapi") schema = nullableToUnion(schema);
+        origin = kind;
+        version2 = a.version ?? null;
+      }
+    }
+  }
+  if (schema === null) {
+    throw new Error(
+      `No message or schema ${pyRepr(args.message)} on ${pyRepr(svc.name)}. Known: ${pyList(pySorted(new Set(known)))}`
+    );
+  }
+  const result = new Validator(schema, "7", false).validate(payload);
+  return {
+    service: svc.name,
+    message: args.message,
+    source: origin,
+    contract_version: version2,
+    valid: result.valid,
+    errors: result.valid ? [] : leafErrors(result.errors, schema)
+  };
+}
+var WRAPPERS = /* @__PURE__ */ new Set(["properties", "items", "prefixItems", "allOf", "$ref", "false"]);
+function leafErrors(errors, schema) {
+  const out = [];
+  const seen = /* @__PURE__ */ new Set();
+  for (const e of errors) {
+    if (WRAPPERS.has(e.keyword)) continue;
+    let path2 = e.instanceLocation.replace(/^#/, "") || "/";
+    let message = e.error;
+    if (e.keyword === "additionalProperties") {
+      const name = /Property "([^"]+)"/.exec(e.error)?.[1];
+      if (name === void 0) continue;
+      const parentPointer = e.keywordLocation.replace(/^#/, "").replace(/\/additionalProperties$/, "");
+      let parent;
+      try {
+        parent = parentPointer ? resolvePointer(schema, parentPointer) : schema;
+      } catch {
+        parent = null;
+      }
+      if (isRecord2(parent) && isRecord2(parent.properties) && name in parent.properties) continue;
+      path2 = `${path2 === "/" ? "" : path2}/${name}`;
+      message = `unexpected property "${name}" - the schema does not allow additional properties`;
+    }
+    const key = `${path2}\0${message}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ path: path2, message });
+  }
+  return out;
 }
 
 // src/server.ts
@@ -29280,17 +30875,28 @@ async function run(fn) {
     return fail(err);
   }
 }
+var READ_ONLY = { readOnlyHint: true, idempotentHint: true, openWorldHint: false };
+var MAX_BYTES = external_exports.number().int().min(1).max(1e6).default(DEFAULT_MAX_BYTES);
 function createServer(source) {
   const server = new McpServer({ name: "sysspec", version: package_default.version });
-  server.registerTool(
+  const registerTool = (name, config2, cb) => server.registerTool(name, { ...config2, annotations: { ...READ_ONLY, ...config2.annotations } }, cb);
+  registerTool(
+    "get_system",
+    {
+      description: "Describe the system these specs specify: its name, title, business\ndomain, event namespace (org), summary and hosted MCP endpoint.\n\nA good first call for a plain-language question about the system as a\nwhole; list_services then names its parts.",
+      inputSchema: {}
+    },
+    async () => run(() => getSystem(source))
+  );
+  registerTool(
     "list_services",
     {
-      description: "List every service in the specs with its domain, owner and summary.\n\nStart here. Returns no artifact contents \u2014 use get_service next.",
+      description: "List every service in the specs with its domain, owner, version and\nsummary. The version is the one consumers pin (<service>/v<version>).\n\nStart here. Returns no artifact contents \u2014 use get_service next.",
       inputSchema: {}
     },
     async () => run(() => listServices(source))
   );
-  server.registerTool(
+  registerTool(
     "get_service",
     {
       description: "Describe one service: its artifact index and event dependencies.\n\nReturns an index only, not file contents. Then fetch narrowly:\nget_message_schema for one payload, get_acceptance_criteria with\nnames_only/scenario/path filters, or get_artifact with section=,\nbefore pulling any whole file.",
@@ -29298,7 +30904,7 @@ function createServer(source) {
     },
     async ({ name }) => run(() => getService(source, name))
   );
-  server.registerTool(
+  registerTool(
     "get_artifact",
     {
       description: "Fetch one declared artifact, or one section of it.\n\nPrefer the narrowest call that answers the question: get_message_schema\nfor a single payload, or section= (an RFC 6901 JSON pointer such as\n'/components/schemas/Order' or '/paths/~1orders/post' \u2014 '~1' escapes\n'/') for one part of a YAML spec. Omit section only when you genuinely\nneed the whole document. Responses are capped at max_bytes and say so\nvia the truncated flag \u2014 never silently cut.\n\nGated artifacts (asyncapi, openapi, data-contract, feature) are the\nrecord. If the implementation disagrees with a gated artifact, the\nimplementation is wrong \u2014 do not edit the artifact to make it pass.",
@@ -29306,12 +30912,12 @@ function createServer(source) {
         service: external_exports.string(),
         path: external_exports.string(),
         section: external_exports.string().nullable().optional(),
-        max_bytes: external_exports.number().int().default(DEFAULT_MAX_BYTES)
+        max_bytes: MAX_BYTES
       }
     },
     async (args) => run(() => getArtifact(source, args))
   );
-  server.registerTool(
+  registerTool(
     "get_message_schema",
     {
       description: "Return one named payload schema \u2014 an AsyncAPI message or, failing\nthat, an OpenAPI component schema.\n\nCall with no message first to list the names available on a service \u2014\nthe response carries names only, no schema bodies. This is the\ncheapest schema accessor for the caller; prefer it over get_artifact\nwhenever you only need a shape.",
@@ -29319,21 +30925,21 @@ function createServer(source) {
     },
     async ({ service: service2, message }) => run(() => getMessageSchema(source, service2, message))
   );
-  server.registerTool(
+  registerTool(
     "get_acceptance_criteria",
     {
-      description: 'Return Gherkin acceptance criteria for a service \u2014 narrowly.\n\nStart with names_only=True to see the scenario index, then fetch one\nscenario (scenario="substring of its title") or one file (path=...).\nOnly omit all filters when you are about to implement the whole service.\n\nThese are binding acceptance criteria. Implement toward them. If a\nscenario looks wrong, say so and stop rather than adjusting it.',
+      description: 'Return Gherkin acceptance criteria for a service \u2014 narrowly.\n\nStart with names_only=true to see the scenario index, then fetch one\nscenario (scenario="substring of its title") or one file (path=...).\nOnly omit all filters when you are about to implement the whole service.\n\nThese are binding acceptance criteria. Implement toward them. If a\nscenario looks wrong, say so and stop rather than adjusting it.',
       inputSchema: {
         service: external_exports.string(),
         path: external_exports.string().nullable().optional(),
         scenario: external_exports.string().nullable().optional(),
         names_only: external_exports.boolean().default(false),
-        max_bytes: external_exports.number().int().default(DEFAULT_MAX_BYTES)
+        max_bytes: MAX_BYTES
       }
     },
     async (args) => run(() => getAcceptanceCriteria(source, args))
   );
-  server.registerTool(
+  registerTool(
     "trace_channel",
     {
       description: "Find which services produce and consume a channel address.\n\nUse before changing a message shape: the consumers listed are what\nyou will break.",
@@ -29341,10 +30947,10 @@ function createServer(source) {
     },
     async ({ address }) => run(() => traceChannel(source, address))
   );
-  server.registerTool(
+  registerTool(
     "search_specs",
     {
-      description: "Search artifact contents across services.\n\nReturns matching lines only (each capped at 200 chars), never whole\nfiles or surrounding context \u2014 follow up with get_artifact(section=...)\non a hit's path. Narrow with kind= (asyncapi, openapi, data-contract,\nfeature, doc) and service=; raise limit (max 100) only if truncated is\ntrue and you need more.",
+      description: "Search artifact contents (and service manifests) across services.\n\nRanked: every word of the query counts, camelCase and snake_case are\nsplit, so 'order placed' finds OrderPlaced and orders.placed.v2, and\nexact matches lead. Returns matching lines only (each capped at 200\nchars) with a score and, in YAML files, the JSON pointer of the line \u2014\npass it to get_artifact(section=...). Narrow with kind= (asyncapi,\nopenapi, data-contract, feature, doc, manifest) and service=; raise\nlimit (max 100) only if truncated is true and you need more.",
       inputSchema: {
         query: external_exports.string(),
         kind: external_exports.string().nullable().optional(),
@@ -29353,6 +30959,56 @@ function createServer(source) {
       }
     },
     async (args) => run(() => searchSpecs(source, args))
+  );
+  registerTool(
+    "get_operation",
+    {
+      description: "Return one OpenAPI operation with its $refs resolved: parameters\n(path-level included), request body and every response, inline.\n\nAddress it by operation_id, or by method + path ('POST', '/orders').\nCall with neither to list the service's operations. Cheaper and more\ncomplete than get_artifact on the paths section.",
+      inputSchema: {
+        service: external_exports.string(),
+        operation_id: external_exports.string().nullable().optional(),
+        method: external_exports.string().nullable().optional(),
+        path: external_exports.string().nullable().optional(),
+        max_bytes: MAX_BYTES
+      }
+    },
+    async (args) => run(() => getOperation(source, args))
+  );
+  registerTool(
+    "get_data_contract",
+    {
+      description: "Read an ODCS data contract as tables and columns rather than YAML.\n\nNo path: an index of the service's contracts and their tables. With\npath: that contract's purpose, reader context (instructions, verified\nquestion/answer pairs, constraints) and tables. With table: one table's\ncolumns (types, required, enum values, synonyms, quality rules) and\nrelationships. The context is gated contract text \u2014 follow it when\nanswering questions about the data.",
+      inputSchema: {
+        service: external_exports.string(),
+        path: external_exports.string().nullable().optional(),
+        table: external_exports.string().nullable().optional()
+      }
+    },
+    async (args) => run(() => getDataContract(source, args))
+  );
+  registerTool(
+    "impact",
+    {
+      description: "Who and what a change would reach. Pass exactly one of:\n- message= an AsyncAPI message: its channels, their producers and\n  consumers, every scenario (in any service) naming it or its channel,\n  and the data contracts that record the stream;\n- column= '<table>.<column>' in one of the service's data contracts:\n  every ODCS relationship pointing at it, and the scenarios naming it.\n\nUse before changing a contract: what is listed is what you break.",
+      inputSchema: {
+        service: external_exports.string(),
+        message: external_exports.string().nullable().optional(),
+        column: external_exports.string().nullable().optional()
+      }
+    },
+    async (args) => run(() => impact(source, args))
+  );
+  registerTool(
+    "validate_payload",
+    {
+      description: "Validate a JSON payload against a message schema \u2014 an AsyncAPI\nmessage's payload or, failing that, an OpenAPI component schema \u2014\nwith $refs resolved.\n\nReturns valid plus leaf errors (instance path and message). Use it to\ncheck an example, a fixture or a captured event against the contract\nof record; a failure is a finding about the payload, not the schema.",
+      inputSchema: {
+        service: external_exports.string(),
+        message: external_exports.string(),
+        payload: external_exports.unknown()
+      }
+    },
+    async (args) => run(() => validatePayload(source, args))
   );
   return server;
 }
@@ -31449,7 +33105,7 @@ function makeHttpServer(opts) {
 }
 
 // src/source/fs.ts
-var import_yaml2 = __toESM(require_dist2(), 1);
+var import_yaml3 = __toESM(require_dist2(), 1);
 import { promises as fs } from "fs";
 import path from "path";
 var FsSpecSource = class {
@@ -31457,6 +33113,10 @@ var FsSpecSource = class {
     this.rawSpecsDir = rawSpecsDir;
   }
   rawSpecsDir;
+  /** Parsed manifests keyed by path, reused while the file's mtime and
+   * size are unchanged: edits still show up on the next call, but an
+   * untouched suite is not re-parsed on every tool call. */
+  manifestCache = /* @__PURE__ */ new Map();
   async specsDir() {
     if (!this.rawSpecsDir) {
       throw new Error(
@@ -31476,17 +33136,36 @@ var FsSpecSource = class {
     const entries = (await fs.readdir(root, { withFileTypes: true })).filter((e) => e.isDirectory()).map((e) => e.name).sort();
     for (const dir of entries) {
       const manifestPath = path.join(root, dir, "service.yaml");
-      let text;
-      try {
-        text = await fs.readFile(manifestPath, "utf-8");
-      } catch {
-        continue;
+      const stat = await fs.stat(manifestPath).catch(() => null);
+      if (!stat?.isFile()) continue;
+      let manifest;
+      const cached2 = this.manifestCache.get(manifestPath);
+      if (cached2 && cached2.mtimeMs === stat.mtimeMs && cached2.size === stat.size) {
+        manifest = cached2.manifest;
+      } else {
+        let text;
+        try {
+          text = await fs.readFile(manifestPath, "utf-8");
+        } catch {
+          continue;
+        }
+        manifest = (0, import_yaml3.parse)(text) ?? {};
+        this.manifestCache.set(manifestPath, { mtimeMs: stat.mtimeMs, size: stat.size, manifest });
       }
-      const manifest = (0, import_yaml2.parse)(text) ?? {};
       const name = manifest.name || dir;
       services.set(name, { name, dir, manifest });
     }
     return services;
+  }
+  async loadSystem() {
+    const root = await this.specsDir();
+    let text;
+    try {
+      text = await fs.readFile(path.join(root, "system.yaml"), "utf-8");
+    } catch {
+      return null;
+    }
+    return (0, import_yaml3.parse)(text) ?? null;
   }
   async readFile(service2, relPath) {
     const root = await this.specsDir();
@@ -31505,17 +33184,22 @@ var FsSpecSource = class {
 };
 
 // src/source/bundle.ts
-var import_yaml3 = __toESM(require_dist2(), 1);
+var import_yaml4 = __toESM(require_dist2(), 1);
 var BundledSpecSource = class {
   services = /* @__PURE__ */ new Map();
   files = /* @__PURE__ */ new Map();
+  system;
   constructor(bundle) {
     for (const svc of bundle.services) {
-      const manifest = (0, import_yaml3.parse)(svc.manifestYaml) ?? {};
+      const manifest = (0, import_yaml4.parse)(svc.manifestYaml) ?? {};
       const name = manifest.name || svc.dir;
       this.services.set(name, { name, dir: svc.dir, manifest });
-      this.files.set(name, svc.files);
+      this.files.set(name, { ...svc.files, "service.yaml": svc.manifestYaml });
     }
+    this.system = bundle.systemYaml ? (0, import_yaml4.parse)(bundle.systemYaml) ?? null : null;
+  }
+  async loadSystem() {
+    return this.system;
   }
   async loadServices() {
     return new Map(this.services);

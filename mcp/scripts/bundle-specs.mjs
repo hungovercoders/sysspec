@@ -41,6 +41,13 @@ for (const dir of dirs) {
   services.push({ dir, manifestYaml, files });
 }
 
+let systemYaml = null;
+try {
+  systemYaml = await fs.readFile(path.join(specsDir, "system.yaml"), "utf-8");
+} catch {
+  // No suite manifest: get_system reports that rather than failing.
+}
+
 await fs.mkdir(path.dirname(outFile), { recursive: true });
-await fs.writeFile(outFile, JSON.stringify({ services }));
+await fs.writeFile(outFile, JSON.stringify({ services, systemYaml }));
 console.error(`bundled ${services.length} service(s) from ${specsDir} -> ${outFile}`);
