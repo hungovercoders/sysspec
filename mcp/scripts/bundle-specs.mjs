@@ -41,6 +41,11 @@ for (const dir of dirs) {
   services.push({ dir, manifestYaml, files });
 }
 
+// Write-then-rename: a rename within one directory is atomic, so a reader
+// running alongside (parallel test files, a build) sees the old bundle or
+// the new one, never a half-written file.
 await fs.mkdir(path.dirname(outFile), { recursive: true });
-await fs.writeFile(outFile, JSON.stringify({ services }));
+const tmpFile = `${outFile}.${process.pid}.tmp`;
+await fs.writeFile(tmpFile, JSON.stringify({ services }));
+await fs.rename(tmpFile, outFile);
 console.error(`bundled ${services.length} service(s) from ${specsDir} -> ${outFile}`);
