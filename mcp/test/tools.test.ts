@@ -195,6 +195,34 @@ describe.each(sources)("%s source", (_label, makeSource) => {
     expect(out.truncated).toBe(true);
     expect(out.features[0].matched[0].gherkin_omitted).toBe(true);
     expect(out.features[0].matched[0]).not.toHaveProperty("gherkin");
+    // The header spends the budget too: one that does not fit is not sent.
+    expect(out.features[0].header_omitted).toBe(true);
+    expect(out.features[0]).not.toHaveProperty("header");
+  });
+
+  test("acceptance_criteria_scenario_mode_never_sends_past_max_bytes", async () => {
+    const index: any = await getAcceptanceCriteria(source, { service: "orders", names_only: true });
+    const full: any = await getAcceptanceCriteria(source, {
+      service: "orders",
+      scenario: index.features[0].scenarios[0],
+    });
+    const headerBytes = new TextEncoder().encode(full.features[0].header).length;
+    // Less than the header alone: the old code sent it anyway.
+    const max_bytes = headerBytes - 1;
+    const out: any = await getAcceptanceCriteria(source, {
+      service: "orders",
+      scenario: index.features[0].scenarios[0],
+      max_bytes,
+    });
+    let sent = 0;
+    for (const f of out.features) {
+      sent += new TextEncoder().encode(f.header ?? "").length;
+      for (const m of f.matched) {
+        sent += new TextEncoder().encode((m.gherkin ?? "") + (m.rule ?? "")).length;
+      }
+    }
+    expect(sent).toBeLessThanOrEqual(max_bytes);
+    expect(out.truncated).toBe(true);
   });
 
   test("acceptance_criteria_names_only_respects_budget", async () => {
