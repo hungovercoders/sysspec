@@ -8,22 +8,19 @@
 
 import { readFileSync } from "node:fs";
 import { parse as parseToml } from "smol-toml";
-import { blob, git, greater, mergeBase, missingBase, splitLines } from "./util.js";
+import { blob, compareVersions, git, mergeBase, missingBase, splitLines } from "./util.js";
 
+/** The version string at a dotted key of a JSON or TOML file's text. */
 export function versionOf(
   text: string | null,
   versionFile: string,
   key: string,
-): number[] | null {
+): string | null {
   if (text === null) return null;
   let doc: any = versionFile.endsWith(".toml") ? parseToml(text) : JSON.parse(text);
-  for (const part of key.split(".")) doc = doc[part];
-  return String(doc)
-    .split(".")
-    .map((p) => parseInt(p, 10));
+  for (const part of key.split(".")) doc = doc?.[part];
+  return doc == null ? null : String(doc);
 }
-
-const dotted = (v: number[]) => v.join(".");
 
 export function runGate(
   base: string,
@@ -43,15 +40,19 @@ export function runGate(
   }
 
   const before = versionOf(blob(mb, versionFile), versionFile, jsonKey);
-  const now = versionOf(readFileSync(versionFile, "utf-8"), versionFile, jsonKey)!;
+  const now = versionOf(readFileSync(versionFile, "utf-8"), versionFile, jsonKey);
+  if (now === null) {
+    console.error(`${versionFile} has no version at '${jsonKey}'`);
+    return 1;
+  }
   if (before === null) {
-    console.log(`new surface manifest @ ${dotted(now)}`);
+    console.log(`new surface manifest @ ${now}`);
     return 0;
   }
-  if (greater(now, before)) {
+  if ((compareVersions(now, before) ?? 0) > 0) {
     console.log(
       `surface changed (${changed.length} file(s)), version ` +
-        `${dotted(before)} -> ${dotted(now)} - ok`,
+        `${before} -> ${now} - ok`,
     );
     return 0;
   }
@@ -59,8 +60,8 @@ export function runGate(
   console.error(
     "Surface changed without a version bump:\n  " +
       changed.slice(0, 20).join("\n  ") +
-      `\n\n${versionFile} version is ${dotted(now)} ` +
-      `(base ${dotted(before)}) - bump it semver-greater in ` +
+      `\n\n${versionFile} version is ${now} ` +
+      `(base ${before}) - bump it semver-greater in ` +
       "the same change.",
   );
   return 1;

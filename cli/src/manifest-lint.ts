@@ -280,7 +280,7 @@ export function lintSystem(specsDir: string): string[] {
 
 function lintService(
   serviceDir: string,
-  producedBy: Map<string, string[]>,
+  producedBy: Map<string, Set<string>>,
   messagesByAddress: Map<string, Set<string>>,
   ownMessages: Map<string, Set<string>>,
 ): string[] {
@@ -358,7 +358,11 @@ function lintService(
     problems.push(`${name}: implementationRepo must be <owner>/<repo>, got ${pyRepr(String(repo))}`);
   }
 
-  const produces = new Set<string>(manifest.produces ?? []);
+  const producesList: string[] = manifest.produces ?? [];
+  for (const address of pySorted(new Set(producesList.filter((a, i) => producesList.indexOf(a) !== i)))) {
+    problems.push(`${name}: lists '${address}' in produces more than once`);
+  }
+  const produces = new Set<string>(producesList);
   const consumes = new Set<string>(manifest.consumes ?? []);
 
   for (const address of pySorted([...produces].filter((a) => !sent.has(a)))) {
@@ -382,11 +386,11 @@ function lintService(
   // One channel, one owner: two producers make the channel's schema a
   // negotiation and trace_channel's answer a coin toss.
   for (const address of pySorted(produces)) {
-    const owners = producedBy.get(address) ?? [];
-    if (owners.length > 1) {
+    const others = [...(producedBy.get(address) ?? [])].filter((o) => o !== name);
+    if (others.length) {
       problems.push(
         `${name}: produces '${address}', which is also produced by ` +
-          pySorted(owners.filter((o) => o !== name)).join(", ") +
+          pySorted(others).join(", ") +
           " - a channel has exactly one producer",
       );
     }
@@ -431,11 +435,13 @@ export function runLint(only: string | null, specsDir: string): number {
     return 1;
   }
 
-  const producedBy = new Map<string, string[]>();
+  // Owners per channel, as a set: one service listing a channel twice is
+  // its own problem (reported per service), not a second producer.
+  const producedBy = new Map<string, Set<string>>();
   for (const d of dirs) {
     const manifest = readYaml(path.join(d, "service.yaml"));
     for (const address of manifest.produces ?? []) {
-      producedBy.set(address, [...(producedBy.get(address) ?? []), manifest.name]);
+      producedBy.set(address, (producedBy.get(address) ?? new Set<string>()).add(manifest.name));
     }
   }
   const [messagesByAddress, ownMessages] = messageIndex(dirs);
