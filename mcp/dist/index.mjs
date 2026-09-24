@@ -29918,11 +29918,11 @@ function bounded(text, maxBytes) {
 
 // src/gherkin.ts
 var SCENARIO_KEYWORDS = ["Scenario:", "Scenario Outline:", "Scenario Template:", "Example:"];
-var BOUNDARY_KEYWORDS = ["Rule:", "Background:"];
 function splitGherkin(text) {
   const lines = text.match(/[^\n]*\n|[^\n]+/g) ?? [];
   let headerEnd = lines.length;
   const spans = [];
+  let rule = null;
   const blockStart = (i) => {
     let start = i;
     while (start > 0) {
@@ -29932,25 +29932,41 @@ function splitGherkin(text) {
     }
     return start;
   };
+  const closeRunning = (at) => {
+    const last = spans[spans.length - 1];
+    if (last) last.end = Math.min(last.end, at);
+  };
+  const text_ = (from, to) => lines.slice(from, to).join("").replace(/\n+$/, "");
   for (let i = 0; i < lines.length; i++) {
     const stripped = lines[i].trim();
     if (SCENARIO_KEYWORDS.some((k) => stripped.startsWith(k))) {
       const start = blockStart(i);
-      if (spans.length === 0) headerEnd = Math.min(headerEnd, start);
-      else spans[spans.length - 1].end = Math.min(spans[spans.length - 1].end, start);
+      headerEnd = Math.min(headerEnd, start);
+      closeRunning(start);
+      if (rule && rule.end === null) rule.end = start;
       const name = stripped.slice(stripped.indexOf(":") + 1).trim();
-      spans.push({ name, start, end: lines.length });
-    } else if (spans.length && BOUNDARY_KEYWORDS.some((k) => stripped.startsWith(k))) {
-      spans[spans.length - 1].end = Math.min(spans[spans.length - 1].end, blockStart(i));
+      spans.push({
+        name,
+        start,
+        end: lines.length,
+        rule: rule ? text_(rule.start, rule.end) : void 0
+      });
+    } else if (stripped.startsWith("Rule:")) {
+      const start = blockStart(i);
+      headerEnd = Math.min(headerEnd, start);
+      closeRunning(start);
+      rule = { start, end: null };
+    } else if (stripped.startsWith("Background:")) {
+      if (!rule || rule.end !== null) closeRunning(blockStart(i));
     }
   }
-  const header = lines.slice(0, headerEnd).join("").replace(/\n+$/, "");
   return {
-    header,
-    scenarios: spans.map((s) => ({
-      name: s.name,
-      gherkin: lines.slice(s.start, s.end).join("").replace(/\n+$/, "")
-    }))
+    header: text_(0, headerEnd),
+    scenarios: spans.map((s) => {
+      const out = { name: s.name, gherkin: text_(s.start, s.end) };
+      if (s.rule !== void 0) out.rule = s.rule;
+      return out;
+    })
   };
 }
 
@@ -30257,9 +30273,17 @@ async function getAcceptanceCriteria(source, args) {
       const needle = scenario.toLowerCase();
       const hits = scenarios.filter((s) => s.name.toLowerCase().includes(needle));
       if (hits.length) {
-        budget -= utf8Len(header);
-        const matched = hits.map((s) => {
-          const size = utf8Len(s.gherkin);
+        const entry = { path: a.path, summary };
+        const headerSize = utf8Len(header);
+        if (headerSize > budget) {
+          out.truncated = true;
+          entry.header_omitted = true;
+        } else {
+          budget -= headerSize;
+          entry.header = header;
+        }
+        entry.matched = hits.map((s) => {
+          const size = utf8Len(s.gherkin) + utf8Len(s.rule ?? "");
           if (size > budget) {
             out.truncated = true;
             return { name: s.name, gherkin_omitted: true };
@@ -30267,13 +30291,8 @@ async function getAcceptanceCriteria(source, args) {
           budget -= size;
           return s;
         });
-        out.features.push({
-          path: a.path,
-          summary,
-          header,
-          matched,
-          total_scenarios: scenarios.length
-        });
+        entry.total_scenarios = scenarios.length;
+        out.features.push(entry);
       }
       continue;
     }

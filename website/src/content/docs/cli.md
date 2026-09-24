@@ -37,7 +37,7 @@ All four compare the working tree against a base ref (`--base`, default
 
 - `check version` fails unless a gated artifact change bumps its manifest
   version *and* the service's top-level version; an artifact major forces a
-  service major. Versions only go up, so a downgrade is red too.
+  service major. Versions only go up (see below).
 - `check compat` fails when a breaking contract change does not carry a
   major bump.
 - `check intent` requires every schema element added to an OpenAPI/AsyncAPI
@@ -60,13 +60,24 @@ All four compare the working tree against a base ref (`--base`, default
 A typo'd or unknown flag is an error, never a silent fall-back to a
 default.
 
-When the base ref does not exist (a fresh repo with no remote yet), the
-gates have nothing to diff against. Locally they say so and skip. In CI,
-meaning whenever the `CI` environment variable is set, a missing base
-almost always means a shallow checkout, so the gates fail rather than pass
-without checking anything. Check out with `fetch-depth: 0`, as the reusable
-workflows do, or pass `--allow-missing-base` where skipping really is what
-you want.
+When the gates find no merge-base with the base ref, they work out why:
+
+- The ref exists but shares no history with `HEAD`. The history is cut
+  short (a shallow clone) or unrelated, so the gates fail wherever they
+  run and suggest `git fetch --unshallow`.
+- The ref does not exist. In a fresh repo with no remote yet there is
+  honestly nothing to compare, so locally the gates say so and skip. In
+  CI (the `CI` environment variable set to anything but `false` or `0`)
+  or in a shallow clone, a missing base almost always means it was never
+  fetched, so the gates fail rather than pass without checking anything.
+
+Check out with `fetch-depth: 0`, as the reusable workflows do, or pass
+`--allow-missing-base` where skipping really is what you want.
+
+Versions only go up. Every declared version is compared with semver
+precedence, whether or not its file changed: a downgrade fails, so does a
+version that disappears, and so does a change to build metadata alone. A
+pre-release promoted to its release (`2.0.0-rc.1` to `2.0.0`) is a bump.
 
 ### `lint`
 

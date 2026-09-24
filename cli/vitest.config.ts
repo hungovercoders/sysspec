@@ -4,5 +4,8 @@ export default defineConfig({
   test: {
     include: ["test/**/*.test.ts"],
     testTimeout: 60_000,
+    // A vi.stubEnv in one test must never leak CI (or anything else)
+    // into the next.
+    unstubEnvs: true,
   },
 });

@@ -334,11 +334,19 @@ export async function getAcceptanceCriteria(
       const needle = scenario.toLowerCase();
       const hits = scenarios.filter((s) => s.name.toLowerCase().includes(needle));
       if (hits.length) {
-        // The header rides along once per file; each matched body spends
-        // the budget, and one that does not fit is named, not sent.
-        budget -= utf8Len(header);
-        const matched = hits.map((s) => {
-          const size = utf8Len(s.gherkin);
+        // Everything sent spends the budget, header included; what does
+        // not fit is named and flagged, never sent past max_bytes.
+        const entry: Record<string, unknown> = { path: a.path, summary };
+        const headerSize = utf8Len(header);
+        if (headerSize > budget) {
+          out.truncated = true;
+          entry.header_omitted = true;
+        } else {
+          budget -= headerSize;
+          entry.header = header;
+        }
+        entry.matched = hits.map((s) => {
+          const size = utf8Len(s.gherkin) + utf8Len(s.rule ?? "");
           if (size > budget) {
             out.truncated = true;
             return { name: s.name, gherkin_omitted: true };
@@ -346,13 +354,8 @@ export async function getAcceptanceCriteria(
           budget -= size;
           return s;
         });
-        out.features.push({
-          path: a.path,
-          summary,
-          header,
-          matched,
-          total_scenarios: scenarios.length,
-        });
+        entry.total_scenarios = scenarios.length;
+        out.features.push(entry);
       }
       continue;
     }

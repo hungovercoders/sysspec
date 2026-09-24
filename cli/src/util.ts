@@ -6,6 +6,7 @@
 
 import { spawnSync } from "node:child_process";
 import { readdirSync, statSync } from "node:fs";
+import { constants } from "node:os";
 import path from "node:path";
 
 /** An error whose message is printed plainly, without a stack trace. */
@@ -37,7 +38,19 @@ export function run(cmd: string[], opts: { inherit?: boolean; env?: NodeJS.Proce
     }
     throw res.error;
   }
-  return { status: res.status ?? 1, stdout: res.stdout ?? "", stderr: res.stderr ?? "" };
+  // A tool killed by a signal has no exit status. Report it the shell way
+  // (128 + signal) rather than as 1, which callers may read as a verdict
+  // - oasdiff's "breaking changes found", for one.
+  if (res.status === null) {
+    const signal = res.signal ?? "an unknown signal";
+    const code = res.signal ? (constants.signals as Record<string, number>)[res.signal] ?? 0 : 0;
+    return {
+      status: 128 + code,
+      stdout: res.stdout ?? "",
+      stderr: `${res.stderr ?? ""}\n${file} was killed by ${signal}`.trimStart(),
+    };
+  }
+  return { status: res.status, stdout: res.stdout ?? "", stderr: res.stderr ?? "" };
 }
 
 /** subprocess.run(..., check=True, capture_output=True).stdout */
@@ -62,39 +75,106 @@ export function mergeBase(base: string): string | null {
   return res.status === 0 ? res.stdout.trim() : null;
 }
 
-/** Verdict for a diff gate whose base ref is missing. Locally that is a
- * fresh repo with no origin and there is honestly nothing to compare, so
- * the gate skips. In CI (the CI env var is set) it almost always means a
- * shallow checkout, and skipping there would pass a gate that checked
- * nothing - so it fails unless the caller opts out explicitly. */
+/** True when running under CI: the CI env var is set to anything but an
+ * explicit "false" or "0" (some tools export CI=false locally). */
+export function isCI(): boolean {
+  const v = (process.env.CI ?? "").trim().toLowerCase();
+  return v !== "" && v !== "false" && v !== "0";
+}
+
+function refExists(ref: string): boolean {
+  return run(["git", "rev-parse", "--verify", "--quiet", `${ref}^{commit}`]).status === 0;
+}
+
+function isShallow(): boolean {
+  return run(["git", "rev-parse", "--is-shallow-repository"]).stdout.trim() === "true";
+}
+
+/** Verdict for a diff gate that found no merge-base with its base ref.
+ * Diagnosed rather than assumed:
+ *
+ * - The ref exists but shares no history with HEAD: the checkout is cut
+ *   short (shallow) or the histories are unrelated. Nothing to diff
+ *   against is a checkout problem, so the gate fails wherever it runs.
+ * - The ref does not exist: locally that is a fresh repo with no remote
+ *   and there is honestly nothing to compare, so the gate skips. In CI or
+ *   a shallow clone it almost always means the base was never fetched,
+ *   and skipping would pass a gate that checked nothing - so it fails.
+ *
+ * `allow` (--allow-missing-base) skips in every case, saying why. */
 export function missingBase(base: string, allow: boolean): number {
-  if (process.env.CI && !allow) {
-    console.error(
-      `base ref '${base}' not found - in CI a diff gate with nothing to diff ` +
-        "against has checked nothing. Fetch the base (actions/checkout with " +
-        "fetch-depth: 0) or pass --allow-missing-base where skipping is intended.",
-    );
-    return 1;
+  const shallow = isShallow();
+  let problem: string;
+  if (refExists(base)) {
+    problem =
+      `base ref '${base}' shares no history with HEAD` +
+      (shallow ? " (this is a shallow clone)" : "") +
+      " - the diff gates cannot tell what changed. Fetch full history " +
+      "(git fetch --unshallow, or actions/checkout with fetch-depth: 0).";
+  } else if (isCI() || shallow) {
+    problem =
+      `base ref '${base}' not found - in ${shallow ? "a shallow clone" : "CI"} a diff ` +
+      "gate with nothing to diff against has checked nothing. Fetch the base " +
+      "(actions/checkout with fetch-depth: 0) or pass --allow-missing-base " +
+      "where skipping is intended.";
+  } else {
+    console.log(`base ref '${base}' not found - nothing to diff against, skipping.`);
+    return 0;
   }
-  console.log(`base ref '${base}' not found - nothing to diff against, skipping.`);
-  return 0;
+  if (allow) {
+    console.log(`${problem}\n--allow-missing-base: skipping.`);
+    return 0;
+  }
+  console.error(problem);
+  return 1;
 }
 
-/** Semver-ish comparison of dotted numeric versions: true when a is
- * strictly greater than b. Equal prefixes defer to length. */
-export function greater(a: number[], b: number[]): boolean {
-  for (let i = 0; i < Math.min(a.length, b.length); i++) {
-    if (a[i] !== b[i]) return a[i] > b[i];
-  }
-  return a.length > b.length;
+interface Semver {
+  core: [number, number, number];
+  pre: string[];
 }
 
-/** "1.2.3" -> [1, 2, 3]; any pre-release or build suffix is ignored. */
-export function versionParts(version: string): number[] {
-  return version
-    .split(/[-+]/)[0]
-    .split(".")
-    .map((p) => parseInt(p, 10));
+/** Parse "1.2.3", "v1.2.3", "1.2.3-rc.1" or "1.2.3+build.5"; null for
+ * anything that is not semver. Build metadata is dropped: it carries no
+ * precedence. */
+export function parseSemver(version: string): Semver | null {
+  const m = /^v?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/.exec(
+    version.trim(),
+  );
+  if (!m) return null;
+  return { core: [Number(m[1]), Number(m[2]), Number(m[3])], pre: m[4] ? m[4].split(".") : [] };
+}
+
+/** Semver 2.0.0 precedence (section 11): negative when a < b, 0 when
+ * equal, positive when a > b; null when either is not semver. A release
+ * outranks its own pre-releases; numeric identifiers compare numerically
+ * and rank below alphanumeric ones; build metadata is ignored. */
+export function compareVersions(a: string, b: string): number | null {
+  const x = parseSemver(a);
+  const y = parseSemver(b);
+  if (!x || !y) return null;
+  for (let i = 0; i < 3; i++) {
+    if (x.core[i] !== y.core[i]) return x.core[i] - y.core[i];
+  }
+  if (!x.pre.length || !y.pre.length) return y.pre.length - x.pre.length;
+  for (let i = 0; i < Math.min(x.pre.length, y.pre.length); i++) {
+    const [p, q] = [x.pre[i], y.pre[i]];
+    if (p === q) continue;
+    const [pn, qn] = [/^\d+$/.test(p), /^\d+$/.test(q)];
+    if (pn && qn) return Number(p) - Number(q);
+    if (pn !== qn) return pn ? -1 : 1;
+    return p < q ? -1 : 1;
+  }
+  return x.pre.length - y.pre.length;
+}
+
+/** Major version of a semver string; -1 when there is none to read. */
+export function majorOf(version: string | null | undefined): number {
+  if (!version) return -1;
+  const v = parseSemver(version);
+  if (v) return v.core[0];
+  const n = parseInt(version.replace(/^v/, ""), 10);
+  return Number.isNaN(n) ? -1 : n;
 }
 
 /** Non-empty stdout lines of a git command, [] on any failure -
