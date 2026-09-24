@@ -42,6 +42,7 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
 // src/util.ts
 import { spawnSync } from "child_process";
 import { readdirSync, statSync } from "fs";
+import { constants } from "os";
 import path from "path";
 function run(cmd, opts = {}) {
   const [file, ...args] = cmd;
@@ -59,7 +60,17 @@ function run(cmd, opts = {}) {
     }
     throw res.error;
   }
-  return { status: res.status ?? 1, stdout: res.stdout ?? "", stderr: res.stderr ?? "" };
+  if (res.status === null) {
+    const signal = res.signal ?? "an unknown signal";
+    const code = res.signal ? constants.signals[res.signal] ?? 0 : 0;
+    return {
+      status: 128 + code,
+      stdout: res.stdout ?? "",
+      stderr: `${res.stderr ?? ""}
+${file} was killed by ${signal}`.trimStart()
+    };
+  }
+  return { status: res.status, stdout: res.stdout ?? "", stderr: res.stderr ?? "" };
 }
 function git(...args) {
   const res = run(["git", ...args]);
@@ -76,24 +87,66 @@ function mergeBase(base) {
   const res = run(["git", "merge-base", base, "HEAD"]);
   return res.status === 0 ? res.stdout.trim() : null;
 }
+function isCI() {
+  const v = (process.env.CI ?? "").trim().toLowerCase();
+  return v !== "" && v !== "false" && v !== "0";
+}
+function refExists(ref) {
+  return run(["git", "rev-parse", "--verify", "--quiet", `${ref}^{commit}`]).status === 0;
+}
+function isShallow() {
+  return run(["git", "rev-parse", "--is-shallow-repository"]).stdout.trim() === "true";
+}
 function missingBase(base, allow) {
-  if (process.env.CI && !allow) {
-    console.error(
-      `base ref '${base}' not found - in CI a diff gate with nothing to diff against has checked nothing. Fetch the base (actions/checkout with fetch-depth: 0) or pass --allow-missing-base where skipping is intended.`
-    );
-    return 1;
+  const shallow = isShallow();
+  let problem;
+  if (refExists(base)) {
+    problem = `base ref '${base}' shares no history with HEAD` + (shallow ? " (this is a shallow clone)" : "") + " - the diff gates cannot tell what changed. Fetch full history (git fetch --unshallow, or actions/checkout with fetch-depth: 0).";
+  } else if (isCI() || shallow) {
+    problem = `base ref '${base}' not found - in ${shallow ? "a shallow clone" : "CI"} a diff gate with nothing to diff against has checked nothing. Fetch the base (actions/checkout with fetch-depth: 0) or pass --allow-missing-base where skipping is intended.`;
+  } else {
+    console.log(`base ref '${base}' not found - nothing to diff against, skipping.`);
+    return 0;
   }
-  console.log(`base ref '${base}' not found - nothing to diff against, skipping.`);
-  return 0;
-}
-function greater(a, b) {
-  for (let i = 0; i < Math.min(a.length, b.length); i++) {
-    if (a[i] !== b[i]) return a[i] > b[i];
+  if (allow) {
+    console.log(`${problem}
+--allow-missing-base: skipping.`);
+    return 0;
   }
-  return a.length > b.length;
+  console.error(problem);
+  return 1;
 }
-function versionParts(version) {
-  return version.split(/[-+]/)[0].split(".").map((p) => parseInt(p, 10));
+function parseSemver(version) {
+  const m = /^v?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/.exec(
+    version.trim()
+  );
+  if (!m) return null;
+  return { core: [Number(m[1]), Number(m[2]), Number(m[3])], pre: m[4] ? m[4].split(".") : [] };
+}
+function compareVersions(a, b) {
+  const x = parseSemver(a);
+  const y = parseSemver(b);
+  if (!x || !y) return null;
+  for (let i = 0; i < 3; i++) {
+    if (x.core[i] !== y.core[i]) return x.core[i] - y.core[i];
+  }
+  if (!x.pre.length || !y.pre.length) return y.pre.length - x.pre.length;
+  for (let i = 0; i < Math.min(x.pre.length, y.pre.length); i++) {
+    const [p, q] = [x.pre[i], y.pre[i]];
+    if (p === q) continue;
+    const [pn, qn] = [/^\d+$/.test(p), /^\d+$/.test(q)];
+    if (pn && qn) return Number(p) - Number(q);
+    if (pn !== qn) return pn ? -1 : 1;
+    return p < q ? -1 : 1;
+  }
+  return x.pre.length - y.pre.length;
+}
+function majorOf(version) {
+  if (!version) return -1;
+  const v = parseSemver(version);
+  if (v) return v.core[0];
+  const n = parseInt(version.replace(/^v/, ""), 10);
+  return Number.isNaN(n) ? -1 : n;
 }
 function gitLines(...args) {
   const res = run(["git", ...args]);
@@ -7943,7 +7996,7 @@ var init_docs_data = __esm({
 // src/docs-gen.ts
 import {
   accessSync,
-  constants,
+  constants as constants2,
   mkdtempSync as mkdtempSync2,
   readdirSync as readdirSync2,
   readFileSync as readFileSync4,
@@ -7962,7 +8015,7 @@ function which(cmd) {
     for (const ext of exts) {
       const candidate = path4.join(dir, cmd + ext);
       try {
-        accessSync(candidate, constants.X_OK);
+        accessSync(candidate, constants2.X_OK);
         if (statSync2(candidate).isFile()) return candidate;
       } catch {
       }
@@ -8152,9 +8205,9 @@ function parseOdcsRef(ref) {
     const property = at === -1 ? null : parts[at + 1] ?? null;
     return object ? { file, object, property } : null;
   }
-  const dotted2 = parts[0]?.split(".") ?? [];
-  if (dotted2.length < 2) return null;
-  return { file, object: dotted2[0], property: dotted2[dotted2.length - 1] };
+  const dotted = parts[0]?.split(".") ?? [];
+  if (dotted.length < 2) return null;
+  return { file, object: dotted[0], property: dotted[dotted.length - 1] };
 }
 function odcsRelationships(odcs) {
   const boxes = /* @__PURE__ */ new Map();
@@ -8773,11 +8826,11 @@ var require_codegen = __commonJS({
         const rhs = this.rhs === void 0 ? "" : ` = ${this.rhs}`;
         return `${varKind} ${this.name}${rhs};` + _n;
       }
-      optimizeNames(names, constants2) {
+      optimizeNames(names, constants3) {
         if (!names[this.name.str])
           return;
         if (this.rhs)
-          this.rhs = optimizeExpr(this.rhs, names, constants2);
+          this.rhs = optimizeExpr(this.rhs, names, constants3);
         return this;
       }
       get names() {
@@ -8794,10 +8847,10 @@ var require_codegen = __commonJS({
       render({ _n }) {
         return `${this.lhs} = ${this.rhs};` + _n;
       }
-      optimizeNames(names, constants2) {
+      optimizeNames(names, constants3) {
         if (this.lhs instanceof code_1.Name && !names[this.lhs.str] && !this.sideEffects)
           return;
-        this.rhs = optimizeExpr(this.rhs, names, constants2);
+        this.rhs = optimizeExpr(this.rhs, names, constants3);
         return this;
       }
       get names() {
@@ -8858,8 +8911,8 @@ var require_codegen = __commonJS({
       optimizeNodes() {
         return `${this.code}` ? this : void 0;
       }
-      optimizeNames(names, constants2) {
-        this.code = optimizeExpr(this.code, names, constants2);
+      optimizeNames(names, constants3) {
+        this.code = optimizeExpr(this.code, names, constants3);
         return this;
       }
       get names() {
@@ -8888,12 +8941,12 @@ var require_codegen = __commonJS({
         }
         return nodes.length > 0 ? this : void 0;
       }
-      optimizeNames(names, constants2) {
+      optimizeNames(names, constants3) {
         const { nodes } = this;
         let i = nodes.length;
         while (i--) {
           const n = nodes[i];
-          if (n.optimizeNames(names, constants2))
+          if (n.optimizeNames(names, constants3))
             continue;
           subtractNames(names, n.names);
           nodes.splice(i, 1);
@@ -8946,12 +8999,12 @@ var require_codegen = __commonJS({
           return void 0;
         return this;
       }
-      optimizeNames(names, constants2) {
+      optimizeNames(names, constants3) {
         var _a;
-        this.else = (_a = this.else) === null || _a === void 0 ? void 0 : _a.optimizeNames(names, constants2);
-        if (!(super.optimizeNames(names, constants2) || this.else))
+        this.else = (_a = this.else) === null || _a === void 0 ? void 0 : _a.optimizeNames(names, constants3);
+        if (!(super.optimizeNames(names, constants3) || this.else))
           return;
-        this.condition = optimizeExpr(this.condition, names, constants2);
+        this.condition = optimizeExpr(this.condition, names, constants3);
         return this;
       }
       get names() {
@@ -8974,10 +9027,10 @@ var require_codegen = __commonJS({
       render(opts) {
         return `for(${this.iteration})` + super.render(opts);
       }
-      optimizeNames(names, constants2) {
-        if (!super.optimizeNames(names, constants2))
+      optimizeNames(names, constants3) {
+        if (!super.optimizeNames(names, constants3))
           return;
-        this.iteration = optimizeExpr(this.iteration, names, constants2);
+        this.iteration = optimizeExpr(this.iteration, names, constants3);
         return this;
       }
       get names() {
@@ -9013,10 +9066,10 @@ var require_codegen = __commonJS({
       render(opts) {
         return `for(${this.varKind} ${this.name} ${this.loop} ${this.iterable})` + super.render(opts);
       }
-      optimizeNames(names, constants2) {
-        if (!super.optimizeNames(names, constants2))
+      optimizeNames(names, constants3) {
+        if (!super.optimizeNames(names, constants3))
           return;
-        this.iterable = optimizeExpr(this.iterable, names, constants2);
+        this.iterable = optimizeExpr(this.iterable, names, constants3);
         return this;
       }
       get names() {
@@ -9058,11 +9111,11 @@ var require_codegen = __commonJS({
         (_b = this.finally) === null || _b === void 0 ? void 0 : _b.optimizeNodes();
         return this;
       }
-      optimizeNames(names, constants2) {
+      optimizeNames(names, constants3) {
         var _a, _b;
-        super.optimizeNames(names, constants2);
-        (_a = this.catch) === null || _a === void 0 ? void 0 : _a.optimizeNames(names, constants2);
-        (_b = this.finally) === null || _b === void 0 ? void 0 : _b.optimizeNames(names, constants2);
+        super.optimizeNames(names, constants3);
+        (_a = this.catch) === null || _a === void 0 ? void 0 : _a.optimizeNames(names, constants3);
+        (_b = this.finally) === null || _b === void 0 ? void 0 : _b.optimizeNames(names, constants3);
         return this;
       }
       get names() {
@@ -9363,7 +9416,7 @@ var require_codegen = __commonJS({
     function addExprNames(names, from) {
       return from instanceof code_1._CodeOrName ? addNames(names, from.names) : names;
     }
-    function optimizeExpr(expr, names, constants2) {
+    function optimizeExpr(expr, names, constants3) {
       if (expr instanceof code_1.Name)
         return replaceName(expr);
       if (!canOptimize(expr))
@@ -9378,14 +9431,14 @@ var require_codegen = __commonJS({
         return items;
       }, []));
       function replaceName(n) {
-        const c = constants2[n.str];
+        const c = constants3[n.str];
         if (c === void 0 || names[n.str] !== 1)
           return n;
         delete names[n.str];
         return c;
       }
       function canOptimize(e) {
-        return e instanceof code_1._Code && e._items.some((c) => c instanceof code_1.Name && names[c.str] === 1 && constants2[c.str] !== void 0);
+        return e instanceof code_1._Code && e._items.some((c) => c instanceof code_1.Name && names[c.str] === 1 && constants3[c.str] !== void 0);
       }
     }
     function subtractNames(names, from) {
@@ -20298,10 +20351,7 @@ var import_yaml = __toESM(require_dist(), 1);
 init_util();
 import { readFileSync } from "fs";
 var GATED_KINDS = /* @__PURE__ */ new Set(["asyncapi", "openapi", "data-contract", "feature"]);
-function major(version) {
-  if (!version) return -1;
-  return parseInt(version.split(".")[0], 10);
-}
+var major = majorOf;
 function listManifests(specsDir) {
   const manifests = splitLines(git("ls-files", `${specsDir}/*/service.yaml`)).sort();
   if (manifests.length === 0) {
@@ -20327,9 +20377,19 @@ function serviceVersion(text) {
   const doc = (0, import_yaml.parse)(text) ?? {};
   return doc.version != null ? String(doc.version) : null;
 }
-function movedForward(now, before) {
-  if (now === null || before === null) return true;
-  return greater(versionParts(now), versionParts(before));
+function notABump(now, before) {
+  if (before === null || now === before) return null;
+  if (now === null) return `lost its version (was ${before})`;
+  const cmp = compareVersions(now, before);
+  if (cmp === null) {
+    console.log(`note: cannot order non-semver versions ${before} -> ${now}; accepted`);
+    return null;
+  }
+  if (cmp < 0) return `version moved backwards ${before} -> ${now} - versions only go up`;
+  if (cmp === 0) {
+    return `version ${before} -> ${now} has the same precedence - build metadata is not a bump`;
+  }
+  return null;
 }
 function runGate(base, specsDir, allowMissingBase = false) {
   const mb = mergeBase(base);
@@ -20348,18 +20408,20 @@ function runGate(base, specsDir, allowMissingBase = false) {
     let artifactMajorBumped = false;
     for (const [rel, [kind, versionNow]] of now) {
       const full = `${serviceDir}/${rel}`;
-      if (!changed.includes(full)) continue;
-      checked += 1;
       const versionBefore = before.get(rel)?.[1] ?? null;
-      if (versionBefore === null) {
+      const fileChanged = changed.includes(full);
+      const wrong = before.has(rel) ? notABump(versionNow, versionBefore) : null;
+      if (wrong) {
+        failures.push(`${full} (${kind}) ${wrong}`);
+        continue;
+      }
+      if (!fileChanged) continue;
+      checked += 1;
+      if (!before.has(rel) || versionBefore === null) {
         console.log(`new gated artifact: ${full} @ ${versionNow}`);
         artifactBumped = true;
       } else if (versionBefore === versionNow) {
         failures.push(`${full} (${kind}) changed but version stayed at ${versionBefore}`);
-      } else if (!movedForward(versionNow, versionBefore)) {
-        failures.push(
-          `${full} (${kind}) version moved backwards ${versionBefore} -> ${versionNow} - versions only go up`
-        );
       } else {
         console.log(`ok: ${full} ${versionBefore} -> ${versionNow}`);
         artifactBumped = true;
@@ -20373,8 +20435,13 @@ function runGate(base, specsDir, allowMissingBase = false) {
     }
     const svcNow = serviceVersion(manifestText);
     const svcBefore = serviceVersion(baseText);
+    const svcWrong = notABump(svcNow, svcBefore);
     if (svcBefore === null && svcNow !== null) {
       if (baseText !== null) console.log(`new service version: ${service} @ ${svcNow}`);
+    } else if (svcWrong) {
+      failures.push(
+        `${service}: service ${svcWrong.replace("lost its version", "lost its top-level version")} - consumers pin it`
+      );
     } else if (artifactBumped) {
       if (svcNow === null) {
         failures.push(
@@ -20383,10 +20450,6 @@ function runGate(base, specsDir, allowMissingBase = false) {
       } else if (svcNow === svcBefore) {
         failures.push(
           `${service}: gated artifact bumped but the service version stayed at ${svcBefore} - bump the top-level version`
-        );
-      } else if (!movedForward(svcNow, svcBefore)) {
-        failures.push(
-          `${service}: service version moved backwards ${svcBefore} -> ${svcNow} - consumers pin it, so it only goes up`
         );
       } else if (artifactMajorBumped && major(svcNow) <= major(svcBefore)) {
         failures.push(
@@ -21539,7 +21602,11 @@ function lintService(serviceDir, producedBy, messagesByAddress, ownMessages) {
   if (repo !== void 0 && repo !== null && !/^[\w.-]+\/[\w.-]+$/.test(String(repo))) {
     problems.push(`${name}: implementationRepo must be <owner>/<repo>, got ${pyRepr(String(repo))}`);
   }
-  const produces = new Set(manifest.produces ?? []);
+  const producesList = manifest.produces ?? [];
+  for (const address of pySorted(new Set(producesList.filter((a, i) => producesList.indexOf(a) !== i)))) {
+    problems.push(`${name}: lists '${address}' in produces more than once`);
+  }
+  const produces = new Set(producesList);
   const consumes = new Set(manifest.consumes ?? []);
   for (const address of pySorted([...produces].filter((a) => !sent.has(a)))) {
     problems.push(`${name}: produces '${address}' but no AsyncAPI send operation publishes it`);
@@ -21560,10 +21627,10 @@ function lintService(serviceDir, producedBy, messagesByAddress, ownMessages) {
     }
   }
   for (const address of pySorted(produces)) {
-    const owners = producedBy.get(address) ?? [];
-    if (owners.length > 1) {
+    const others = [...producedBy.get(address) ?? []].filter((o) => o !== name);
+    if (others.length) {
       problems.push(
-        `${name}: produces '${address}', which is also produced by ` + pySorted(owners.filter((o) => o !== name)).join(", ") + " - a channel has exactly one producer"
+        `${name}: produces '${address}', which is also produced by ` + pySorted(others).join(", ") + " - a channel has exactly one producer"
       );
     }
   }
@@ -21600,7 +21667,7 @@ function runLint(only, specsDir) {
   for (const d of dirs) {
     const manifest = readYaml2(path8.join(d, "service.yaml"));
     for (const address of manifest.produces ?? []) {
-      producedBy.set(address, [...producedBy.get(address) ?? [], manifest.name]);
+      producedBy.set(address, (producedBy.get(address) ?? /* @__PURE__ */ new Set()).add(manifest.name));
     }
   }
   const [messagesByAddress, ownMessages] = messageIndex(dirs);
@@ -22509,10 +22576,9 @@ init_util();
 function versionOf(text, versionFile, key) {
   if (text === null) return null;
   let doc = versionFile.endsWith(".toml") ? parse8(text) : JSON.parse(text);
-  for (const part of key.split(".")) doc = doc[part];
-  return String(doc).split(".").map((p) => parseInt(p, 10));
+  for (const part of key.split(".")) doc = doc?.[part];
+  return doc == null ? null : String(doc);
 }
-var dotted = (v) => v.join(".");
 function runGate4(base, versionFile, jsonKey, paths, allowMissingBase = false) {
   const mb = mergeBase(base);
   if (mb === null) return missingBase(base, allowMissingBase);
@@ -22525,20 +22591,24 @@ function runGate4(base, versionFile, jsonKey, paths, allowMissingBase = false) {
   }
   const before = versionOf(blob(mb, versionFile), versionFile, jsonKey);
   const now = versionOf(readFileSync11(versionFile, "utf-8"), versionFile, jsonKey);
+  if (now === null) {
+    console.error(`${versionFile} has no version at '${jsonKey}'`);
+    return 1;
+  }
   if (before === null) {
-    console.log(`new surface manifest @ ${dotted(now)}`);
+    console.log(`new surface manifest @ ${now}`);
     return 0;
   }
-  if (greater(now, before)) {
+  if ((compareVersions(now, before) ?? 0) > 0) {
     console.log(
-      `surface changed (${changed.length} file(s)), version ${dotted(before)} -> ${dotted(now)} - ok`
+      `surface changed (${changed.length} file(s)), version ${before} -> ${now} - ok`
     );
     return 0;
   }
   console.error(
     "Surface changed without a version bump:\n  " + changed.slice(0, 20).join("\n  ") + `
 
-${versionFile} version is ${dotted(now)} (base ${dotted(before)}) - bump it semver-greater in the same change.`
+${versionFile} version is ${now} (base ${before}) - bump it semver-greater in the same change.`
   );
   return 1;
 }

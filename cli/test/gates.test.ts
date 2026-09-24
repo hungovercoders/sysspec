@@ -27,7 +27,7 @@ import {
 } from "../src/intent.js";
 import { openapiBreaking } from "../src/compat.js";
 import { runGate as surfaceGate, versionOf } from "../src/surface.js";
-import { greater, versionParts } from "../src/util.js";
+import { compareVersions, run } from "../src/util.js";
 import { manifestVersions, runGate as versionGate, serviceVersion } from "../src/versioning.js";
 
 describe("intent token extraction", () => {
@@ -215,11 +215,27 @@ describe("odcs data contracts", () => {
 });
 
 describe("versioning helpers", () => {
-  test("greater compares dotted versions numerically, not as strings", () => {
-    expect(greater(versionParts("1.10.0"), versionParts("1.9.0"))).toBe(true);
-    expect(greater(versionParts("1.1.0"), versionParts("1.2.0"))).toBe(false);
-    expect(greater(versionParts("2.0.0"), versionParts("2.0.0"))).toBe(false);
-    expect(versionParts("3.1.0-rc.1")).toEqual([3, 1, 0]);
+  test("compareVersions follows semver precedence", () => {
+    const order = [
+      "1.0.0-alpha",
+      "1.0.0-alpha.1",
+      "1.0.0-alpha.beta",
+      "1.0.0-beta",
+      "1.0.0-beta.2",
+      "1.0.0-beta.11",
+      "1.0.0-rc.1",
+      "1.0.0",
+      "1.9.0",
+      "1.10.0",
+      "2.0.0",
+    ];
+    for (let i = 1; i < order.length; i++) {
+      expect(compareVersions(order[i], order[i - 1]), `${order[i]} > ${order[i - 1]}`).toBeGreaterThan(0);
+      expect(compareVersions(order[i - 1], order[i]), `${order[i - 1]} < ${order[i]}`).toBeLessThan(0);
+    }
+    expect(compareVersions("1.0.0+build.2", "1.0.0")).toBe(0);
+    expect(compareVersions("v2.0.0", "v1.0.0")).toBeGreaterThan(0);
+    expect(compareVersions("latest", "1.0.0")).toBeNull();
   });
 
   test("manifestVersions keeps gated artifacts only, honoring explicit gated:", () => {
@@ -278,7 +294,20 @@ describe("gates in a scratch git repo", () => {
     process.chdir(path.dirname(repo));
     rmSync(repo, { recursive: true, force: true });
     vi.restoreAllMocks();
+    vi.unstubAllEnvs();
   });
+
+  const manifest = (svc: string, artifact: string) =>
+    writeFileSync(
+      path.join(repo, "specs", "svc", "service.yaml"),
+      [
+        "name: svc",
+        `version: ${svc}`,
+        "artifacts:",
+        `  - { kind: feature, path: features/a.feature${artifact ? `, version: ${artifact}` : ""} }`,
+        "",
+      ].join("\n"),
+    );
 
   test("version gate: missing base ref skips locally", () => {
     vi.stubEnv("CI", "");
@@ -449,8 +478,86 @@ describe("gates in a scratch git repo", () => {
   });
 
   test("versionOf reads dotted keys from JSON and TOML", () => {
-    expect(versionOf('{"project": {"version": "1.2.3"}}', "x.json", "project.version")).toEqual([1, 2, 3]);
-    expect(versionOf('[project]\nversion = "4.5.6"\n', "x.toml", "project.version")).toEqual([4, 5, 6]);
+    expect(versionOf('{"project": {"version": "1.2.3"}}', "x.json", "project.version")).toBe("1.2.3");
+    expect(versionOf('[project]\nversion = "4.5.6"\n', "x.toml", "project.version")).toBe("4.5.6");
     expect(versionOf(null, "x.json", "version")).toBeNull();
+  });
+
+  test("surface gate: a pre-release promoted to its release is a bump", () => {
+    writeFileSync(path.join(repo, "v.json"), JSON.stringify({ version: "2.0.0-rc.1" }));
+    g("add", "-A");
+    g("-c", "user.email=t@e.c", "-c", "user.name=t", "commit", "-qm", "rc");
+    writeFileSync(path.join(repo, "surface.txt"), "s2\n");
+    writeFileSync(path.join(repo, "v.json"), JSON.stringify({ version: "2.0.0" }));
+    expect(surfaceGate("HEAD", "v.json", "version", ["surface.txt"])).toBe(0);
+  });
+
+  test("version gate: a service-only downgrade is red, with no artifact touched", () => {
+    manifest("0.9.0", "1.0.0");
+    expect(versionGate("main", "specs")).toBe(1);
+    expect(logs.join("\n")).toContain("service version moved backwards 1.0.0 -> 0.9.0");
+  });
+
+  test("version gate: a manifest-only artifact downgrade is red, with its file untouched", () => {
+    manifest("1.0.0", "0.9.0");
+    expect(versionGate("main", "specs")).toBe(1);
+    expect(logs.join("\n")).toContain("version moved backwards 1.0.0 -> 0.9.0");
+  });
+
+  test("version gate: dropping an artifact's version is red, not a bump", () => {
+    writeFileSync(path.join(repo, "specs", "svc", "features", "a.feature"), "Feature: a2\n");
+    manifest("1.1.0", "");
+    expect(versionGate("main", "specs")).toBe(1);
+    expect(logs.join("\n")).toContain("lost its version (was 1.0.0)");
+  });
+
+  test("version gate: pre-release to release is a bump; build metadata alone is not", () => {
+    manifest("1.0.0", "2.0.0-rc.1");
+    g("add", "-A");
+    g("-c", "user.email=t@e.c", "-c", "user.name=t", "commit", "-qm", "rc");
+    g("branch", "-f", "rc");
+    writeFileSync(path.join(repo, "specs", "svc", "features", "a.feature"), "Feature: a2\n");
+    manifest("2.0.0", "2.0.0");
+    expect(versionGate("rc", "specs")).toBe(0);
+
+    logs.length = 0;
+    manifest("1.0.0", "2.0.0-rc.1+build.7");
+    expect(versionGate("rc", "specs")).toBe(1);
+    expect(logs.join("\n")).toContain("has the same precedence - build metadata is not a bump");
+  });
+
+  test("version gate: a v-prefixed major bump counts as a major", () => {
+    manifest("1.0.0", "v1.0.0");
+    g("add", "-A");
+    g("-c", "user.email=t@e.c", "-c", "user.name=t", "commit", "-qm", "v");
+    g("branch", "-f", "vbase");
+    writeFileSync(path.join(repo, "specs", "svc", "features", "a.feature"), "Feature: a2\n");
+    manifest("1.1.0", "v2.0.0");
+    expect(versionGate("vbase", "specs")).toBe(1);
+    expect(logs.join("\n")).toContain("a major artifact change is a major surface change");
+  });
+
+  test("diff gates: CI=false is not CI", () => {
+    vi.stubEnv("CI", "false");
+    expect(versionGate("origin/nope", "specs")).toBe(0);
+    expect(logs.join("\n")).toContain("nothing to diff against, skipping");
+  });
+
+  test("diff gates: a base that shares no history fails everywhere", () => {
+    vi.stubEnv("CI", "");
+    g("checkout", "-q", "--orphan", "unrelated");
+    g("-c", "user.email=t@e.c", "-c", "user.name=t", "commit", "-q", "--allow-empty", "-m", "orphan");
+    g("checkout", "-q", "main");
+    expect(versionGate("unrelated", "specs")).toBe(1);
+    expect(logs.join("\n")).toContain("base ref 'unrelated' shares no history with HEAD");
+    logs.length = 0;
+    expect(versionGate("unrelated", "specs", true)).toBe(0);
+    expect(logs.join("\n")).toContain("--allow-missing-base: skipping");
+  });
+
+  test("a tool killed by a signal reports 128+n, never a verdict of 1", () => {
+    const res = run(["sh", "-c", "kill -9 $$"]);
+    expect(res.status).toBe(137);
+    expect(res.stderr).toContain("killed by SIGKILL");
   });
 });

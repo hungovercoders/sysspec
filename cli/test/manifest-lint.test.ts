@@ -164,3 +164,15 @@ test("two services producing the same channel is drift", () => {
   expect(runLint(null, specs)).toBe(1);
   expect(errs.join("\n")).toContain(`produces '${address}', which is also produced by`);
 });
+
+test("a channel listed twice in one service's produces is its own problem, not a second producer", () => {
+  const errs = captureErr();
+  const f = path.join(specs, "orders", "service.yaml");
+  const text = readFileSync(f, "utf-8");
+  const address = /produces:\s*\n\s*-\s*([\w.-]+)/.exec(text)![1];
+  writeFileSync(f, text.replace(/^produces:\s*\n/m, `produces:\n  - ${address}\n`));
+  expect(runLint("orders", specs)).toBe(1);
+  const out = errs.join("\n");
+  expect(out).toContain(`orders: lists '${address}' in produces more than once`);
+  expect(out).not.toContain("which is also produced by");
+});
