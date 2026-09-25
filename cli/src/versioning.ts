@@ -11,12 +11,12 @@ import { readFileSync } from "node:fs";
 import { parse } from "yaml";
 import {
   blob,
-  compareVersions,
   Exit,
   git,
   majorOf,
   mergeBase,
   missingBase,
+  orderVersions,
   splitLines,
 } from "./util.js";
 
@@ -55,39 +55,46 @@ export function serviceVersion(text: string | null): string | null {
 
 /** How a version moved, when it did not simply go up. */
 export interface NotABump {
-  kind: "backwards" | "lost" | "same";
+  kind: "backwards" | "lost" | "same" | "unordered";
   message: string;
 }
 
-/** Why a version change is not a bump, or null when it is one (or did
- * not change). A version only goes up: a downgrade would re-tag a surface
- * consumers may already have pinned. Unparseable versions cannot be
- * ordered, so any change to one is accepted (equality was always the
- * only check for those). "same" is an equal-precedence respelling -
- * harmless on its own, but not a bump when the artifact changed. */
-export function notABump(now: string | null, before: string | null): NotABump | null {
+/** Why a version change is not a plain bump, or null when it is one (or
+ * did not change). A version only goes up: a downgrade would re-tag a
+ * surface consumers may already have pinned. Ordering is the one both
+ * version gates share (util.orderVersions). "same" is an equal version
+ * respelled - harmless on its own, never the bump a change needs;
+ * "unordered" is a change between versions no rule can rank, accepted by
+ * callers with a note. `what` names the version in messages. */
+export function notABump(
+  now: string | null,
+  before: string | null,
+  what = "version",
+): NotABump | null {
   if (before === null || now === before) return null;
-  if (now === null) return { kind: "lost", message: `lost its version (was ${before})` };
-  const cmp = compareVersions(now, before);
-  if (cmp === null) {
-    console.log(`note: cannot order non-semver versions ${before} -> ${now}; accepted`);
-    return null;
-  }
-  if (cmp < 0) {
+  if (now === null) return { kind: "lost", message: `lost its ${what} (was ${before})` };
+  const order = orderVersions(now, before);
+  if (order === null) {
     return {
-      kind: "backwards",
-      message: `version moved backwards ${before} -> ${now} - versions only go up`,
+      kind: "unordered",
+      message: `${what} ${before} -> ${now}: cannot order these versions; accepted`,
     };
   }
-  if (cmp === 0) {
-    // Equal precedence: the difference is build metadata or spelling (a
-    // `v` prefix), and the message should say which.
+  if (order < 0) {
+    return {
+      kind: "backwards",
+      message: `${what} moved backwards ${before} -> ${now} - versions only go up`,
+    };
+  }
+  if (order === 0) {
+    // The same version: the difference is build metadata or spelling
+    // (a `v` prefix, 1.2 vs 1.2.0), and the message should say which.
     const build = (v: string) => v.split("+")[1] ?? "";
     return {
       kind: "same",
       message: build(before) !== build(now)
-        ? `version ${before} -> ${now} has the same precedence - build metadata is not a bump`
-        : `version ${before} -> ${now} is the same version, respelled - not a bump`,
+        ? `${what} ${before} -> ${now} differs only in build metadata - not a bump`
+        : `${what} ${before} -> ${now} is the same version, respelled - not a bump`,
     };
   }
   return null;
@@ -98,7 +105,7 @@ export function runGate(base: string, specsDir: string, allowMissingBase = false
   // the pre-commit hook, not only on committed CI state.
   const mb = mergeBase(base);
   if (mb === null) return missingBase(base, allowMissingBase);
-  const changed = splitLines(git("diff", "--name-only", mb));
+  const changed = new Set(splitLines(git("diff", "--name-only", mb)));
 
   const failures: string[] = [];
   let checked = 0;
@@ -120,21 +127,23 @@ export function runGate(base: string, specsDir: string, allowMissingBase = false
     for (const [rel, [kind, versionNow]] of now) {
       const full = `${serviceDir}/${rel}`;
       const versionBefore = before.get(rel)?.[1] ?? null;
-      const fileChanged = changed.includes(full);
+      const fileChanged = changed.has(full);
 
       // Direction is checked for every declared version, not only when the
       // artifact's file changed: a manifest-only downgrade re-tags too. A
       // respelling of the same version is harmless on an untouched file,
       // but never counts as the bump a changed file needs.
-      const wrong = before.has(rel) ? notABump(versionNow, versionBefore) : null;
-      if (wrong && (wrong.kind !== "same" || fileChanged)) {
+      const wrong = notABump(versionNow, versionBefore);
+      if (wrong?.kind === "unordered") {
+        if (fileChanged) console.log(`note: ${full} ${wrong.message}`);
+      } else if (wrong && (wrong.kind !== "same" || fileChanged)) {
         failures.push(`${full} (${kind}) ${wrong.message}`);
         continue;
       }
       if (!fileChanged) continue;
       checked += 1;
 
-      if (!before.has(rel) || versionBefore === null) {
+      if (versionBefore === null) {
         console.log(`new gated artifact: ${full} @ ${versionNow}`);
         artifactBumped = true;
       } else if (versionBefore === versionNow) {
@@ -158,14 +167,12 @@ export function runGate(base: string, specsDir: string, allowMissingBase = false
     // and it never moves backwards - with or without an artifact change.
     const svcNow = serviceVersion(manifestText);
     const svcBefore = serviceVersion(baseText);
-    const svcWrong = notABump(svcNow, svcBefore);
+    const svcWrong = notABump(svcNow, svcBefore, "top-level version");
+    if (svcWrong?.kind === "unordered") console.log(`note: ${service}: ${svcWrong.message}`);
     if (svcBefore === null && svcNow !== null) {
       if (baseText !== null) console.log(`new service version: ${service} @ ${svcNow}`);
-    } else if (svcWrong && (svcWrong.kind !== "same" || artifactBumped)) {
-      failures.push(
-        `${service}: service ${svcWrong.message.replace("lost its version", "lost its top-level version")}` +
-          " - consumers pin it",
-      );
+    } else if (svcWrong && svcWrong.kind !== "unordered" && (svcWrong.kind !== "same" || artifactBumped)) {
+      failures.push(`${service}: service ${svcWrong.message} - consumers pin it`);
     } else if (artifactBumped) {
       if (svcNow === null) {
         failures.push(

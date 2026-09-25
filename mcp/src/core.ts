@@ -320,7 +320,7 @@ export async function getAcceptanceCriteria(
     const { header, scenarios } = splitGherkin(text);
     if (names_only) {
       const names = scenarios.map((s) => s.name);
-      const size = utf8Len(JSON.stringify(names));
+      const size = names.reduce((sum, name) => sum + utf8Len(name), 0);
       if (size > budget) {
         out.truncated = true;
         out.features.push({ path: a.path, summary, scenario_count: names.length, names_omitted: true });
@@ -383,7 +383,7 @@ export async function getAcceptanceCriteria(
       // spends the budget too - the same rule names_only follows.
       out.truncated = true;
       const names = scenarios.map((s) => s.name);
-      const size = utf8Len(JSON.stringify(names));
+      const size = names.reduce((sum, name) => sum + utf8Len(name), 0);
       if (size > budget) {
         out.features.push({
           path: a.path,

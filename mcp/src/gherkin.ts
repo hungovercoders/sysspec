@@ -10,6 +10,33 @@ export interface Scenario {
 // synonym for Scenario, Scenario Template the synonym for the outline).
 const SCENARIO_KEYWORDS = ["Scenario:", "Scenario Outline:", "Scenario Template:", "Example:"];
 
+const STEP_RE = /^(Given|When|Then|And|But|\*)(\s|$)/;
+
+/** Which lines are inside a step's docstring (the fences included). A
+ * fence (""" or ```) opens a docstring only straight after a step line -
+ * a fence in a Feature or Rule description is prose - and only when it
+ * is closed later; an unclosed fence hides nothing. Inside a docstring a
+ * line is data: "Rule: x" there must not cut the running scenario. */
+function docstringLines(lines: string[]): boolean[] {
+  const data = lines.map(() => false);
+  let lastStep = false;
+  for (let i = 0; i < lines.length; i++) {
+    const stripped = lines[i].trim();
+    const fence = stripped.startsWith('"""') ? '"""' : stripped.startsWith("```") ? "```" : null;
+    if (fence && lastStep) {
+      const close = lines.findIndex((l, j) => j > i && l.trim().startsWith(fence));
+      if (close !== -1) {
+        for (let j = i; j <= close; j++) data[j] = true;
+        i = close;
+        lastStep = false;
+        continue;
+      }
+    }
+    if (stripped && !stripped.startsWith("#")) lastStep = STEP_RE.test(stripped);
+  }
+  return data;
+}
+
 /** Split a .feature file into (header, scenarios). The header is
  * everything before the first Rule or scenario — Feature line,
  * description and the Feature-level Background. A scenario inside a Rule
@@ -38,20 +65,10 @@ export function splitGherkin(text: string): { header: string; scenarios: Scenari
     if (last) last.end = Math.min(last.end, at);
   };
   const text_ = (from: number, to: number) => lines.slice(from, to).join("").replace(/\n+$/, "");
-  // Inside a step's docstring (""" or ``` fences) a line is data, not a
-  // keyword: "Rule: x" in a docstring must not cut the running scenario.
-  let fence: string | null = null;
+  const data = docstringLines(lines);
   for (let i = 0; i < lines.length; i++) {
+    if (data[i]) continue;
     const stripped = lines[i].trim();
-    const opener = stripped.startsWith('"""') ? '"""' : stripped.startsWith("```") ? "```" : null;
-    if (fence !== null) {
-      if (opener === fence) fence = null;
-      continue;
-    }
-    if (opener !== null) {
-      fence = opener;
-      continue;
-    }
     if (SCENARIO_KEYWORDS.some((k) => stripped.startsWith(k))) {
       const start = blockStart(i);
       headerEnd = Math.min(headerEnd, start);
