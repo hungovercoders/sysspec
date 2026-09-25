@@ -25,7 +25,7 @@ commands:
 ### The `check` gates
 
 All four compare the working tree against a base ref (`--base`, default
-`origin/main`).
+`$SYSSPEC_BASE`, else `origin/$GITHUB_BASE_REF`, else `origin/main`).
 
 - `check version` fails unless a gated artifact change bumps its manifest
   version *and* the service's top-level version; an artifact major forces a
@@ -41,7 +41,7 @@ All four compare the working tree against a base ref (`--base`, default
 
 | Flag | Applies to | Default |
 | --- | --- | --- |
-| `--base <ref>` | all four | `origin/main` |
+| `--base <ref>` | all four | `$SYSSPEC_BASE`, else `origin/$GITHUB_BASE_REF`, else `origin/main` |
 | `--specs-dir <dir>` | all four | `specs` |
 | `--service <name>` | `compat`, `intent` | all services |
 | `--version-file <file>` | `surface` | required |
