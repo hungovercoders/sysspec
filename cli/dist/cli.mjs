@@ -78,9 +78,18 @@ function mergeBase(base) {
   const res = run(["git", "merge-base", base, "HEAD"]);
   return res.status === 0 ? res.stdout.trim() : null;
 }
-function isCI() {
-  const v = (process.env.CI ?? "").trim().toLowerCase();
+function envFlag(name) {
+  const v = (process.env[name] ?? "").trim().toLowerCase();
   return v !== "" && v !== "false" && v !== "0";
+}
+function isCI() {
+  return envFlag("CI");
+}
+function defaultBase() {
+  const explicit = (process.env.SYSSPEC_BASE ?? "").trim();
+  if (explicit) return explicit;
+  const prBase = (process.env.GITHUB_BASE_REF ?? "").trim();
+  return `origin/${prBase || "main"}`;
 }
 function refExists(ref) {
   return run(["git", "rev-parse", "--verify", "--quiet", `${ref}^{commit}`]).status === 0;
@@ -96,10 +105,10 @@ function isShallow() {
 }
 function missingBase(base, allow) {
   if (!inWorkTree()) {
-    console.error(
-      "not inside a git work tree - the diff gates need the repository's history. Run them from a git checkout (actions/checkout with fetch-depth: 0)."
+    return skipOrFail(
+      "not inside a git work tree - the diff gates need the repository's history. Run them from a git checkout (actions/checkout with fetch-depth: 0).",
+      allow
     );
-    return 1;
   }
   if (!headIsBorn()) {
     console.log("HEAD has no commits yet - nothing to diff against, skipping.");
@@ -115,6 +124,9 @@ function missingBase(base, allow) {
     console.log(`base ref '${base}' not found - nothing to diff against, skipping.`);
     return 0;
   }
+  return skipOrFail(problem, allow);
+}
+function skipOrFail(problem, allow) {
   if (allow) {
     console.log(`${problem}
 --allow-missing-base: skipping.`);
@@ -153,29 +165,46 @@ function looseKey(v) {
   if (!m) return null;
   const n = (x) => x ? Number(x) : 0;
   const preRank = { a: 0, alpha: 0, b: 1, beta: 1, c: 2, rc: 2, pre: 2, preview: 2 };
-  const pre = m[2] ? [0, preRank[m[2].toLowerCase()] * 1e3 + n(m[3])] : [1, 0];
+  const pre = m[2] ? [0, preRank[m[2].toLowerCase()], n(m[3])] : [1, 0, 0];
   const post = m[4] ? n(m[5]) + 1 : 0;
   const dev = m[6] ? [0, n(m[7])] : [1, 0];
   const devOnly = m[6] && !m[2] && !m[4];
   return {
     release: m[1].split(".").map(Number),
-    phase: devOnly ? [-1, 0, 0, ...dev] : [...pre, post, ...dev]
+    phase: devOnly ? [-1, 0, 0, 0, ...dev] : [...pre, post, ...dev]
   };
+}
+function versionKey(v) {
+  const loose = looseKey(v);
+  if (loose) {
+    const [stage, , , post] = loose.phase;
+    return { release: loose.release, coarse: stage < 1 ? 0 : post > 0 ? 2 : 1, phase: loose.phase };
+  }
+  const semver = parseSemver(v);
+  if (semver) return { release: [...semver.core], coarse: semver.pre.length ? 0 : 1 };
+  return null;
+}
+function isRankable(v) {
+  return versionKey(v) !== null;
 }
 function orderVersions(a, b) {
   const semver = compareVersions(a, b);
   if (semver !== null) return semver;
-  const [x, y] = [looseKey(a), looseKey(b)];
+  const [x, y] = [versionKey(a), versionKey(b)];
   if (!x || !y) return null;
   for (let i = 0; i < Math.max(x.release.length, y.release.length); i++) {
     const d = (x.release[i] ?? 0) - (y.release[i] ?? 0);
     if (d !== 0) return d;
   }
-  for (let i = 0; i < x.phase.length; i++) {
-    const d = x.phase[i] - y.phase[i];
-    if (d !== 0) return d;
+  if (x.coarse !== y.coarse) return x.coarse - y.coarse;
+  if (x.phase && y.phase) {
+    for (let i = 0; i < x.phase.length; i++) {
+      const d = x.phase[i] - y.phase[i];
+      if (d !== 0) return d;
+    }
+    return 0;
   }
-  return 0;
+  return x.coarse === 1 ? 0 : null;
 }
 function majorOf(version) {
   if (!version) return -1;
@@ -20383,6 +20412,12 @@ function notABump(now, before, what = "version") {
   if (before === null || now === before) return null;
   if (now === null) return { kind: "lost", message: `lost its ${what} (was ${before})` };
   const order = orderVersions(now, before);
+  if (order === null && isRankable(before) && !isRankable(now)) {
+    return {
+      kind: "unrankable",
+      message: `${what} ${before} -> ${pyRepr(now)} is not a version any rule here can rank - versions only go up`
+    };
+  }
   if (order === null) {
     return {
       kind: "unordered",
@@ -21718,17 +21753,23 @@ function runLint(only, specsDir) {
     return 1;
   }
   const producedBy = /* @__PURE__ */ new Map();
+  const party = /* @__PURE__ */ new Set();
   for (const d of dirs) {
     const manifest = readYaml2(path7.join(d, "service.yaml"));
     for (const address of channelList(manifest.produces)) {
       producedBy.set(address, (producedBy.get(address) ?? /* @__PURE__ */ new Set()).add(path7.basename(d)));
+    }
+    if (path7.basename(d) === only) {
+      for (const address of [...channelList(manifest.produces), ...channelList(manifest.consumes)]) {
+        party.add(address);
+      }
     }
   }
   const [messagesByAddress, ownMessages] = messageIndex(dirs);
   const problems = only ? [] : lintSystem(specsDir);
   for (const address of pySorted(producedBy.keys())) {
     const owners = pySorted(producedBy.get(address));
-    if (owners.length > 1 && (!only || owners.includes(only))) {
+    if (owners.length > 1 && (!only || party.has(address))) {
       problems.push(
         `channel '${address}' is produced by ${owners.join(", ")} - a channel has exactly one producer`
       );
@@ -22694,7 +22735,9 @@ var USAGE = `usage: sysspec <command> ...
 
 commands:
   check version|compat|intent|surface   diff-based gates against a base ref
-                                        (--allow-missing-base: skip, even in CI,
+                                        (--base, default $SYSSPEC_BASE, else
+                                        origin/$GITHUB_BASE_REF, else origin/main;
+                                        --allow-missing-base: skip, even in CI,
                                         when the base ref does not exist)
   lint manifest|specs|features|datacontracts
   docs data|diagrams
@@ -22713,10 +22756,9 @@ async function main(argv = process.argv.slice(2)) {
   const [command, sub] = args.positional;
   args.usage = `sysspec ${command ?? ""} ${sub ?? ""}`.trim();
   if (command === "check") {
-    const base = args.get("base", "origin/main");
+    const base = args.get("base", defaultBase());
     const specsDir = args.get("specs-dir", "specs");
-    const envAllow = (process.env.SYSSPEC_ALLOW_MISSING_BASE ?? "").trim().toLowerCase();
-    const allowMissing = args.bool("allow-missing-base") || envAllow !== "" && envAllow !== "0" && envAllow !== "false";
+    const allowMissing = args.bool("allow-missing-base") || envFlag("SYSSPEC_ALLOW_MISSING_BASE");
     if (sub === "version") {
       args.only("base", "specs-dir", "allow-missing-base");
       return runGate(base, specsDir, allowMissing);

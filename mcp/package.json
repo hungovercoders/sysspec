@@ -1,6 +1,6 @@
 {
   "name": "sysspec-mcp",
-  "version": "1.0.6",
+  "version": "1.1.0",
   "description": "Read-only MCP access to versioned system specs: AsyncAPI, OpenAPI, ODCS data contracts and Gherkin acceptance criteria.",
   "license": "MIT",
   "repository": {

@@ -64,11 +64,26 @@ export function mergeBase(base: string): string | null {
   return res.status === 0 ? res.stdout.trim() : null;
 }
 
-/** True when running under CI: the CI env var is set to anything but an
- * explicit "false" or "0" (some tools export CI=false locally). */
-export function isCI(): boolean {
-  const v = (process.env.CI ?? "").trim().toLowerCase();
+/** True when env var `name` is set to anything but empty, "false" or
+ * "0" (some tools export CI=false locally). */
+export function envFlag(name: string): boolean {
+  const v = (process.env[name] ?? "").trim().toLowerCase();
   return v !== "" && v !== "false" && v !== "0";
+}
+
+/** True when running under CI. */
+export function isCI(): boolean {
+  return envFlag("CI");
+}
+
+/** The diff gates' default base ref: SYSSPEC_BASE when set, else the
+ * pull request's base branch on GitHub Actions (GITHUB_BASE_REF), else
+ * origin/main - so a repo whose trunk is not main needs no flag. */
+export function defaultBase(): string {
+  const explicit = (process.env.SYSSPEC_BASE ?? "").trim();
+  if (explicit) return explicit;
+  const prBase = (process.env.GITHUB_BASE_REF ?? "").trim();
+  return `origin/${prBase || "main"}`;
 }
 
 function refExists(ref: string): boolean {
@@ -98,16 +113,16 @@ function isShallow(): boolean {
  *   a shallow clone it almost always means the base was never fetched,
  *   and skipping would pass a gate that checked nothing - so it fails.
  *
- * `allow` (--allow-missing-base) skips in every case, saying why. */
+ * Outside a git work tree (no checkout, an extracted tarball) nothing can
+ * be diffed at all, so that fails too. `allow` (--allow-missing-base)
+ * skips in every one of these cases, saying why. */
 export function missingBase(base: string, allow: boolean): number {
-  // Outside a git work tree (no checkout, an extracted tarball) nothing
-  // can be diffed at all: an error, never a skip that passes in CI.
   if (!inWorkTree()) {
-    console.error(
+    return skipOrFail(
       "not inside a git work tree - the diff gates need the repository's history. " +
         "Run them from a git checkout (actions/checkout with fetch-depth: 0).",
+      allow,
     );
-    return 1;
   }
   // Before the first commit HEAD does not exist yet, so there is no
   // merge-base with anything: the working tree is all new, and there is
@@ -134,6 +149,10 @@ export function missingBase(base: string, allow: boolean): number {
     console.log(`base ref '${base}' not found - nothing to diff against, skipping.`);
     return 0;
   }
+  return skipOrFail(problem, allow);
+}
+
+function skipOrFail(problem: string, allow: boolean): number {
   if (allow) {
     console.log(`${problem}\n--allow-missing-base: skipping.`);
     return 0;
@@ -195,38 +214,69 @@ function looseKey(v: string): { release: number[]; phase: number[] } | null {
   if (!m) return null;
   const n = (x: string | undefined) => (x ? Number(x) : 0);
   const preRank: Record<string, number> = { a: 0, alpha: 0, b: 1, beta: 1, c: 2, rc: 2, pre: 2, preview: 2 };
-  // phase: [stage, stage number, post number, dev flag, dev number]
-  // stage: 0 = pre-release, 1 = release; a dev-only release sorts first.
-  const pre = m[2] ? [0, preRank[m[2].toLowerCase()] * 1000 + n(m[3])] : [1, 0];
+  // phase: [stage, pre rank, pre number, post number, dev flag, dev number]
+  // stage: -1 = dev-only release, 0 = pre-release, 1 = release. Rank and
+  // number are separate fields: packed into one, b1000 would tie rc0.
+  const pre = m[2] ? [0, preRank[m[2].toLowerCase()], n(m[3])] : [1, 0, 0];
   const post = m[4] ? n(m[5]) + 1 : 0;
   const dev = m[6] ? [0, n(m[7])] : [1, 0];
   const devOnly = m[6] && !m[2] && !m[4];
   return {
     release: m[1].split(".").map(Number),
-    phase: devOnly ? [-1, 0, 0, ...dev] : [...pre, post, ...dev],
+    phase: devOnly ? [-1, 0, 0, 0, ...dev] : [...pre, post, ...dev],
   };
+}
+
+/** What either scheme can say about a version: its release numbers, its
+ * coarse phase (0 = pre-release, 1 = release, 2 = post-release) and, for
+ * a PEP 440-style version, the full phase tuple. The loose reading wins
+ * where both apply (it ranks rc1 against rc2); semver-only spellings -
+ * build metadata, multi-part or named pre-releases - fall back to the
+ * semver reading. null when neither scheme reads it. */
+function versionKey(v: string): { release: number[]; coarse: number; phase?: number[] } | null {
+  const loose = looseKey(v);
+  if (loose) {
+    const [stage, , , post] = loose.phase;
+    return { release: loose.release, coarse: stage < 1 ? 0 : post > 0 ? 2 : 1, phase: loose.phase };
+  }
+  const semver = parseSemver(v);
+  if (semver) return { release: [...semver.core], coarse: semver.pre.length ? 0 : 1 };
+  return null;
+}
+
+/** True when some ordering rule here can rank the version. */
+export function isRankable(v: string): boolean {
+  return versionKey(v) !== null;
 }
 
 /** Order two versions for the "versions only go up" gates: negative when
  * a < b, 0 when they are the same version however spelled (1.2 and
  * 1.2.0, v1.0.0 and 1.0.0, build metadata aside), positive when a > b.
- * Semver precedence when both are semver; otherwise PEP 440-style
- * ordering (1.2 < 1.3, 1.2.3rc1 < 1.2.3 < 1.2.3.post1). null only when
- * either side is neither - a version no rule here can rank. */
+ * Semver precedence when both are semver; otherwise release numbers
+ * first, then phase (1.2 < 1.3, 1.2.3rc1 < 1.2.3 < 1.2.3.post1). null
+ * when either side is unrankable, and when a semver-only pre-release
+ * meets a PEP 440 one on the same release - the schemes rank
+ * pre-release labels differently, and guessing could pass a downgrade. */
 export function orderVersions(a: string, b: string): number | null {
   const semver = compareVersions(a, b);
   if (semver !== null) return semver;
-  const [x, y] = [looseKey(a), looseKey(b)];
+  const [x, y] = [versionKey(a), versionKey(b)];
   if (!x || !y) return null;
   for (let i = 0; i < Math.max(x.release.length, y.release.length); i++) {
     const d = (x.release[i] ?? 0) - (y.release[i] ?? 0);
     if (d !== 0) return d;
   }
-  for (let i = 0; i < x.phase.length; i++) {
-    const d = x.phase[i] - y.phase[i];
-    if (d !== 0) return d;
+  if (x.coarse !== y.coarse) return x.coarse - y.coarse;
+  if (x.phase && y.phase) {
+    for (let i = 0; i < x.phase.length; i++) {
+      const d = x.phase[i] - y.phase[i];
+      if (d !== 0) return d;
+    }
+    return 0;
   }
-  return 0;
+  // One side is semver-only: two releases are the same version (1.2 and
+  // 1.2.0+build.5); two pre-releases cannot be ranked across schemes.
+  return x.coarse === 1 ? 0 : null;
 }
 
 /** Major version of a semver string; -1 when there is none to read. */

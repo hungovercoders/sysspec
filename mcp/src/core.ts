@@ -292,16 +292,22 @@ export async function getAcceptanceCriteria(
     const text = await read(source, svc, a.path);
     const summary = summaryOf(a.summary);
     const { header, scenarios } = splitGherkin(text);
-    if (names_only) {
+    // The scenario index, charged to the budget like everything else:
+    // the names when they fit, else only their count. `extra` marks what
+    // else the entry leaves out.
+    const namesIndex = (extra: Record<string, unknown>): void => {
       const names = scenarios.map((s) => s.name);
       const size = names.reduce((sum, name) => sum + utf8Len(name), 0);
       if (size > budget) {
         out.truncated = true;
-        out.features.push({ path: a.path, summary, scenario_count: names.length, names_omitted: true });
-        continue;
+        out.features.push({ path: a.path, summary, scenario_count: names.length, names_omitted: true, ...extra });
+      } else {
+        budget -= size;
+        out.features.push({ path: a.path, summary, scenarios: names, ...extra });
       }
-      budget -= size;
-      out.features.push({ path: a.path, summary, scenarios: names });
+    };
+    if (names_only) {
+      namesIndex({});
       continue;
     }
     if (scenario !== null && scenario !== undefined) {
@@ -356,20 +362,7 @@ export async function getAcceptanceCriteria(
       // The body does not fit: fall back to the scenario index, which
       // spends the budget too - the same rule names_only follows.
       out.truncated = true;
-      const names = scenarios.map((s) => s.name);
-      const size = names.reduce((sum, name) => sum + utf8Len(name), 0);
-      if (size > budget) {
-        out.features.push({
-          path: a.path,
-          summary,
-          scenario_count: names.length,
-          names_omitted: true,
-          gherkin_omitted: true,
-        });
-      } else {
-        budget -= size;
-        out.features.push({ path: a.path, summary, scenarios: names, gherkin_omitted: true });
-      }
+      namesIndex({ gherkin_omitted: true });
       continue;
     }
     budget -= utf8Len(text);

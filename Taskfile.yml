@@ -30,16 +30,18 @@ tasks:
     desc: Plugin surface changes (cli, mcp, skills, manifests) must bump the plugin version
     cmds:
       - |
-        git fetch -q origin main 2>/dev/null || true
-        node {{.ROOT_DIR}}/cli/dist/cli.mjs check surface --base "origin/${GITHUB_BASE_REF:-main}" \
+        base="${SYSSPEC_BASE:-origin/${GITHUB_BASE_REF:-main}}"
+        git fetch -q origin "${base#origin/}" 2>/dev/null || true
+        node {{.ROOT_DIR}}/cli/dist/cli.mjs check surface --base "$base" \
           --version-file .claude-plugin/plugin.json --paths cli/,mcp/,skills/,.claude-plugin/,.mcp.json
 
   check:cli:
     desc: Changes under cli/ must bump the sysspec package version
     cmds:
       - |
-        git fetch -q origin main 2>/dev/null || true
-        node {{.ROOT_DIR}}/cli/dist/cli.mjs check surface --base "origin/${GITHUB_BASE_REF:-main}" \
+        base="${SYSSPEC_BASE:-origin/${GITHUB_BASE_REF:-main}}"
+        git fetch -q origin "${base#origin/}" 2>/dev/null || true
+        node {{.ROOT_DIR}}/cli/dist/cli.mjs check surface --base "$base" \
           --version-file cli/package.json --json-key version --paths cli/
 
   test:cli:
@@ -62,8 +64,9 @@ tasks:
     desc: Changes under mcp/ must bump the sysspec-mcp package version
     cmds:
       - |
-        git fetch -q origin main 2>/dev/null || true
-        node {{.ROOT_DIR}}/cli/dist/cli.mjs check surface --base "origin/${GITHUB_BASE_REF:-main}" \
+        base="${SYSSPEC_BASE:-origin/${GITHUB_BASE_REF:-main}}"
+        git fetch -q origin "${base#origin/}" 2>/dev/null || true
+        node {{.ROOT_DIR}}/cli/dist/cli.mjs check surface --base "$base" \
           --version-file mcp/package.json --json-key version --paths mcp/
 
   test:mcp:
@@ -113,8 +116,9 @@ tasks:
     desc: Gated artifacts (contracts, features) must bump their manifest version when they change
     cmds:
       - |
-        git fetch -q origin main 2>/dev/null || true
-        node {{.ROOT_DIR}}/cli/dist/cli.mjs check version --base "origin/${GITHUB_BASE_REF:-main}"
+        base="${SYSSPEC_BASE:-origin/${GITHUB_BASE_REF:-main}}"
+        git fetch -q origin "${base#origin/}" 2>/dev/null || true
+        node {{.ROOT_DIR}}/cli/dist/cli.mjs check version --base "$base"
 
   docs:generate:
     desc: Emit the spec data the docs site renders from
@@ -172,15 +176,17 @@ tasks:
     desc: Breaking contract changes vs origin/main must carry a major version bump
     cmds:
       - |
-        git fetch -q origin main 2>/dev/null || true
-        node {{.ROOT_DIR}}/cli/dist/cli.mjs check compat --base "origin/${GITHUB_BASE_REF:-main}" {{if .SERVICE}}--service {{.SERVICE}}{{end}}
+        base="${SYSSPEC_BASE:-origin/${GITHUB_BASE_REF:-main}}"
+        git fetch -q origin "${base#origin/}" 2>/dev/null || true
+        node {{.ROOT_DIR}}/cli/dist/cli.mjs check compat --base "$base" {{if .SERVICE}}--service {{.SERVICE}}{{end}}
 
   check:intent:
     desc: Added schema elements vs origin/main must be named in the service's features
     cmds:
       - |
-        git fetch -q origin main 2>/dev/null || true
-        node {{.ROOT_DIR}}/cli/dist/cli.mjs check intent --base "origin/${GITHUB_BASE_REF:-main}" {{if .SERVICE}}--service {{.SERVICE}}{{end}}
+        base="${SYSSPEC_BASE:-origin/${GITHUB_BASE_REF:-main}}"
+        git fetch -q origin "${base#origin/}" 2>/dev/null || true
+        node {{.ROOT_DIR}}/cli/dist/cli.mjs check intent --base "$base" {{if .SERVICE}}--service {{.SERVICE}}{{end}}
 
   ci:
     desc: Full verification - identical locally and in CI
