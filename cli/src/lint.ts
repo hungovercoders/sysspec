@@ -1,13 +1,13 @@
 /** Static linters over the specs's specs, features and data contracts. */
 
-import { readFileSync, readdirSync, statSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import Ajv from "ajv/dist/2019.js";
 import { parse } from "yaml";
 import { serviceDirs } from "./mocks.js";
 import { DATACONTRACT_CLI, GHERKIN_LINT, SPECTRAL_CLI } from "./pins.js";
-import { run } from "./util.js";
+import { globYaml, isFile, run } from "./util.js";
 
 // The data-contract gate is three checks over the same files, because no
 // one tool does the job:
@@ -29,25 +29,6 @@ const DC_RULESET_DEFAULT = path.join(TEMPLATES, "spectral", "datacontracts.yaml"
 // contracts that fail against it are the migration work.
 const ODCS_SCHEMA = path.join(TEMPLATES, "odcs", "odcs-json-schema-v3.2.0.json");
 
-function isFile(p: string): boolean {
-  try {
-    return statSync(p).isFile();
-  } catch {
-    return false;
-  }
-}
-
-
-function globYaml(dir: string): string[] {
-  try {
-    return readdirSync(dir)
-      .filter((f) => /\.ya?ml$/.test(f))
-      .sort()
-      .map((f) => path.join(dir, f));
-  } catch {
-    return [];
-  }
-}
 
 function spectral(files: string[], ruleset: string | null = null): number {
   const args = ["npx", "-y", SPECTRAL_CLI, "lint", ...files, "--fail-severity=warn"];

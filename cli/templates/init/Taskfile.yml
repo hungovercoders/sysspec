@@ -20,6 +20,14 @@ tasks:
       - task: contract:test
       - task: mocks:test
 
+  check:fast:
+    desc: Pre-commit tier - lint and the diff gates, without the docs build
+    cmds:
+      - task: lint
+      - task: check:version
+      - task: check:compat
+      - task: check:intent
+
   check:
     desc: Diff gates and the docs build
     cmds:
@@ -62,18 +70,22 @@ tasks:
       - task: lint:manifest
 
   lint:specs:
+    desc: Spectral over the OpenAPI and AsyncAPI contracts
     cmds:
       - npx -y {{.SYSSPEC}} lint specs {{if .SERVICE}}--service {{.SERVICE}}{{end}}
 
   lint:features:
+    desc: gherkin-lint over the acceptance criteria
     cmds:
       - npx -y {{.SYSSPEC}} lint features {{if .SERVICE}}--service {{.SERVICE}}{{end}}
 
   lint:datacontracts:
+    desc: ODCS schema, datacontract-cli and Spectral over the data contracts
     cmds:
       - npx -y {{.SYSSPEC}} lint datacontracts {{if .SERVICE}}--service {{.SERVICE}}{{end}}
 
   lint:manifest:
+    desc: Manifests against contracts and the spec graph
     cmds:
       - npx -y {{.SYSSPEC}} lint manifest {{if .SERVICE}}--service {{.SERVICE}}{{end}}
 

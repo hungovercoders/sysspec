@@ -23,10 +23,11 @@
  * generated catalog page carries - must be complete when it exists.
  */
 
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { parse } from "yaml";
-import { pyRepr, pySorted } from "./util.js";
+export { serviceDirs } from "./util.js";
+import { globYaml, isDir, isFile, ORG_RE, pyRepr, pySorted, serviceDirs } from "./util.js";
 
 const KIND_DIRS: [string, string][] = [
   ["asyncapi", "asyncapi"],
@@ -40,38 +41,6 @@ const SPEC_SUFFIXES = new Set([".yaml", ".yml", ".feature"]);
 // "SKU-RED" or "c-1001". Quoted dotted address ending .v<major>.
 const MESSAGE_RE = /"([A-Z][a-z0-9]*(?:[A-Z][a-z0-9]*)+)"/g;
 const CHANNEL_RE = /"([a-z0-9]+(?:\.[a-z0-9-]+)*\.v\d+)"/g;
-
-function isFile(p: string): boolean {
-  try {
-    return statSync(p).isFile();
-  } catch {
-    return false;
-  }
-}
-
-function isDir(p: string): boolean {
-  try {
-    return statSync(p).isDirectory();
-  } catch {
-    return false;
-  }
-}
-
-export function serviceDirs(specsDir: string): string[] {
-  if (!isDir(specsDir)) return [];
-  return readdirSync(specsDir)
-    .sort()
-    .map((d) => path.join(specsDir, d))
-    .filter((d) => isFile(path.join(d, "service.yaml")));
-}
-
-function globYaml(dir: string): string[] {
-  if (!isDir(dir)) return [];
-  return readdirSync(dir)
-    .filter((f) => /\.ya?ml$/.test(f))
-    .sort()
-    .map((f) => path.join(dir, f));
-}
 
 function readYaml(file: string): Record<string, any> {
   return (parse(readFileSync(file, "utf-8")) ?? {}) as Record<string, any>;
@@ -128,7 +97,6 @@ export function channelOps(doc: Record<string, any>): [Set<string>, Set<string>]
   return [sent, received];
 }
 
-const ORG_RE = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/;
 const MCP_URL_RE = /^https?:\/\/[^\s]+$/;
 
 /** Resolve one ODCS relationship reference inside a contract document.

@@ -5,10 +5,12 @@ OpenAPI, ODCS data contracts and Gherkin acceptance criteria, holding
 system intent as versioned, gated artifacts. Built on
 [sysspec](https://sysspec.dev).
 
-- `task ci` is the definition of green - the same gates run locally, in the
-  pre-commit hook and in CI. `task setup` installs the pinned toolchain
-  (mise) and the hook; the mock cycle (`contract:test`, `mocks:test`)
-  additionally needs a running Docker daemon.
+- `task ci` is the definition of green - the same gates run locally and in
+  CI. The git hooks run tiers of them: lint and the diff gates before each
+  commit (`task check:fast`), plus the docs build before each push.
+  `task setup` installs the pinned toolchain (mise) and the hooks; the mock
+  cycle (`contract:test`, `mocks:test`) additionally needs a running
+  Docker daemon.
 - Gated artifacts are never edited to make an implementation pass. Bump the
   artifact and service versions in `service.yaml` with every change; merges
   to main publish each changed service as a `<service>/v<version>` git tag
