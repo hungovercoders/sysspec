@@ -41,6 +41,14 @@ Responses are bounded and narrowly addressable. Any response that had to
 cut content says so with a `truncated` flag; raise `limit`/`max_bytes`
 only then.
 
+A `get_acceptance_criteria` scenario match carries `rule_index` when the
+scenario sits inside a Rule. `rules[rule_index]` is that Rule's block
+(its line, description and Background), and a scenario stands alone as
+`header` + `rules[rule_index]` + `gherkin`. The header holds the Feature
+and its Background only. Parts that did not fit the budget are flagged
+rather than sent: `header_omitted`, `gherkin_omitted`, `names_omitted`
+and `unlisted_matches`.
+
 ## Run it locally
 
 ```bash

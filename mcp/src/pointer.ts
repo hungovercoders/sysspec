@@ -19,7 +19,9 @@ export function resolvePointer(doc: unknown, pointer: string): unknown {
   let resolved = "";
   for (const rawToken of pointer.slice(1).split("/")) {
     const token = rawToken.replaceAll("~1", "/").replaceAll("~0", "~");
-    if (isRecord(node) && token in node) {
+    // Own keys only: `in` would let '/constructor' or '/toString' walk
+    // into Object.prototype and "resolve" a section the artifact lacks.
+    if (isRecord(node) && Object.hasOwn(node, token)) {
       node = node[token];
     } else if (Array.isArray(node) && /^\d+$/.test(token) && Number(token) < node.length) {
       node = node[Number(token)];

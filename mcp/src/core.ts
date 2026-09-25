@@ -292,32 +292,77 @@ export async function getAcceptanceCriteria(
     const text = await read(source, svc, a.path);
     const summary = summaryOf(a.summary);
     const { header, scenarios } = splitGherkin(text);
+    // The scenario index, charged to the budget like everything else:
+    // the names when they fit, else only their count. `extra` marks what
+    // else the entry leaves out.
+    const namesIndex = (extra: Record<string, unknown>): void => {
+      const names = scenarios.map((s) => s.name);
+      const size = names.reduce((sum, name) => sum + utf8Len(name), 0);
+      if (size > budget) {
+        out.truncated = true;
+        out.features.push({ path: a.path, summary, scenario_count: names.length, names_omitted: true, ...extra });
+      } else {
+        budget -= size;
+        out.features.push({ path: a.path, summary, scenarios: names, ...extra });
+      }
+    };
     if (names_only) {
-      out.features.push({ path: a.path, summary, scenarios: scenarios.map((s) => s.name) });
+      namesIndex({});
       continue;
     }
     if (scenario !== null && scenario !== undefined) {
       const needle = scenario.toLowerCase();
-      const matched = scenarios.filter((s) => s.name.toLowerCase().includes(needle));
-      if (matched.length) {
-        out.features.push({
-          path: a.path,
-          summary,
-          header,
-          matched,
-          total_scenarios: scenarios.length,
-        });
+      const hits = scenarios.filter((s) => s.name.toLowerCase().includes(needle));
+      if (hits.length) {
+        // Everything sent spends the budget: header, each Rule block (sent
+        // once per file, however many matches share it), names and
+        // bodies. What does not fit is flagged, never sent past max_bytes.
+        const entry: Record<string, unknown> = { path: a.path, summary };
+        const headerSize = utf8Len(header);
+        if (headerSize > budget) {
+          out.truncated = true;
+          entry.header_omitted = true;
+        } else {
+          budget -= headerSize;
+          entry.header = header;
+        }
+        const rules: string[] = [];
+        const matched: Record<string, unknown>[] = [];
+        let unlisted = 0;
+        for (const s of hits) {
+          const nameSize = utf8Len(s.name);
+          const newRule = s.rule !== undefined && !rules.includes(s.rule);
+          const bodySize = utf8Len(s.gherkin) + (newRule ? utf8Len(s.rule!) : 0);
+          if (nameSize + bodySize <= budget) {
+            budget -= nameSize + bodySize;
+            const item: Record<string, unknown> = { name: s.name, gherkin: s.gherkin };
+            if (s.rule !== undefined) {
+              if (newRule) rules.push(s.rule);
+              item.rule_index = rules.indexOf(s.rule);
+            }
+            matched.push(item);
+          } else if (nameSize <= budget) {
+            budget -= nameSize;
+            out.truncated = true;
+            matched.push({ name: s.name, gherkin_omitted: true });
+          } else {
+            out.truncated = true;
+            unlisted += 1;
+          }
+        }
+        if (rules.length) entry.rules = rules;
+        entry.matched = matched;
+        if (unlisted) entry.unlisted_matches = unlisted;
+        entry.total_scenarios = scenarios.length;
+        out.features.push(entry);
       }
       continue;
     }
     if (utf8Len(text) > budget) {
+      // The body does not fit: fall back to the scenario index, which
+      // spends the budget too - the same rule names_only follows.
       out.truncated = true;
-      out.features.push({
-        path: a.path,
-        summary,
-        scenarios: scenarios.map((s) => s.name),
-        gherkin_omitted: true,
-      });
+      namesIndex({ gherkin_omitted: true });
       continue;
     }
     budget -= utf8Len(text);
@@ -333,7 +378,9 @@ export async function getAcceptanceCriteria(
   }
   if (out.truncated) {
     out.note =
-      `Some Gherkin bodies omitted to stay under ${max_bytes} bytes. ` +
+      `Some Gherkin text or names omitted to stay under ${max_bytes} bytes ` +
+      "(the budget counts the returned text - bodies, headers, rules, names - " +
+      "not JSON framing). " +
       "Fetch narrowly with path= or scenario=, or raise max_bytes.";
   }
   return out;

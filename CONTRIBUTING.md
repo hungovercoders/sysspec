@@ -31,8 +31,8 @@ Exactly what CI runs. It composes, in order:
 | `lint:specs` | Spectral over the OpenAPI/AsyncAPI contracts, house naming rules included |
 | `lint:features` | gherkin-lint over the acceptance criteria |
 | `lint:datacontracts` | the ODCS 3.2 JSON Schema (vendored, strict) over the data contracts, then datacontract-cli, then Spectral for naming |
-| `lint:manifest` | manifests ⇄ contracts ⇄ spec graph consistency, semver versions, feature references resolve to real messages and channels, ODCS relationships resolve to columns that exist, and `specs/system.yaml` is complete when present |
-| `check:version` | any gated artifact change bumps its manifest version *and* the service's top-level version; artifact major ⇒ service major |
+| `lint:manifest` | manifests ⇄ contracts ⇄ spec graph consistency, `name` matching its directory, a `summary`, one producer per channel, semver versions, feature references resolve to real messages and channels, ODCS relationships resolve to columns that exist, and `specs/system.yaml` is complete when present |
+| `check:version` | any gated artifact change bumps its manifest version *and* the service's top-level version (upwards only); artifact major ⇒ service major |
 | `check:plugin` | plugin surface changes (cli, mcp, skills, plugin manifests) bump the plugin version |
 | `check:cli` / `check:mcp` | changes under `cli/` / `mcp/` bump that package's version |
 | `check:cli:dist` / `check:mcp:dist` | the committed bundles match the source (checked before the tests, which execute them) |

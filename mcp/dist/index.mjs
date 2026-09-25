@@ -28763,7 +28763,7 @@ var EMPTY_COMPLETION_RESULT = {
 // package.json
 var package_default = {
   name: "sysspec-mcp",
-  version: "1.0.5",
+  version: "1.1.0",
   description: "Read-only MCP access to versioned system specs: AsyncAPI, OpenAPI, ODCS data contracts and Gherkin acceptance criteria.",
   license: "MIT",
   repository: {
@@ -28832,32 +28832,79 @@ function bounded(text, maxBytes) {
 }
 
 // src/gherkin.ts
+var SCENARIO_KEYWORDS = ["Scenario:", "Scenario Outline:", "Scenario Template:", "Example:"];
+var STEP_RE = /^(Given|When|Then|And|But|\*)(\s|$)/;
+function docstringLines(lines) {
+  const data = lines.map(() => false);
+  let lastStep = false;
+  for (let i = 0; i < lines.length; i++) {
+    const stripped = lines[i].trim();
+    const fence = stripped.startsWith('"""') ? '"""' : stripped.startsWith("```") ? "```" : null;
+    if (fence && lastStep) {
+      let close = i + 1;
+      while (close < lines.length && !lines[close].trim().startsWith(fence)) close += 1;
+      if (close < lines.length) {
+        for (let j = i; j <= close; j++) data[j] = true;
+        i = close;
+        lastStep = false;
+        continue;
+      }
+    }
+    if (stripped && !stripped.startsWith("#")) lastStep = STEP_RE.test(stripped);
+  }
+  return data;
+}
 function splitGherkin(text) {
   const lines = text.match(/[^\n]*\n|[^\n]+/g) ?? [];
   let headerEnd = lines.length;
   const spans = [];
+  let rule = null;
+  const blockStart = (i) => {
+    let start = i;
+    while (start > 0) {
+      const prev = lines[start - 1].trim();
+      if (prev.startsWith("@") || prev.startsWith("#")) start -= 1;
+      else break;
+    }
+    return start;
+  };
+  const closeRunning = (at) => {
+    const last = spans[spans.length - 1];
+    if (last) last.end = Math.min(last.end, at);
+  };
+  const text_ = (from, to) => lines.slice(from, to).join("").replace(/\n+$/, "");
+  const data = docstringLines(lines);
   for (let i = 0; i < lines.length; i++) {
+    if (data[i]) continue;
     const stripped = lines[i].trim();
-    if (stripped.startsWith("Scenario:") || stripped.startsWith("Scenario Outline:")) {
-      let start = i;
-      while (start > 0) {
-        const prev = lines[start - 1].trim();
-        if (prev.startsWith("@") || prev.startsWith("#")) start -= 1;
-        else break;
-      }
-      if (spans.length === 0) headerEnd = start;
-      else spans[spans.length - 1].end = start;
+    if (SCENARIO_KEYWORDS.some((k) => stripped.startsWith(k))) {
+      const start = blockStart(i);
+      headerEnd = Math.min(headerEnd, start);
+      closeRunning(start);
+      if (rule && rule.end === null) rule.end = start;
       const name = stripped.slice(stripped.indexOf(":") + 1).trim();
-      spans.push({ name, start, end: lines.length });
+      spans.push({
+        name,
+        start,
+        end: lines.length,
+        rule: rule ? text_(rule.start, rule.end) : void 0
+      });
+    } else if (stripped.startsWith("Rule:")) {
+      const start = blockStart(i);
+      headerEnd = Math.min(headerEnd, start);
+      closeRunning(start);
+      rule = { start, end: null };
+    } else if (stripped.startsWith("Background:")) {
+      if (!rule || rule.end !== null) closeRunning(blockStart(i));
     }
   }
-  const header = lines.slice(0, headerEnd).join("").replace(/\n+$/, "");
   return {
-    header,
-    scenarios: spans.map((s) => ({
-      name: s.name,
-      gherkin: lines.slice(s.start, s.end).join("").replace(/\n+$/, "")
-    }))
+    header: text_(0, headerEnd),
+    scenarios: spans.map((s) => {
+      const out = { name: s.name, gherkin: text_(s.start, s.end) };
+      if (s.rule !== void 0) out.rule = s.rule;
+      return out;
+    })
   };
 }
 
@@ -28892,7 +28939,7 @@ function resolvePointer(doc, pointer) {
   let resolved = "";
   for (const rawToken of pointer.slice(1).split("/")) {
     const token = rawToken.replaceAll("~1", "/").replaceAll("~0", "~");
-    if (isRecord(node) && token in node) {
+    if (isRecord(node) && Object.hasOwn(node, token)) {
       node = node[token];
     } else if (Array.isArray(node) && /^\d+$/.test(token) && Number(token) < node.length) {
       node = node[Number(token)];
@@ -29125,32 +29172,69 @@ async function getAcceptanceCriteria(source, args) {
     const text = await read(source, svc, a.path);
     const summary = summaryOf(a.summary);
     const { header, scenarios } = splitGherkin(text);
+    const namesIndex = (extra) => {
+      const names = scenarios.map((s) => s.name);
+      const size = names.reduce((sum, name) => sum + utf8Len(name), 0);
+      if (size > budget) {
+        out.truncated = true;
+        out.features.push({ path: a.path, summary, scenario_count: names.length, names_omitted: true, ...extra });
+      } else {
+        budget -= size;
+        out.features.push({ path: a.path, summary, scenarios: names, ...extra });
+      }
+    };
     if (names_only) {
-      out.features.push({ path: a.path, summary, scenarios: scenarios.map((s) => s.name) });
+      namesIndex({});
       continue;
     }
     if (scenario !== null && scenario !== void 0) {
       const needle = scenario.toLowerCase();
-      const matched = scenarios.filter((s) => s.name.toLowerCase().includes(needle));
-      if (matched.length) {
-        out.features.push({
-          path: a.path,
-          summary,
-          header,
-          matched,
-          total_scenarios: scenarios.length
-        });
+      const hits = scenarios.filter((s) => s.name.toLowerCase().includes(needle));
+      if (hits.length) {
+        const entry = { path: a.path, summary };
+        const headerSize = utf8Len(header);
+        if (headerSize > budget) {
+          out.truncated = true;
+          entry.header_omitted = true;
+        } else {
+          budget -= headerSize;
+          entry.header = header;
+        }
+        const rules = [];
+        const matched = [];
+        let unlisted = 0;
+        for (const s of hits) {
+          const nameSize = utf8Len(s.name);
+          const newRule = s.rule !== void 0 && !rules.includes(s.rule);
+          const bodySize = utf8Len(s.gherkin) + (newRule ? utf8Len(s.rule) : 0);
+          if (nameSize + bodySize <= budget) {
+            budget -= nameSize + bodySize;
+            const item = { name: s.name, gherkin: s.gherkin };
+            if (s.rule !== void 0) {
+              if (newRule) rules.push(s.rule);
+              item.rule_index = rules.indexOf(s.rule);
+            }
+            matched.push(item);
+          } else if (nameSize <= budget) {
+            budget -= nameSize;
+            out.truncated = true;
+            matched.push({ name: s.name, gherkin_omitted: true });
+          } else {
+            out.truncated = true;
+            unlisted += 1;
+          }
+        }
+        if (rules.length) entry.rules = rules;
+        entry.matched = matched;
+        if (unlisted) entry.unlisted_matches = unlisted;
+        entry.total_scenarios = scenarios.length;
+        out.features.push(entry);
       }
       continue;
     }
     if (utf8Len(text) > budget) {
       out.truncated = true;
-      out.features.push({
-        path: a.path,
-        summary,
-        scenarios: scenarios.map((s) => s.name),
-        gherkin_omitted: true
-      });
+      namesIndex({ gherkin_omitted: true });
       continue;
     }
     budget -= utf8Len(text);
@@ -29165,7 +29249,7 @@ async function getAcceptanceCriteria(source, args) {
     throw new Error(`No scenario matching ${pyRepr(scenario)}. Scenarios: ${pyList(names)}`);
   }
   if (out.truncated) {
-    out.note = `Some Gherkin bodies omitted to stay under ${max_bytes} bytes. Fetch narrowly with path= or scenario=, or raise max_bytes.`;
+    out.note = `Some Gherkin text or names omitted to stay under ${max_bytes} bytes (the budget counts the returned text - bodies, headers, rules, names - not JSON framing). Fetch narrowly with path= or scenario=, or raise max_bytes.`;
   }
   return out;
 }
@@ -29296,7 +29380,25 @@ function createServer(source) {
   server.registerTool(
     "get_acceptance_criteria",
     {
-      description: 'Return Gherkin acceptance criteria for a service \u2014 narrowly.\n\nStart with names_only=True to see the scenario index, then fetch one\nscenario (scenario="substring of its title") or one file (path=...).\nOnly omit all filters when you are about to implement the whole service.\n\nThese are binding acceptance criteria. Implement toward them. If a\nscenario looks wrong, say so and stop rather than adjusting it.',
+      description: `Return Gherkin acceptance criteria for a service \u2014 narrowly.
+
+Start with names_only=True to see the scenario index, then fetch one
+scenario (scenario="substring of its title") or one file (path=...).
+Only omit all filters when you are about to implement the whole service.
+
+A scenario= match comes back in matched[] as {name, gherkin}. A
+scenario inside a Rule also has rule_index: rules[rule_index] is that
+Rule's block (Rule line, description, Background). A scenario stands
+alone only as header + rules[rule_index] + gherkin; the header holds
+the Feature and its Background, never a Rule.
+
+Nothing is sent past max_bytes. With truncated=true, what did not
+fit is flagged instead: header_omitted, gherkin_omitted (name only),
+names_omitted (scenario_count only), unlisted_matches (a count of
+matches not even named). Narrow the call or raise max_bytes.
+
+These are binding acceptance criteria. Implement toward them. If a
+scenario looks wrong, say so and stop rather than adjusting it.`,
       inputSchema: {
         service: external_exports.string(),
         path: external_exports.string().nullable().optional(),

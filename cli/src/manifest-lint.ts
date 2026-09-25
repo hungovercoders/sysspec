@@ -1,10 +1,13 @@
 /** Cross-check every service manifest against its contracts and the specs graph.
  *
  * Per service:
+ *   0. `name` must equal the service directory name (docs and mocks join
+ *      paths from either), and `summary` must be a non-empty string.
  *   1. `produces` must exactly match the channel addresses its AsyncAPI files
  *      publish with a `send` operation; documented `receive` channels must be
  *      listed in `consumes`.
- *   2. Every `consumes` entry must be produced by some service in the specs.
+ *   2. Every `consumes` entry must be produced by some service in the specs,
+ *      and no channel may be produced by more than one service.
  *   3. Every declared artifact path must exist on disk, and every file of a
  *      gated kind on disk must be declared in the manifest.
  *   4. For asyncapi/openapi artifacts, the spec's `info.version` must equal the
@@ -72,6 +75,12 @@ function globYaml(dir: string): string[] {
 
 function readYaml(file: string): Record<string, any> {
   return (parse(readFileSync(file, "utf-8")) ?? {}) as Record<string, any>;
+}
+
+/** A manifest's produces/consumes as a list of strings: anything that is
+ * not a list reads as empty here and is reported by lintService. */
+function channelList(value: unknown): string[] {
+  return Array.isArray(value) ? value.map(String) : [];
 }
 
 function findAll(re: RegExp, text: string): Set<string> {
@@ -277,7 +286,7 @@ export function lintSystem(specsDir: string): string[] {
 
 function lintService(
   serviceDir: string,
-  producedBy: Map<string, string>,
+  producedBy: Map<string, Set<string>>,
   messagesByAddress: Map<string, Set<string>>,
   ownMessages: Map<string, Set<string>>,
 ): string[] {
@@ -285,6 +294,17 @@ function lintService(
   const manifest = readYaml(path.join(serviceDir, "service.yaml"));
   const name = manifest.name;
   const artifacts: any[] = manifest.artifacts ?? [];
+
+  const dirName = path.basename(serviceDir);
+  if (name !== dirName) {
+    problems.push(
+      `${dirName}: manifest name ${pyRepr(name ?? null)} must equal its directory name ` +
+        `${pyRepr(dirName)}`,
+    );
+  }
+  if (typeof manifest.summary !== "string" || !manifest.summary.trim()) {
+    problems.push(`${name}: summary is required and must be a non-empty string`);
+  }
 
   const version = manifest.version;
   if (!/^\d+\.\d+\.\d+$/.test(version ? String(version) : "")) {
@@ -344,8 +364,17 @@ function lintService(
     problems.push(`${name}: implementationRepo must be <owner>/<repo>, got ${pyRepr(String(repo))}`);
   }
 
-  const produces = new Set<string>(manifest.produces ?? []);
-  const consumes = new Set<string>(manifest.consumes ?? []);
+  for (const field of ["produces", "consumes"]) {
+    if (manifest[field] != null && !Array.isArray(manifest[field])) {
+      problems.push(`${name}: ${field} must be a list of channel addresses`);
+    }
+  }
+  const producesList: string[] = channelList(manifest.produces);
+  for (const address of pySorted(new Set(producesList.filter((a, i) => producesList.indexOf(a) !== i)))) {
+    problems.push(`${name}: lists '${address}' in produces more than once`);
+  }
+  const produces = new Set<string>(producesList);
+  const consumes = new Set<string>(channelList(manifest.consumes));
 
   for (const address of pySorted([...produces].filter((a) => !sent.has(a)))) {
     problems.push(`${name}: produces '${address}' but no AsyncAPI send operation publishes it`);
@@ -405,15 +434,40 @@ export function runLint(only: string | null, specsDir: string): number {
     return 1;
   }
 
-  const producedBy = new Map<string, string>();
+  // Owners per channel, keyed by service directory (the one identity two
+  // services cannot share - a copied manifest can repeat a `name`). A set:
+  // one service listing a channel twice is its own problem, reported per
+  // service, not a second producer.
+  const producedBy = new Map<string, Set<string>>();
+  // The channels a scoped run's service produces or consumes.
+  const party = new Set<string>();
   for (const d of dirs) {
     const manifest = readYaml(path.join(d, "service.yaml"));
-    for (const address of manifest.produces ?? []) producedBy.set(address, manifest.name);
+    for (const address of channelList(manifest.produces)) {
+      producedBy.set(address, (producedBy.get(address) ?? new Set<string>()).add(path.basename(d)));
+    }
+    if (path.basename(d) === only) {
+      for (const address of [...channelList(manifest.produces), ...channelList(manifest.consumes)]) {
+        party.add(address);
+      }
+    }
   }
   const [messagesByAddress, ownMessages] = messageIndex(dirs);
 
   // Suite-wide, so only on a full run: `--service` scopes to one service.
   const problems: string[] = only ? [] : lintSystem(specsDir);
+  // One channel, one owner: two producers make the channel's schema a
+  // negotiation and trace_channel's answer a coin toss. Reported once per
+  // channel, not once per producer; a scoped run reports the channels its
+  // service produces or consumes.
+  for (const address of pySorted(producedBy.keys())) {
+    const owners = pySorted(producedBy.get(address)!);
+    if (owners.length > 1 && (!only || party.has(address))) {
+      problems.push(
+        `channel '${address}' is produced by ${owners.join(", ")} - a channel has exactly one producer`,
+      );
+    }
+  }
   let checked = 0;
   for (const d of dirs) {
     if (only && path.basename(d) !== only) continue;

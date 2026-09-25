@@ -18,13 +18,17 @@ import * as mocks from "./mocks.js";
 import { runNull } from "./nullsvc.js";
 import { runInit } from "./scaffold.js";
 import * as surface from "./surface.js";
-import { Exit } from "./util.js";
+import { defaultBase, envFlag, Exit } from "./util.js";
 import * as versioning from "./versioning.js";
 
 const USAGE = `usage: sysspec <command> ...
 
 commands:
   check version|compat|intent|surface   diff-based gates against a base ref
+                                        (--base, default $SYSSPEC_BASE, else
+                                        origin/$GITHUB_BASE_REF, else origin/main;
+                                        --allow-missing-base: skip, even in CI,
+                                        when the base ref does not exist)
   lint manifest|specs|features|datacontracts
   docs data|diagrams
   init <dir> --org <reverse-dns> [--system <title>] [--domain <name>]
@@ -40,31 +44,39 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<numb
     argv = argv.slice(0, split);
   }
 
-  const [command, sub, ...rest] = argv;
-  const args = new Args(rest, `sysspec ${command ?? ""} ${sub ?? ""}`.trim());
+  // Flags may sit anywhere, before or after the subcommand: parse the
+  // whole line, then read the command words from what is left.
+  const args = new Args(argv, "sysspec");
+  const [command, sub] = args.positional;
+  args.usage = `sysspec ${command ?? ""} ${sub ?? ""}`.trim();
 
   if (command === "check") {
-    const base = args.get("base", "origin/main")!;
+    // --base, else SYSSPEC_BASE / the PR's base branch / origin/main.
+    const base = args.get("base", defaultBase())!;
     const specsDir = args.get("specs-dir", "specs")!;
+    // The flag, or SYSSPEC_ALLOW_MISSING_BASE for callers that cannot
+    // change the command line (the reusable workflow's scaffolded Taskfile).
+    const allowMissing = args.bool("allow-missing-base") || envFlag("SYSSPEC_ALLOW_MISSING_BASE");
     if (sub === "version") {
-      args.only("base", "specs-dir");
-      return versioning.runGate(base, specsDir);
+      args.only("base", "specs-dir", "allow-missing-base");
+      return versioning.runGate(base, specsDir, allowMissing);
     }
     if (sub === "compat") {
-      args.only("base", "specs-dir", "service");
-      return compat.runGate(base, args.get("service"), specsDir);
+      args.only("base", "specs-dir", "service", "allow-missing-base");
+      return compat.runGate(base, args.get("service"), specsDir, allowMissing);
     }
     if (sub === "intent") {
-      args.only("base", "specs-dir", "service");
-      return intent.runGate(base, args.get("service"), specsDir);
+      args.only("base", "specs-dir", "service", "allow-missing-base");
+      return intent.runGate(base, args.get("service"), specsDir, allowMissing);
     }
     if (sub === "surface") {
-      args.only("base", "specs-dir", "version-file", "json-key", "paths");
+      args.only("base", "specs-dir", "version-file", "json-key", "paths", "allow-missing-base");
       return surface.runGate(
         base,
         args.require("version-file"),
         args.get("json-key", "version")!,
         args.require("paths").split(",").filter(Boolean),
+        allowMissing,
       );
     }
   }

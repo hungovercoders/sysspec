@@ -136,3 +136,76 @@ test("no system manifest at all is fine - the catalog just reads generically", (
   unlinkSync(path.join(specs, "system.yaml"));
   expect(runLint(null, specs)).toBe(0);
 });
+
+test("a manifest name that differs from its directory is drift", () => {
+  const errs = captureErr();
+  const f = path.join(specs, "orders", "service.yaml");
+  writeFileSync(f, readFileSync(f, "utf-8").replace(/^name: orders$/m, "name: ordering"));
+  expect(runLint("orders", specs)).toBe(1);
+  expect(errs.join("\n")).toContain("manifest name 'ordering' must equal its directory name 'orders'");
+});
+
+test("a manifest without a summary is drift", () => {
+  const errs = captureErr();
+  const f = path.join(specs, "orders", "service.yaml");
+  const text = readFileSync(f, "utf-8");
+  // summary may be a folded block; drop it and any indented continuation.
+  writeFileSync(f, text.replace(/^summary:.*\n(?:[ \t]+.*\n)*/m, ""));
+  expect(runLint("orders", specs)).toBe(1);
+  expect(errs.join("\n")).toContain("orders: summary is required");
+});
+
+test("two services producing the same channel is drift", () => {
+  const errs = captureErr();
+  const orders = readFileSync(path.join(specs, "orders", "service.yaml"), "utf-8");
+  const address = /produces:\s*\n\s*-\s*([\w.-]+)/.exec(orders)![1];
+  const f = path.join(specs, "payments", "service.yaml");
+  writeFileSync(f, readFileSync(f, "utf-8").replace(/^produces:\s*\n/m, `produces:\n  - ${address}\n`));
+  expect(runLint(null, specs)).toBe(1);
+  const out = errs.join("\n");
+  expect(out).toContain(`channel '${address}' is produced by orders, payments`);
+  // One conflict, one message - not one per producer.
+  expect(out.split(`channel '${address}'`).length - 1).toBe(1);
+});
+
+test("a copied manifest repeating another service's name still counts as a second producer", () => {
+  const errs = captureErr();
+  cpSync(path.join(specs, "orders"), path.join(specs, "orders-copy"), { recursive: true });
+  expect(runLint(null, specs)).toBe(1);
+  const out = errs.join("\n");
+  // Keyed by directory, so the shared `name: orders` cannot hide it.
+  expect(out).toMatch(/channel '[\w.-]+' is produced by orders, orders-copy/);
+});
+
+test("a scoped run reports a double-produced channel its service consumes, and no other", () => {
+  const errs = captureErr();
+  // orders-copy produces everything orders does; payments consumes only
+  // orders.placed.v2 of those.
+  cpSync(path.join(specs, "orders"), path.join(specs, "orders-copy"), { recursive: true });
+  expect(runLint("payments", specs)).toBe(1);
+  const out = errs.join("\n");
+  expect(out).toContain("channel 'orders.placed.v2' is produced by orders, orders-copy");
+  expect(out).not.toContain("orders.cancelled.v2");
+});
+
+test("a channel listed twice in one service's produces is its own problem, not a second producer", () => {
+  const errs = captureErr();
+  const f = path.join(specs, "orders", "service.yaml");
+  const text = readFileSync(f, "utf-8");
+  const address = /produces:\s*\n\s*-\s*([\w.-]+)/.exec(text)![1];
+  writeFileSync(f, text.replace(/^produces:\s*\n/m, `produces:\n  - ${address}\n`));
+  expect(runLint("orders", specs)).toBe(1);
+  const out = errs.join("\n");
+  expect(out).toContain(`orders: lists '${address}' in produces more than once`);
+  expect(out).not.toContain("is produced by");
+});
+
+test("produces that is not a list is a lint problem, not a crash", () => {
+  const errs = captureErr();
+  const f = path.join(specs, "orders", "service.yaml");
+  const text = readFileSync(f, "utf-8");
+  // Replace the produces list with a mapping.
+  writeFileSync(f, text.replace(/^produces:\s*\n(?:\s+-.*\n)+/m, "produces:\n  orders.placed.v2: true\n"));
+  expect(() => runLint("orders", specs)).not.toThrow();
+  expect(errs.join("\n")).toContain("orders: produces must be a list of channel addresses");
+});

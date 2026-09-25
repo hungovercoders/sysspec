@@ -4,17 +4,31 @@
 
 import { Exit } from "./util.js";
 
+/** Flags that never take a value: they must not swallow the word after
+ * them (`--allow-missing-base version` is a flag and a subcommand). */
+export const PRESENCE_FLAGS = new Set(["allow-missing-base"]);
+
 export class Args {
   private flags = new Map<string, string | true>();
   positional: string[] = [];
 
-  constructor(argv: string[], private usage: string) {
+  constructor(
+    argv: string[],
+    public usage: string,
+    presence: ReadonlySet<string> = PRESENCE_FLAGS,
+  ) {
     for (let i = 0; i < argv.length; i++) {
       const arg = argv[i];
       if (arg.startsWith("--")) {
         const eq = arg.indexOf("=");
         if (eq !== -1) {
           this.flags.set(arg.slice(2, eq), arg.slice(eq + 1));
+        } else if (presence.has(arg.slice(2))) {
+          // A presence flag takes a value only when it is spelled out as a
+          // boolean (`--flag false`); any other next word is not its value.
+          const next = argv[i + 1];
+          if (next === "true" || next === "false") this.flags.set(arg.slice(2), argv[++i]);
+          else this.flags.set(arg.slice(2), true);
         } else if (i + 1 < argv.length && !argv[i + 1].startsWith("--")) {
           this.flags.set(arg.slice(2), argv[++i]);
         } else {
@@ -31,6 +45,15 @@ export class Args {
     if (v === undefined) return fallback;
     if (v === true) throw new Exit(`${this.usage}: --${name} needs a value`);
     return v;
+  }
+
+  /** A presence flag: `--name` alone is true, as is `--name=true`. */
+  bool(name: string): boolean {
+    const v = this.flags.get(name);
+    if (v === undefined) return false;
+    if (v === true || v === "true") return true;
+    if (v === "false") return false;
+    throw new Exit(`${this.usage}: --${name} takes no value, got '${v}'`);
   }
 
   require(name: string): string {

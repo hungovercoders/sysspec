@@ -25,11 +25,11 @@ commands:
 ### The `check` gates
 
 All four compare the working tree against a base ref (`--base`, default
-`origin/main`).
+`$SYSSPEC_BASE`, else `origin/$GITHUB_BASE_REF`, else `origin/main`).
 
 - `check version` fails unless a gated artifact change bumps its manifest
   version *and* the service's top-level version; an artifact major forces a
-  service major.
+  service major. Versions only go up (see below).
 - `check compat` fails when a breaking contract change does not carry a
   major bump.
 - `check intent` requires every schema element added to an OpenAPI/AsyncAPI
@@ -41,15 +41,66 @@ All four compare the working tree against a base ref (`--base`, default
 
 | Flag | Applies to | Default |
 | --- | --- | --- |
-| `--base <ref>` | all four | `origin/main` |
+| `--base <ref>` | all four | `$SYSSPEC_BASE`, else `origin/$GITHUB_BASE_REF`, else `origin/main` |
 | `--specs-dir <dir>` | all four | `specs` |
 | `--service <name>` | `compat`, `intent` | all services |
 | `--version-file <file>` | `surface` | required |
 | `--json-key <key>` | `surface` | `version` (dotted path into the version file) |
 | `--paths <a/,b/>` | `surface` | required, comma-separated path prefixes |
+| `--allow-missing-base` | all four | off |
 
 A typo'd or unknown flag is an error, never a silent fall-back to a
 default.
+
+When the gates find no merge-base with the base ref, they work out why:
+
+- Not inside a git work tree at all: they fail, since nothing can be
+  diffed.
+- `HEAD` has no commits yet (the first commit in a new repo): there is
+  no history to compare, so they skip.
+- The ref exists but shares no history with `HEAD`. The history is cut
+  short (a shallow clone) or unrelated, so the gates fail wherever they
+  run and suggest `git fetch --unshallow`.
+- The ref does not exist. In a fresh repo with no remote yet there is
+  honestly nothing to compare, so locally the gates say so and skip. In
+  CI (the `CI` environment variable set to anything but `false` or `0`)
+  or in a shallow clone, a missing base almost always means it was never
+  fetched, so the gates fail rather than pass without checking anything.
+
+Check out with `fetch-depth: 0`, as the reusable workflows do, or pass
+`--allow-missing-base` (or set `SYSSPEC_ALLOW_MISSING_BASE=1`) where
+skipping really is what you want; it skips in every case above,
+saying why.
+
+Without `--base`, the gates diff against `SYSSPEC_BASE` when it is
+set, else the pull request's base branch on GitHub Actions
+(`origin/$GITHUB_BASE_REF`), else `origin/main`. The scaffolded
+Taskfile resolves the base the same way and fetches that branch before
+diffing. The reusable `sysspec-ci.yml` sets `SYSSPEC_BASE` to the pull
+request's base branch, or on a push to the repository's default branch,
+so a repository whose default branch is not `main` works as is. The
+workflow's `allow-missing-base` input sets `SYSSPEC_ALLOW_MISSING_BASE`.
+
+Versions only go up. `check version` and `check surface` order versions
+the same way: semver precedence when both sides are semver (a
+pre-release promoted to its release, `2.0.0-rc.1` to `2.0.0`, is a
+bump), otherwise PEP 440-style (`1.2` < `1.3`, `1.2.3rc1` < `1.2.3` <
+`1.2.3.post1`). When one side is semver-only (build metadata, or a
+pre-release like `1.0.0-SNAPSHOT`), the release numbers decide, then a
+release outranks a pre-release; two pre-releases of one release in
+different schemes cannot be ranked. `check version` checks the
+direction of every declared version, whether or not its file changed:
+
+- A downgrade fails, and so does a version that disappears or is
+  replaced by one no rule can rank (`1.2.3` to `dev`, or to an empty
+  string).
+- The same version respelled (`1.0.0` to `v1.0.0`, `1.2` to `1.2.0`) or
+  differing only in build metadata passes on an untouched artifact, but
+  it is not the bump a changed artifact (or `check surface`) needs, so
+  there it fails.
+- Any other change no rule can rank (from `latest` to `nightly`, or
+  across schemes as above) is accepted, with a note when it is the bump
+  a change relies on.
 
 ### `lint`
 

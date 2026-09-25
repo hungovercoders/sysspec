@@ -25,7 +25,9 @@ import {
   openapiTokens,
   pathNames,
 } from "../src/intent.js";
+import { openapiBreaking } from "../src/compat.js";
 import { runGate as surfaceGate, versionOf } from "../src/surface.js";
+import { compareVersions, defaultBase, envFlag, orderVersions, run } from "../src/util.js";
 import { manifestVersions, runGate as versionGate, serviceVersion } from "../src/versioning.js";
 
 describe("intent token extraction", () => {
@@ -213,6 +215,93 @@ describe("odcs data contracts", () => {
 });
 
 describe("versioning helpers", () => {
+  test("orderVersions ranks semver, bare numbers and PEP 440 alike", () => {
+    const order = [
+      "1.0.dev1",
+      "1.0a1",
+      "1.0b2",
+      "1.0rc1.dev1",
+      "1.0rc1",
+      "1.0",
+      "1.0.post1.dev1",
+      "1.0.post1",
+      "1.0.post2",
+      "1.1",
+      "1.2.3rc1",
+      "1.2.3",
+      "2",
+    ];
+    for (let i = 1; i < order.length; i++) {
+      expect(orderVersions(order[i], order[i - 1]), `${order[i]} > ${order[i - 1]}`).toBeGreaterThan(0);
+      expect(orderVersions(order[i - 1], order[i]), `${order[i - 1]} < ${order[i]}`).toBeLessThan(0);
+    }
+    expect(orderVersions("1.2", "1.2.0")).toBe(0);
+    expect(orderVersions("v1.2", "1.2")).toBe(0);
+    expect(orderVersions("1.0.0-rc.1", "1.0.0")).toBeLessThan(0);
+    expect(orderVersions("latest", "1.0")).toBeNull();
+  });
+
+  test("defaultBase: SYSSPEC_BASE, then the PR's base branch, then origin/main", () => {
+    vi.stubEnv("SYSSPEC_BASE", "");
+    vi.stubEnv("GITHUB_BASE_REF", "");
+    expect(defaultBase()).toBe("origin/main");
+    vi.stubEnv("GITHUB_BASE_REF", "release/1.x");
+    expect(defaultBase()).toBe("origin/release/1.x");
+    vi.stubEnv("SYSSPEC_BASE", "upstream/develop");
+    expect(defaultBase()).toBe("upstream/develop");
+  });
+
+  test("envFlag: set means on, except empty, false and 0", () => {
+    for (const [value, on] of [["1", true], ["true", true], ["yes", true], ["", false], ["0", false], [" FALSE ", false]] as const) {
+      vi.stubEnv("SYSSPEC_TEST_FLAG", value);
+      expect(envFlag("SYSSPEC_TEST_FLAG"), JSON.stringify(value)).toBe(on);
+    }
+  });
+
+  test("orderVersions keeps pre-release rank and number apart", () => {
+    // Packed as rank*1000 + n these two tied.
+    expect(orderVersions("1.0b1000", "1.0rc0")).toBeLessThan(0);
+    expect(orderVersions("1.0rc0", "1.0b1000")).toBeGreaterThan(0);
+  });
+
+  test("orderVersions ranks across schemes by release, then phase", () => {
+    // A semver-only spelling (build metadata, a named or multi-part
+    // pre-release) against a PEP 440 one: the release numbers decide.
+    expect(orderVersions("1.0", "1.2.3+build.5")).toBeLessThan(0);
+    expect(orderVersions("0.9", "1.0.0-SNAPSHOT")).toBeLessThan(0);
+    // Same release: a release outranks any pre-release.
+    expect(orderVersions("1.0", "1.0.0-beta.2.1")).toBeGreaterThan(0);
+    expect(orderVersions("1.0.0-SNAPSHOT", "1.0")).toBeLessThan(0);
+    expect(orderVersions("1.0.post1", "1.0.0+build.5")).toBeGreaterThan(0);
+    // Same release, both releases: one version, build metadata aside.
+    expect(orderVersions("1.2", "1.2.0+build.5")).toBe(0);
+    // Two pre-releases of one release in different schemes: no guess.
+    expect(orderVersions("1.0rc1", "1.0.0-SNAPSHOT")).toBeNull();
+  });
+
+  test("compareVersions follows semver precedence", () => {
+    const order = [
+      "1.0.0-alpha",
+      "1.0.0-alpha.1",
+      "1.0.0-alpha.beta",
+      "1.0.0-beta",
+      "1.0.0-beta.2",
+      "1.0.0-beta.11",
+      "1.0.0-rc.1",
+      "1.0.0",
+      "1.9.0",
+      "1.10.0",
+      "2.0.0",
+    ];
+    for (let i = 1; i < order.length; i++) {
+      expect(compareVersions(order[i], order[i - 1]), `${order[i]} > ${order[i - 1]}`).toBeGreaterThan(0);
+      expect(compareVersions(order[i - 1], order[i]), `${order[i - 1]} < ${order[i]}`).toBeLessThan(0);
+    }
+    expect(compareVersions("1.0.0+build.2", "1.0.0")).toBe(0);
+    expect(compareVersions("v2.0.0", "v1.0.0")).toBeGreaterThan(0);
+    expect(compareVersions("latest", "1.0.0")).toBeNull();
+  });
+
   test("manifestVersions keeps gated artifacts only, honoring explicit gated:", () => {
     const text = [
       "artifacts:",
@@ -271,9 +360,80 @@ describe("gates in a scratch git repo", () => {
     vi.restoreAllMocks();
   });
 
-  test("version gate: missing base ref skips", () => {
+  const manifest = (svc: string, artifact: string) =>
+    writeFileSync(
+      path.join(repo, "specs", "svc", "service.yaml"),
+      [
+        "name: svc",
+        `version: ${svc}`,
+        "artifacts:",
+        `  - { kind: feature, path: features/a.feature${artifact ? `, version: ${artifact}` : ""} }`,
+        "",
+      ].join("\n"),
+    );
+
+  test("version gate: missing base ref skips locally", () => {
+    vi.stubEnv("CI", "");
     expect(versionGate("origin/nope", "specs")).toBe(0);
     expect(logs.join("\n")).toContain("nothing to diff against");
+  });
+
+  test("diff gates: missing base ref fails in CI unless explicitly allowed", () => {
+    vi.stubEnv("CI", "true");
+    expect(versionGate("origin/nope", "specs")).toBe(1);
+    expect(logs.join("\n")).toContain("fetch-depth: 0");
+    expect(surfaceGate("origin/nope", "v.json", "version", ["surface.txt"])).toBe(1);
+
+    logs.length = 0;
+    expect(versionGate("origin/nope", "specs", true)).toBe(0);
+    expect(surfaceGate("origin/nope", "v.json", "version", ["surface.txt"], true)).toBe(0);
+    expect(logs.join("\n")).toContain("nothing to diff against");
+  });
+
+  test("version gate: an artifact version moving backwards is red", () => {
+    const manifest = path.join(repo, "specs", "svc", "service.yaml");
+    writeFileSync(
+      manifest,
+      [
+        "name: svc",
+        "version: 1.2.0",
+        "artifacts:",
+        "  - { kind: feature, path: features/a.feature, version: 1.2.0 }",
+        "",
+      ].join("\n"),
+    );
+    g("add", "-A");
+    g("-c", "user.email=t@e.c", "-c", "user.name=t", "commit", "-qm", "at 1.2.0");
+    g("checkout", "-q", "-b", "feature");
+    writeFileSync(path.join(repo, "specs", "svc", "features", "a.feature"), "Feature: a2\n");
+    writeFileSync(
+      manifest,
+      [
+        "name: svc",
+        "version: 1.3.0",
+        "artifacts:",
+        "  - { kind: feature, path: features/a.feature, version: 1.1.0 }",
+        "",
+      ].join("\n"),
+    );
+    expect(versionGate("main", "specs")).toBe(1);
+    expect(logs.join("\n")).toContain("version moved backwards 1.2.0 -> 1.1.0");
+  });
+
+  test("version gate: a service version moving backwards is red", () => {
+    writeFileSync(path.join(repo, "specs", "svc", "features", "a.feature"), "Feature: a2\n");
+    writeFileSync(
+      path.join(repo, "specs", "svc", "service.yaml"),
+      [
+        "name: svc",
+        "version: 0.9.0",
+        "artifacts:",
+        "  - { kind: feature, path: features/a.feature, version: 1.1.0 }",
+        "",
+      ].join("\n"),
+    );
+    expect(versionGate("main", "specs")).toBe(1);
+    expect(logs.join("\n")).toContain("service top-level version moved backwards 1.0.0 -> 0.9.0");
   });
 
   test("version gate: gated edit without a bump is red, with a bump green", () => {
@@ -365,9 +525,218 @@ describe("gates in a scratch git repo", () => {
     expect(logs.join("\n")).toContain("1.0.0 -> 1.0.1 - ok");
   });
 
+  test("compat: an oasdiff failure is a tool error, not a breaking verdict", () => {
+    const good = path.join(repo, "a.yaml");
+    writeFileSync(
+      good,
+      "openapi: 3.0.3\ninfo: {title: t, version: 1.0.0}\npaths:\n  /x:\n    get:\n      responses: {'200': {description: ok}}\n",
+    );
+    const gone = path.join(repo, "b.yaml");
+    writeFileSync(gone, "openapi: 3.0.3\ninfo: {title: t, version: 1.0.0}\npaths: {}\n");
+    expect(openapiBreaking(good, good)[0]).toBe(false);
+    expect(openapiBreaking(good, gone)[0]).toBe(true);
+    expect(() => openapiBreaking(good, path.join(repo, "missing.yaml"))).toThrow(
+      /oasdiff breaking failed .* \(exit 1\d\d\)/,
+    );
+  });
+
   test("versionOf reads dotted keys from JSON and TOML", () => {
-    expect(versionOf('{"project": {"version": "1.2.3"}}', "x.json", "project.version")).toEqual([1, 2, 3]);
-    expect(versionOf('[project]\nversion = "4.5.6"\n', "x.toml", "project.version")).toEqual([4, 5, 6]);
+    expect(versionOf('{"project": {"version": "1.2.3"}}', "x.json", "project.version")).toBe("1.2.3");
+    expect(versionOf('[project]\nversion = "4.5.6"\n', "x.toml", "project.version")).toBe("4.5.6");
     expect(versionOf(null, "x.json", "version")).toBeNull();
+  });
+
+  test("surface gate: a pre-release promoted to its release is a bump", () => {
+    writeFileSync(path.join(repo, "v.json"), JSON.stringify({ version: "2.0.0-rc.1" }));
+    g("add", "-A");
+    g("-c", "user.email=t@e.c", "-c", "user.name=t", "commit", "-qm", "rc");
+    writeFileSync(path.join(repo, "surface.txt"), "s2\n");
+    writeFileSync(path.join(repo, "v.json"), JSON.stringify({ version: "2.0.0" }));
+    expect(surfaceGate("HEAD", "v.json", "version", ["surface.txt"])).toBe(0);
+  });
+
+  test("version gate: a service-only downgrade is red, with no artifact touched", () => {
+    manifest("0.9.0", "1.0.0");
+    expect(versionGate("main", "specs")).toBe(1);
+    expect(logs.join("\n")).toContain("service top-level version moved backwards 1.0.0 -> 0.9.0");
+  });
+
+  test("version gate: a manifest-only artifact downgrade is red, with its file untouched", () => {
+    manifest("1.0.0", "0.9.0");
+    expect(versionGate("main", "specs")).toBe(1);
+    expect(logs.join("\n")).toContain("version moved backwards 1.0.0 -> 0.9.0");
+  });
+
+  test("version gate: dropping an artifact's version is red, not a bump", () => {
+    writeFileSync(path.join(repo, "specs", "svc", "features", "a.feature"), "Feature: a2\n");
+    manifest("1.1.0", "");
+    expect(versionGate("main", "specs")).toBe(1);
+    expect(logs.join("\n")).toContain("lost its version (was 1.0.0)");
+  });
+
+  test("version gate: pre-release to release is a bump; build metadata alone is not", () => {
+    manifest("1.0.0", "2.0.0-rc.1");
+    g("add", "-A");
+    g("-c", "user.email=t@e.c", "-c", "user.name=t", "commit", "-qm", "rc");
+    g("branch", "-f", "rc");
+    writeFileSync(path.join(repo, "specs", "svc", "features", "a.feature"), "Feature: a2\n");
+    manifest("2.0.0", "2.0.0");
+    expect(versionGate("rc", "specs")).toBe(0);
+
+    logs.length = 0;
+    manifest("1.0.0", "2.0.0-rc.1+build.7");
+    expect(versionGate("rc", "specs")).toBe(1);
+    expect(logs.join("\n")).toContain("differs only in build metadata - not a bump");
+  });
+
+  test("version gate: a v-prefixed major bump counts as a major", () => {
+    manifest("1.0.0", "v1.0.0");
+    g("add", "-A");
+    g("-c", "user.email=t@e.c", "-c", "user.name=t", "commit", "-qm", "v");
+    g("branch", "-f", "vbase");
+    writeFileSync(path.join(repo, "specs", "svc", "features", "a.feature"), "Feature: a2\n");
+    manifest("1.1.0", "v2.0.0");
+    expect(versionGate("vbase", "specs")).toBe(1);
+    expect(logs.join("\n")).toContain("a major artifact change is a major surface change");
+  });
+
+  test("diff gates: CI=false is not CI", () => {
+    vi.stubEnv("CI", "false");
+    expect(versionGate("origin/nope", "specs")).toBe(0);
+    expect(logs.join("\n")).toContain("nothing to diff against, skipping");
+  });
+
+  test("diff gates: a base that shares no history fails everywhere", () => {
+    vi.stubEnv("CI", "");
+    g("checkout", "-q", "--orphan", "unrelated");
+    g("-c", "user.email=t@e.c", "-c", "user.name=t", "commit", "-q", "--allow-empty", "-m", "orphan");
+    g("checkout", "-q", "main");
+    expect(versionGate("unrelated", "specs")).toBe(1);
+    expect(logs.join("\n")).toContain("base ref 'unrelated' shares no history with HEAD");
+    logs.length = 0;
+    expect(versionGate("unrelated", "specs", true)).toBe(0);
+    expect(logs.join("\n")).toContain("--allow-missing-base: skipping");
+  });
+
+  test("surface gate: versions semver cannot rank still order by their numbers", () => {
+    writeFileSync(path.join(repo, "v.json"), JSON.stringify({ version: "1.2" }));
+    g("add", "-A");
+    g("-c", "user.email=t@e.c", "-c", "user.name=t", "commit", "-qm", "two-part");
+    writeFileSync(path.join(repo, "surface.txt"), "s2\n");
+    writeFileSync(path.join(repo, "v.json"), JSON.stringify({ version: "1.3" }));
+    expect(surfaceGate("HEAD", "v.json", "version", ["surface.txt"])).toBe(0);
+    writeFileSync(path.join(repo, "v.json"), JSON.stringify({ version: "1.1" }));
+    expect(surfaceGate("HEAD", "v.json", "version", ["surface.txt"])).toBe(1);
+    // PEP 440 post-release ranks above its release.
+    writeFileSync(path.join(repo, "v.json"), JSON.stringify({ version: "1.2.post1" }));
+    expect(surfaceGate("HEAD", "v.json", "version", ["surface.txt"])).toBe(0);
+    // Same version respelled is not a bump.
+    logs.length = 0;
+    writeFileSync(path.join(repo, "v.json"), JSON.stringify({ version: "1.2.0" }));
+    expect(surfaceGate("HEAD", "v.json", "version", ["surface.txt"])).toBe(1);
+    expect(logs.join("\n")).toContain("is the same version, respelled - not a bump");
+    // A rankable version swapped for one no rule can rank loses the
+    // direction: red like a downgrade, word or empty string alike.
+    for (const version of ["latest", "dev", ""]) {
+      logs.length = 0;
+      writeFileSync(path.join(repo, "v.json"), JSON.stringify({ version }));
+      expect(surfaceGate("HEAD", "v.json", "version", ["surface.txt"]), version).toBe(1);
+      expect(logs.join("\n")).toContain("is not a version any rule here can rank");
+    }
+    // A key that lands on an object is not a version.
+    logs.length = 0;
+    writeFileSync(path.join(repo, "v.json"), JSON.stringify({ version: { major: 2 } }));
+    expect(surfaceGate("HEAD", "v.json", "version", ["surface.txt"])).toBe(1);
+    expect(logs.join("\n")).toContain("has no version string at 'version'");
+  });
+
+  test("version gate: respelling an untouched artifact's version is fine; as a bump it is not", () => {
+    manifest("1.0.0", "v1.0.0");
+    expect(versionGate("main", "specs")).toBe(0);
+
+    logs.length = 0;
+    writeFileSync(path.join(repo, "specs", "svc", "features", "a.feature"), "Feature: a2\n");
+    manifest("1.1.0", "v1.0.0");
+    expect(versionGate("main", "specs")).toBe(1);
+    expect(logs.join("\n")).toContain("is the same version, respelled - not a bump");
+    expect(logs.join("\n")).not.toContain("build metadata");
+  });
+
+  test("diff gates: before the first commit there is nothing to diff, even with a fetched base", () => {
+    vi.stubEnv("CI", "true");
+    const fresh = mkdtempSync(path.join(tmpdir(), "sysspec-unborn-"));
+    try {
+      process.chdir(fresh);
+      execFileSync("git", ["init", "-q", "-b", "main", "."], { cwd: fresh });
+      // A base ref that exists (as origin/main would after a fetch) while
+      // HEAD has no commits yet.
+      execFileSync("git", ["fetch", "-q", repo, "main:refs/remotes/origin/main"], { cwd: fresh });
+      mkdirSync(path.join(fresh, "specs", "svc"), { recursive: true });
+      expect(versionGate("origin/main", "specs")).toBe(0);
+      expect(logs.join("\n")).toContain("HEAD has no commits yet");
+    } finally {
+      process.chdir(repo);
+      rmSync(fresh, { recursive: true, force: true });
+    }
+  });
+
+  test("version gate: a non-semver downgrade is red too", () => {
+    manifest("1.0.0", "2.1");
+    g("add", "-A");
+    g("-c", "user.email=t@e.c", "-c", "user.name=t", "commit", "-qm", "two-part");
+    g("branch", "-f", "twopart");
+    manifest("1.0.0", "1.0");
+    expect(versionGate("twopart", "specs")).toBe(1);
+    // Unquoted YAML reads 1.0 as the number 1; the downgrade is caught either way.
+    expect(logs.join("\n")).toMatch(/version moved backwards 2.1 -> 1(\.0)?\b/);
+  });
+
+  test("version gate: an unrankable version is noted only when it is the change's bump", () => {
+    manifest("1.0.0", "latest");
+    g("add", "-A");
+    g("-c", "user.email=t@e.c", "-c", "user.name=t", "commit", "-qm", "latest");
+    g("branch", "-f", "unranked");
+    manifest("1.0.0", "nightly");
+    expect(versionGate("unranked", "specs")).toBe(0);
+    expect(logs.join("\n")).not.toContain("cannot order");
+    writeFileSync(path.join(repo, "specs", "svc", "features", "a.feature"), "Feature: a2\n");
+    manifest("1.1.0", "nightly");
+    expect(versionGate("unranked", "specs")).toBe(0);
+    expect(logs.join("\n")).toContain("cannot order these versions; accepted");
+  });
+
+  test("surface gate: a base file with no version at the key is said, not called new", () => {
+    writeFileSync(path.join(repo, "v.json"), JSON.stringify({ other: "x" }));
+    g("add", "-A");
+    g("-c", "user.email=t@e.c", "-c", "user.name=t", "commit", "-qm", "no key");
+    writeFileSync(path.join(repo, "surface.txt"), "s2\n");
+    writeFileSync(path.join(repo, "v.json"), JSON.stringify({ version: "1.0.0" }));
+    expect(surfaceGate("HEAD", "v.json", "version", ["surface.txt"])).toBe(0);
+    expect(logs.join("\n")).toContain("had no version string at 'version' - nothing to compare");
+    expect(logs.join("\n")).not.toContain("new surface manifest");
+  });
+
+  test("diff gates: outside a git work tree they fail rather than skip", () => {
+    vi.stubEnv("CI", "true");
+    const bare = mkdtempSync(path.join(tmpdir(), "sysspec-nogit-"));
+    try {
+      process.chdir(bare);
+      expect(versionGate("origin/main", "specs")).toBe(1);
+      expect(logs.join("\n")).toContain("not inside a git work tree");
+      // --allow-missing-base skips here too, as it does everywhere else.
+      logs.length = 0;
+      expect(versionGate("origin/main", "specs", true)).toBe(0);
+      expect(logs.join("\n")).toContain("not inside a git work tree");
+      expect(logs.join("\n")).toContain("--allow-missing-base: skipping.");
+    } finally {
+      process.chdir(repo);
+      rmSync(bare, { recursive: true, force: true });
+    }
+  });
+
+  test("a tool killed by a signal reports 128+n, never a verdict of 1", () => {
+    const res = run(["sh", "-c", "kill -9 $$"]);
+    expect(res.status).toBe(137);
+    expect(res.stderr).toContain("killed by SIGKILL");
   });
 });

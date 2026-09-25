@@ -33,22 +33,25 @@ tasks:
     desc: Gated artifacts must bump their manifest versions when they change
     cmds:
       - |
-        git fetch -q origin main 2>/dev/null || true
-        npx -y {{.SYSSPEC}} check version --base "origin/${GITHUB_BASE_REF:-main}"
+        base="${SYSSPEC_BASE:-origin/${GITHUB_BASE_REF:-main}}"
+        git fetch -q origin "${base#origin/}" 2>/dev/null || true
+        npx -y {{.SYSSPEC}} check version --base "$base"
 
   check:compat:
     desc: Breaking contract changes must carry a major version bump
     cmds:
       - |
-        git fetch -q origin main 2>/dev/null || true
-        npx -y {{.SYSSPEC}} check compat --base "origin/${GITHUB_BASE_REF:-main}" {{if .SERVICE}}--service {{.SERVICE}}{{end}}
+        base="${SYSSPEC_BASE:-origin/${GITHUB_BASE_REF:-main}}"
+        git fetch -q origin "${base#origin/}" 2>/dev/null || true
+        npx -y {{.SYSSPEC}} check compat --base "$base" {{if .SERVICE}}--service {{.SERVICE}}{{end}}
 
   check:intent:
     desc: Added schema elements must be named in the service's features
     cmds:
       - |
-        git fetch -q origin main 2>/dev/null || true
-        npx -y {{.SYSSPEC}} check intent --base "origin/${GITHUB_BASE_REF:-main}" {{if .SERVICE}}--service {{.SERVICE}}{{end}}
+        base="${SYSSPEC_BASE:-origin/${GITHUB_BASE_REF:-main}}"
+        git fetch -q origin "${base#origin/}" 2>/dev/null || true
+        npx -y {{.SYSSPEC}} check intent --base "$base" {{if .SERVICE}}--service {{.SERVICE}}{{end}}
 
   lint:
     desc: Lint specs, features, data contracts and manifests (scope with SERVICE=)

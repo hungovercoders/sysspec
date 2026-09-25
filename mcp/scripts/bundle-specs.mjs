@@ -41,6 +41,27 @@ for (const dir of dirs) {
   services.push({ dir, manifestYaml, files });
 }
 
+// Write-then-rename: a rename within one directory is atomic, so a reader
+// running alongside (parallel test files, a build) sees the old bundle or
+// the new one, never a half-written file.
 await fs.mkdir(path.dirname(outFile), { recursive: true });
-await fs.writeFile(outFile, JSON.stringify({ services }));
+const tmpFile = `${outFile}.${process.pid}.tmp`;
+try {
+  await fs.writeFile(tmpFile, JSON.stringify({ services }));
+  // Windows refuses to replace a file another process has open (EPERM /
+  // EBUSY) - a parallel reader, briefly. Retry before giving up.
+  for (let attempt = 1; ; attempt++) {
+    try {
+      await fs.rename(tmpFile, outFile);
+      break;
+    } catch (err) {
+      if (attempt >= 5 || !["EPERM", "EBUSY", "EACCES"].includes(err.code)) throw err;
+      await new Promise((r) => setTimeout(r, 50 * attempt));
+    }
+  }
+} catch (err) {
+  // Never leave a stray temp file next to the bundle.
+  await fs.rm(tmpFile, { force: true });
+  throw err;
+}
 console.error(`bundled ${services.length} service(s) from ${specsDir} -> ${outFile}`);
