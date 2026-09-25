@@ -162,7 +162,19 @@ test("two services producing the same channel is drift", () => {
   const f = path.join(specs, "payments", "service.yaml");
   writeFileSync(f, readFileSync(f, "utf-8").replace(/^produces:\s*\n/m, `produces:\n  - ${address}\n`));
   expect(runLint(null, specs)).toBe(1);
-  expect(errs.join("\n")).toContain(`produces '${address}', which is also produced by`);
+  const out = errs.join("\n");
+  expect(out).toContain(`channel '${address}' is produced by orders, payments`);
+  // One conflict, one message - not one per producer.
+  expect(out.split(`channel '${address}'`).length - 1).toBe(1);
+});
+
+test("a copied manifest repeating another service's name still counts as a second producer", () => {
+  const errs = captureErr();
+  cpSync(path.join(specs, "orders"), path.join(specs, "orders-copy"), { recursive: true });
+  expect(runLint(null, specs)).toBe(1);
+  const out = errs.join("\n");
+  // Keyed by directory, so the shared `name: orders` cannot hide it.
+  expect(out).toMatch(/channel '[\w.-]+' is produced by orders, orders-copy/);
 });
 
 test("a channel listed twice in one service's produces is its own problem, not a second producer", () => {
@@ -174,5 +186,5 @@ test("a channel listed twice in one service's produces is its own problem, not a
   expect(runLint("orders", specs)).toBe(1);
   const out = errs.join("\n");
   expect(out).toContain(`orders: lists '${address}' in produces more than once`);
-  expect(out).not.toContain("which is also produced by");
+  expect(out).not.toContain("is produced by");
 });

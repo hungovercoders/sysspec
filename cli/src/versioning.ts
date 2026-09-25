@@ -22,10 +22,6 @@ import {
 
 export const GATED_KINDS = new Set(["asyncapi", "openapi", "data-contract", "feature"]);
 
-/** Major of a version string (`v` prefix and pre-release tolerated);
- * -1 when there is none. */
-export const major = majorOf;
-
 export function listManifests(specsDir: string): string[] {
   const manifests = splitLines(git("ls-files", `${specsDir}/*/service.yaml`)).sort();
   if (manifests.length === 0) {
@@ -57,21 +53,42 @@ export function serviceVersion(text: string | null): string | null {
   return doc.version != null ? String(doc.version) : null;
 }
 
-/** Why a version change is not a bump, or null when it is one. A version
- * only goes up: a downgrade would re-tag a surface consumers may already
- * have pinned. Unparseable versions cannot be ordered, so any change to
- * one is accepted (equality was always the only check for those). */
-export function notABump(now: string | null, before: string | null): string | null {
+/** How a version moved, when it did not simply go up. */
+export interface NotABump {
+  kind: "backwards" | "lost" | "same";
+  message: string;
+}
+
+/** Why a version change is not a bump, or null when it is one (or did
+ * not change). A version only goes up: a downgrade would re-tag a surface
+ * consumers may already have pinned. Unparseable versions cannot be
+ * ordered, so any change to one is accepted (equality was always the
+ * only check for those). "same" is an equal-precedence respelling -
+ * harmless on its own, but not a bump when the artifact changed. */
+export function notABump(now: string | null, before: string | null): NotABump | null {
   if (before === null || now === before) return null;
-  if (now === null) return `lost its version (was ${before})`;
+  if (now === null) return { kind: "lost", message: `lost its version (was ${before})` };
   const cmp = compareVersions(now, before);
   if (cmp === null) {
     console.log(`note: cannot order non-semver versions ${before} -> ${now}; accepted`);
     return null;
   }
-  if (cmp < 0) return `version moved backwards ${before} -> ${now} - versions only go up`;
+  if (cmp < 0) {
+    return {
+      kind: "backwards",
+      message: `version moved backwards ${before} -> ${now} - versions only go up`,
+    };
+  }
   if (cmp === 0) {
-    return `version ${before} -> ${now} has the same precedence - build metadata is not a bump`;
+    // Equal precedence: the difference is build metadata or spelling (a
+    // `v` prefix), and the message should say which.
+    const build = (v: string) => v.split("+")[1] ?? "";
+    return {
+      kind: "same",
+      message: build(before) !== build(now)
+        ? `version ${before} -> ${now} has the same precedence - build metadata is not a bump`
+        : `version ${before} -> ${now} is the same version, respelled - not a bump`,
+    };
   }
   return null;
 }
@@ -106,10 +123,12 @@ export function runGate(base: string, specsDir: string, allowMissingBase = false
       const fileChanged = changed.includes(full);
 
       // Direction is checked for every declared version, not only when the
-      // artifact's file changed: a manifest-only downgrade re-tags too.
+      // artifact's file changed: a manifest-only downgrade re-tags too. A
+      // respelling of the same version is harmless on an untouched file,
+      // but never counts as the bump a changed file needs.
       const wrong = before.has(rel) ? notABump(versionNow, versionBefore) : null;
-      if (wrong) {
-        failures.push(`${full} (${kind}) ${wrong}`);
+      if (wrong && (wrong.kind !== "same" || fileChanged)) {
+        failures.push(`${full} (${kind}) ${wrong.message}`);
         continue;
       }
       if (!fileChanged) continue;
@@ -123,7 +142,7 @@ export function runGate(base: string, specsDir: string, allowMissingBase = false
       } else {
         console.log(`ok: ${full} ${versionBefore} -> ${versionNow}`);
         artifactBumped = true;
-        if (major(versionNow) > major(versionBefore)) artifactMajorBumped = true;
+        if (majorOf(versionNow) > majorOf(versionBefore)) artifactMajorBumped = true;
       }
     }
 
@@ -142,9 +161,9 @@ export function runGate(base: string, specsDir: string, allowMissingBase = false
     const svcWrong = notABump(svcNow, svcBefore);
     if (svcBefore === null && svcNow !== null) {
       if (baseText !== null) console.log(`new service version: ${service} @ ${svcNow}`);
-    } else if (svcWrong) {
+    } else if (svcWrong && (svcWrong.kind !== "same" || artifactBumped)) {
       failures.push(
-        `${service}: service ${svcWrong.replace("lost its version", "lost its top-level version")}` +
+        `${service}: service ${svcWrong.message.replace("lost its version", "lost its top-level version")}` +
           " - consumers pin it",
       );
     } else if (artifactBumped) {
@@ -157,7 +176,7 @@ export function runGate(base: string, specsDir: string, allowMissingBase = false
           `${service}: gated artifact bumped but the service version ` +
             `stayed at ${svcBefore} - bump the top-level version`,
         );
-      } else if (artifactMajorBumped && major(svcNow) <= major(svcBefore)) {
+      } else if (artifactMajorBumped && majorOf(svcNow) <= majorOf(svcBefore)) {
         failures.push(
           `${service}: an artifact took a major bump but the service ` +
             `version only moved ${svcBefore} -> ${svcNow} - a major ` +

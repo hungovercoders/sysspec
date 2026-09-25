@@ -555,6 +555,57 @@ describe("gates in a scratch git repo", () => {
     expect(logs.join("\n")).toContain("--allow-missing-base: skipping");
   });
 
+  test("surface gate: versions semver cannot rank still order by their numbers", () => {
+    writeFileSync(path.join(repo, "v.json"), JSON.stringify({ version: "1.2" }));
+    g("add", "-A");
+    g("-c", "user.email=t@e.c", "-c", "user.name=t", "commit", "-qm", "two-part");
+    writeFileSync(path.join(repo, "surface.txt"), "s2\n");
+    writeFileSync(path.join(repo, "v.json"), JSON.stringify({ version: "1.3" }));
+    expect(surfaceGate("HEAD", "v.json", "version", ["surface.txt"])).toBe(0);
+    writeFileSync(path.join(repo, "v.json"), JSON.stringify({ version: "1.1" }));
+    expect(surfaceGate("HEAD", "v.json", "version", ["surface.txt"])).toBe(1);
+    // PEP 440 post-release: same numbers, cannot rank - accepted, and said.
+    logs.length = 0;
+    writeFileSync(path.join(repo, "v.json"), JSON.stringify({ version: "1.2.post1" }));
+    expect(surfaceGate("HEAD", "v.json", "version", ["surface.txt"])).toBe(0);
+    expect(logs.join("\n")).toContain("cannot order these versions; accepted");
+    // A key that lands on an object is not a version.
+    logs.length = 0;
+    writeFileSync(path.join(repo, "v.json"), JSON.stringify({ version: { major: 2 } }));
+    expect(surfaceGate("HEAD", "v.json", "version", ["surface.txt"])).toBe(1);
+    expect(logs.join("\n")).toContain("has no version string at 'version'");
+  });
+
+  test("version gate: respelling an untouched artifact's version is fine; as a bump it is not", () => {
+    manifest("1.0.0", "v1.0.0");
+    expect(versionGate("main", "specs")).toBe(0);
+
+    logs.length = 0;
+    writeFileSync(path.join(repo, "specs", "svc", "features", "a.feature"), "Feature: a2\n");
+    manifest("1.1.0", "v1.0.0");
+    expect(versionGate("main", "specs")).toBe(1);
+    expect(logs.join("\n")).toContain("is the same version, respelled - not a bump");
+    expect(logs.join("\n")).not.toContain("build metadata");
+  });
+
+  test("diff gates: before the first commit there is nothing to diff, even with a fetched base", () => {
+    vi.stubEnv("CI", "true");
+    const fresh = mkdtempSync(path.join(tmpdir(), "sysspec-unborn-"));
+    try {
+      process.chdir(fresh);
+      execFileSync("git", ["init", "-q", "-b", "main", "."], { cwd: fresh });
+      // A base ref that exists (as origin/main would after a fetch) while
+      // HEAD has no commits yet.
+      execFileSync("git", ["fetch", "-q", repo, "main:refs/remotes/origin/main"], { cwd: fresh });
+      mkdirSync(path.join(fresh, "specs", "svc"), { recursive: true });
+      expect(versionGate("origin/main", "specs")).toBe(0);
+      expect(logs.join("\n")).toContain("HEAD has no commits yet");
+    } finally {
+      process.chdir(repo);
+      rmSync(fresh, { recursive: true, force: true });
+    }
+  });
+
   test("a tool killed by a signal reports 128+n, never a verdict of 1", () => {
     const res = run(["sh", "-c", "kill -9 $$"]);
     expect(res.status).toBe(137);
