@@ -135,6 +135,27 @@ describe("splitGherkin docstrings", () => {
   });
 });
 
+describe("splitGherkin fences outside docstrings", () => {
+  test("a fence in a description is prose, and an unclosed one hides nothing", () => {
+    const text = [
+      "Feature: f",
+      "  An aside in the description:",
+      "  ```",
+      "  never closed",
+      "",
+      "  Scenario: s1",
+      "    Given one",
+      "    And a docstring with no closing fence",
+      '    """',
+      "",
+      "  Scenario: s2",
+      "    Given two",
+      "",
+    ].join("\n");
+    expect(splitGherkin(text).scenarios.map((s) => s.name)).toEqual(["s1", "s2"]);
+  });
+});
+
 // A one-service bundle around a feature file the demo specs do not have.
 function sourceWith(feature: string): BundledSpecSource {
   return new BundledSpecSource({
@@ -186,6 +207,19 @@ describe("get_acceptance_criteria budgets", () => {
     });
     expect(tight.truncated).toBe(false);
     expect(tight.features[0].matched.every((m: any) => m.gherkin)).toBe(true);
+  });
+
+  test("names cost their text, not JSON punctuation", async () => {
+    const bytes = (t: string) => new TextEncoder().encode(t).length;
+    const names = [1, 2, 3, 4, 5].map((n) => `match ${n}`);
+    const exact = names.reduce((n, name) => n + bytes(name), 0);
+    const out: any = await getAcceptanceCriteria(sourceWith(feature), {
+      service: "svc",
+      names_only: true,
+      max_bytes: exact,
+    });
+    expect(out.truncated).toBe(false);
+    expect(out.features[0].scenarios).toEqual(names);
   });
 
   test("full mode's fallback index spends the budget, like names_only", async () => {

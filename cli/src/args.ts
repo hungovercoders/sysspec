@@ -24,7 +24,11 @@ export class Args {
         if (eq !== -1) {
           this.flags.set(arg.slice(2, eq), arg.slice(eq + 1));
         } else if (presence.has(arg.slice(2))) {
-          this.flags.set(arg.slice(2), true);
+          // A presence flag takes a value only when it is spelled out as a
+          // boolean (`--flag false`); any other next word is not its value.
+          const next = argv[i + 1];
+          if (next === "true" || next === "false") this.flags.set(arg.slice(2), argv[++i]);
+          else this.flags.set(arg.slice(2), true);
         } else if (i + 1 < argv.length && !argv[i + 1].startsWith("--")) {
           this.flags.set(arg.slice(2), argv[++i]);
         } else {

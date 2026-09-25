@@ -87,3 +87,20 @@ test("flags may come before the subcommand, and a presence flag keeps the next w
     "unexpected argument 'extra'",
   );
 });
+
+test("SYSSPEC_ALLOW_MISSING_BASE opts the diff gates out when the command line cannot", async () => {
+  const { execFileSync } = await import("node:child_process");
+  const { mkdirSync, writeFileSync } = await import("node:fs");
+  execFileSync("git", ["init", "-q", "-b", "main", "."], { cwd: tmp });
+  mkdirSync(path.join(tmp, "specs", "svc"), { recursive: true });
+  writeFileSync(path.join(tmp, "specs", "svc", "service.yaml"), "name: svc\nversion: 1.0.0\n");
+  execFileSync("git", ["add", "-A"], { cwd: tmp });
+  execFileSync("git", ["-c", "user.email=t@e.c", "-c", "user.name=t", "commit", "-qm", "base"], { cwd: tmp });
+  vi.stubEnv("CI", "true");
+  expect(await main(["check", "version", "--base", "origin/nope"])).toBe(1);
+  vi.stubEnv("SYSSPEC_ALLOW_MISSING_BASE", "1");
+  expect(await main(["check", "version", "--base", "origin/nope"])).toBe(0);
+  expect(out.join("\n")).toContain("--allow-missing-base: skipping");
+  vi.stubEnv("SYSSPEC_ALLOW_MISSING_BASE", "false");
+  expect(await main(["check", "version", "--base", "origin/nope"])).toBe(1);
+});

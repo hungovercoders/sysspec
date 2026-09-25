@@ -8,7 +8,8 @@
 
 import { readFileSync } from "node:fs";
 import { parse as parseToml } from "smol-toml";
-import { blob, git, mergeBase, missingBase, orderVersions, splitLines } from "./util.js";
+import { blob, git, mergeBase, missingBase, splitLines } from "./util.js";
+import { notABump } from "./versioning.js";
 
 /** The version string at a dotted key of a JSON or TOML file's text. */
 export function versionOf(
@@ -41,27 +42,34 @@ export function runGate(
     return 0;
   }
 
-  const before = versionOf(blob(mb, versionFile), versionFile, jsonKey);
+  const baseText = blob(mb, versionFile);
+  const before = versionOf(baseText, versionFile, jsonKey);
   const now = versionOf(readFileSync(versionFile, "utf-8"), versionFile, jsonKey);
   if (now === null) {
     console.error(`${versionFile} has no version string at '${jsonKey}'`);
     return 1;
   }
-  if (before === null) {
+  if (baseText === null) {
     console.log(`new surface manifest @ ${now}`);
     return 0;
   }
-  const order = orderVersions(now, before);
-  if (order === null && now !== before) {
-    // Same rule as check version: a change between versions this parser
-    // cannot rank is accepted, and said so.
+  if (before === null) {
+    // The file existed but had no version at this key (it moved, say from
+    // [tool.poetry] to [project]): there is nothing to compare against,
+    // and the gate says so rather than calling it a new manifest.
     console.log(
-      `surface changed (${changed.length} file(s)), version ${before} -> ${now} - ` +
-        "cannot order these versions; accepted",
+      `surface changed (${changed.length} file(s)): base ${versionFile} had no version ` +
+        `string at '${jsonKey}' - nothing to compare, ${now} accepted as the first`,
     );
     return 0;
   }
-  if (order !== null && order > 0) {
+  // The same ordering and the same rules as check version (notABump).
+  const wrong = notABump(now, before);
+  if (wrong?.kind === "unordered") {
+    console.log(`surface changed (${changed.length} file(s)), ${wrong.message}`);
+    return 0;
+  }
+  if (wrong === null && now !== before) {
     console.log(
       `surface changed (${changed.length} file(s)), version ` +
         `${before} -> ${now} - ok`,
@@ -73,7 +81,7 @@ export function runGate(
     "Surface changed without a version bump:\n  " +
       changed.slice(0, 20).join("\n  ") +
       `\n\n${versionFile} version is ${now} ` +
-      `(base ${before}) - bump it semver-greater in ` +
+      `(base ${before})${wrong ? ` - ${wrong.message}` : ""}; bump it greater in ` +
       "the same change.",
   );
   return 1;

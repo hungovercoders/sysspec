@@ -27,7 +27,7 @@ import {
 } from "../src/intent.js";
 import { openapiBreaking } from "../src/compat.js";
 import { runGate as surfaceGate, versionOf } from "../src/surface.js";
-import { compareVersions, run } from "../src/util.js";
+import { compareVersions, orderVersions, run } from "../src/util.js";
 import { manifestVersions, runGate as versionGate, serviceVersion } from "../src/versioning.js";
 
 describe("intent token extraction", () => {
@@ -215,6 +215,32 @@ describe("odcs data contracts", () => {
 });
 
 describe("versioning helpers", () => {
+  test("orderVersions ranks semver, bare numbers and PEP 440 alike", () => {
+    const order = [
+      "1.0.dev1",
+      "1.0a1",
+      "1.0b2",
+      "1.0rc1.dev1",
+      "1.0rc1",
+      "1.0",
+      "1.0.post1.dev1",
+      "1.0.post1",
+      "1.0.post2",
+      "1.1",
+      "1.2.3rc1",
+      "1.2.3",
+      "2",
+    ];
+    for (let i = 1; i < order.length; i++) {
+      expect(orderVersions(order[i], order[i - 1]), `${order[i]} > ${order[i - 1]}`).toBeGreaterThan(0);
+      expect(orderVersions(order[i - 1], order[i]), `${order[i - 1]} < ${order[i]}`).toBeLessThan(0);
+    }
+    expect(orderVersions("1.2", "1.2.0")).toBe(0);
+    expect(orderVersions("v1.2", "1.2")).toBe(0);
+    expect(orderVersions("1.0.0-rc.1", "1.0.0")).toBeLessThan(0);
+    expect(orderVersions("latest", "1.0")).toBeNull();
+  });
+
   test("compareVersions follows semver precedence", () => {
     const order = [
       "1.0.0-alpha",
@@ -370,7 +396,7 @@ describe("gates in a scratch git repo", () => {
       ].join("\n"),
     );
     expect(versionGate("main", "specs")).toBe(1);
-    expect(logs.join("\n")).toContain("service version moved backwards 1.0.0 -> 0.9.0");
+    expect(logs.join("\n")).toContain("service top-level version moved backwards 1.0.0 -> 0.9.0");
   });
 
   test("version gate: gated edit without a bump is red, with a bump green", () => {
@@ -495,7 +521,7 @@ describe("gates in a scratch git repo", () => {
   test("version gate: a service-only downgrade is red, with no artifact touched", () => {
     manifest("0.9.0", "1.0.0");
     expect(versionGate("main", "specs")).toBe(1);
-    expect(logs.join("\n")).toContain("service version moved backwards 1.0.0 -> 0.9.0");
+    expect(logs.join("\n")).toContain("service top-level version moved backwards 1.0.0 -> 0.9.0");
   });
 
   test("version gate: a manifest-only artifact downgrade is red, with its file untouched", () => {
@@ -523,7 +549,7 @@ describe("gates in a scratch git repo", () => {
     logs.length = 0;
     manifest("1.0.0", "2.0.0-rc.1+build.7");
     expect(versionGate("rc", "specs")).toBe(1);
-    expect(logs.join("\n")).toContain("has the same precedence - build metadata is not a bump");
+    expect(logs.join("\n")).toContain("differs only in build metadata - not a bump");
   });
 
   test("version gate: a v-prefixed major bump counts as a major", () => {
@@ -564,9 +590,17 @@ describe("gates in a scratch git repo", () => {
     expect(surfaceGate("HEAD", "v.json", "version", ["surface.txt"])).toBe(0);
     writeFileSync(path.join(repo, "v.json"), JSON.stringify({ version: "1.1" }));
     expect(surfaceGate("HEAD", "v.json", "version", ["surface.txt"])).toBe(1);
-    // PEP 440 post-release: same numbers, cannot rank - accepted, and said.
-    logs.length = 0;
+    // PEP 440 post-release ranks above its release.
     writeFileSync(path.join(repo, "v.json"), JSON.stringify({ version: "1.2.post1" }));
+    expect(surfaceGate("HEAD", "v.json", "version", ["surface.txt"])).toBe(0);
+    // Same version respelled is not a bump.
+    logs.length = 0;
+    writeFileSync(path.join(repo, "v.json"), JSON.stringify({ version: "1.2.0" }));
+    expect(surfaceGate("HEAD", "v.json", "version", ["surface.txt"])).toBe(1);
+    expect(logs.join("\n")).toContain("is the same version, respelled - not a bump");
+    // Only a version no rule can rank is accepted with a note.
+    logs.length = 0;
+    writeFileSync(path.join(repo, "v.json"), JSON.stringify({ version: "latest" }));
     expect(surfaceGate("HEAD", "v.json", "version", ["surface.txt"])).toBe(0);
     expect(logs.join("\n")).toContain("cannot order these versions; accepted");
     // A key that lands on an object is not a version.
@@ -603,6 +637,55 @@ describe("gates in a scratch git repo", () => {
     } finally {
       process.chdir(repo);
       rmSync(fresh, { recursive: true, force: true });
+    }
+  });
+
+  test("version gate: a non-semver downgrade is red too", () => {
+    manifest("1.0.0", "2.1");
+    g("add", "-A");
+    g("-c", "user.email=t@e.c", "-c", "user.name=t", "commit", "-qm", "two-part");
+    g("branch", "-f", "twopart");
+    manifest("1.0.0", "1.0");
+    expect(versionGate("twopart", "specs")).toBe(1);
+    // Unquoted YAML reads 1.0 as the number 1; the downgrade is caught either way.
+    expect(logs.join("\n")).toMatch(/version moved backwards 2.1 -> 1(\.0)?\b/);
+  });
+
+  test("version gate: an unrankable version is noted only when it is the change's bump", () => {
+    manifest("1.0.0", "latest");
+    g("add", "-A");
+    g("-c", "user.email=t@e.c", "-c", "user.name=t", "commit", "-qm", "latest");
+    g("branch", "-f", "unranked");
+    manifest("1.0.0", "nightly");
+    expect(versionGate("unranked", "specs")).toBe(0);
+    expect(logs.join("\n")).not.toContain("cannot order");
+    writeFileSync(path.join(repo, "specs", "svc", "features", "a.feature"), "Feature: a2\n");
+    manifest("1.1.0", "nightly");
+    expect(versionGate("unranked", "specs")).toBe(0);
+    expect(logs.join("\n")).toContain("cannot order these versions; accepted");
+  });
+
+  test("surface gate: a base file with no version at the key is said, not called new", () => {
+    writeFileSync(path.join(repo, "v.json"), JSON.stringify({ other: "x" }));
+    g("add", "-A");
+    g("-c", "user.email=t@e.c", "-c", "user.name=t", "commit", "-qm", "no key");
+    writeFileSync(path.join(repo, "surface.txt"), "s2\n");
+    writeFileSync(path.join(repo, "v.json"), JSON.stringify({ version: "1.0.0" }));
+    expect(surfaceGate("HEAD", "v.json", "version", ["surface.txt"])).toBe(0);
+    expect(logs.join("\n")).toContain("had no version string at 'version' - nothing to compare");
+    expect(logs.join("\n")).not.toContain("new surface manifest");
+  });
+
+  test("diff gates: outside a git work tree they fail rather than skip", () => {
+    vi.stubEnv("CI", "true");
+    const bare = mkdtempSync(path.join(tmpdir(), "sysspec-nogit-"));
+    try {
+      process.chdir(bare);
+      expect(versionGate("origin/main", "specs")).toBe(1);
+      expect(logs.join("\n")).toContain("not inside a git work tree");
+    } finally {
+      process.chdir(repo);
+      rmSync(bare, { recursive: true, force: true });
     }
   });
 
