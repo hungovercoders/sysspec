@@ -19,11 +19,10 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { parse, stringify } from "yaml";
 import { ASYNCAPI_CLI, DATACONTRACT_CLI } from "./pins.js";
-import { blob, git, mergeBase, missingBase, run, splitLines } from "./util.js";
+import { blob, git, majorOf, mergeBase, missingBase, run, splitLines } from "./util.js";
 import {
   GATED_KINDS,
   listManifests,
-  major,
   manifestVersions,
   serviceVersion,
 } from "./versioning.js";
@@ -262,7 +261,7 @@ export function runGate(
 
       svcBreaking = true;
       const versionBefore = before.get(rel)?.[1] ?? null;
-      if (major(versionNow) > major(versionBefore)) {
+      if (majorOf(versionNow) > majorOf(versionBefore)) {
         console.log(`breaking ok (major bump ${versionBefore} -> ${versionNow}): ${full}`);
       } else {
         failures.push(
@@ -281,7 +280,7 @@ export function runGate(
     if (svcBreaking) {
       const svcNow = serviceVersion(manifestText);
       const svcBefore = serviceVersion(baseManifestText);
-      if (svcBefore !== null && major(svcNow) <= major(svcBefore)) {
+      if (svcBefore !== null && majorOf(svcNow) <= majorOf(svcBefore)) {
         failures.push(
           `${serviceDir}: breaking change requires a service major bump ` +
             `(version ${svcBefore} -> ${svcNow})`,

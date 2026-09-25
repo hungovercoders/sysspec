@@ -38,8 +38,20 @@ export function splitGherkin(text: string): { header: string; scenarios: Scenari
     if (last) last.end = Math.min(last.end, at);
   };
   const text_ = (from: number, to: number) => lines.slice(from, to).join("").replace(/\n+$/, "");
+  // Inside a step's docstring (""" or ``` fences) a line is data, not a
+  // keyword: "Rule: x" in a docstring must not cut the running scenario.
+  let fence: string | null = null;
   for (let i = 0; i < lines.length; i++) {
     const stripped = lines[i].trim();
+    const opener = stripped.startsWith('"""') ? '"""' : stripped.startsWith("```") ? "```" : null;
+    if (fence !== null) {
+      if (opener === fence) fence = null;
+      continue;
+    }
+    if (opener !== null) {
+      fence = opener;
+      continue;
+    }
     if (SCENARIO_KEYWORDS.some((k) => stripped.startsWith(k))) {
       const start = blockStart(i);
       headerEnd = Math.min(headerEnd, start);
