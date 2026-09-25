@@ -20,7 +20,7 @@ import * as mocks from "./mocks.js";
 import { runNull } from "./nullsvc.js";
 import { ownVersion, runInit } from "./scaffold.js";
 import * as surface from "./surface.js";
-import { Exit } from "./util.js";
+import { defaultBase, envFlag, Exit } from "./util.js";
 import * as versioning from "./versioning.js";
 
 const USAGE = `usage: sysspec <command> <subcommand> [flags]
@@ -47,7 +47,8 @@ const HELP: Record<string, string> = {
   surface   changes under --paths bump the version in --version-file
 
 flags:
-  --base <ref>             base to diff against (default origin/main)
+  --base <ref>             base to diff against (default $SYSSPEC_BASE, else
+                           origin/$GITHUB_BASE_REF, else origin/main)
   --specs-dir <dir>        specs root (default specs)
   --service <name>         compat, intent: one service only
   --version-file <file>    surface: the JSON or TOML file holding the version
@@ -149,13 +150,12 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<numb
   }
 
   if (command === "check") {
-    const base = args.get("base", "origin/main")!;
+    // --base, else SYSSPEC_BASE / the PR's base branch / origin/main.
+    const base = args.get("base", defaultBase())!;
     const specsDir = args.get("specs-dir", "specs")!;
     // The flag, or SYSSPEC_ALLOW_MISSING_BASE for callers that cannot
     // change the command line (the reusable workflow's scaffolded Taskfile).
-    const envAllow = (process.env.SYSSPEC_ALLOW_MISSING_BASE ?? "").trim().toLowerCase();
-    const allowMissing =
-      args.bool("allow-missing-base") || (envAllow !== "" && envAllow !== "0" && envAllow !== "false");
+    const allowMissing = args.bool("allow-missing-base") || envFlag("SYSSPEC_ALLOW_MISSING_BASE");
     if (sub === "version") {
       args.only("base", "specs-dir", "allow-missing-base");
       return versioning.runGate(base, specsDir, allowMissing);

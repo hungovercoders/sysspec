@@ -407,10 +407,17 @@ export function runLint(only: string | null, specsDir: string): number {
   // one service listing a channel twice is its own problem, reported per
   // service, not a second producer.
   const producedBy = new Map<string, Set<string>>();
+  // The channels a scoped run's service produces or consumes.
+  const party = new Set<string>();
   for (const d of dirs) {
     const manifest = readYaml(path.join(d, "service.yaml"));
     for (const address of channelList(manifest.produces)) {
       producedBy.set(address, (producedBy.get(address) ?? new Set<string>()).add(path.basename(d)));
+    }
+    if (path.basename(d) === only) {
+      for (const address of [...channelList(manifest.produces), ...channelList(manifest.consumes)]) {
+        party.add(address);
+      }
     }
   }
   const [messagesByAddress, ownMessages] = messageIndex(dirs);
@@ -420,10 +427,10 @@ export function runLint(only: string | null, specsDir: string): number {
   // One channel, one owner: two producers make the channel's schema a
   // negotiation and trace_channel's answer a coin toss. Reported once per
   // channel, not once per producer; a scoped run reports the channels its
-  // service is party to.
+  // service produces or consumes.
   for (const address of pySorted(producedBy.keys())) {
     const owners = pySorted(producedBy.get(address)!);
-    if (owners.length > 1 && (!only || owners.includes(only))) {
+    if (owners.length > 1 && (!only || party.has(address))) {
       problems.push(
         `channel '${address}' is produced by ${owners.join(", ")} - a channel has exactly one producer`,
       );
