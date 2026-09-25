@@ -77,3 +77,13 @@ test("which searches PATH in-process", async () => {
   expect(which("node")).toMatch(/node(\.exe)?$/);
   expect(which("sysspec-no-such-tool-xyz")).toBeNull();
 });
+
+test("flags may come before the subcommand, and a presence flag keeps the next word", async () => {
+  // `--allow-missing-base version` must read as a flag and the subcommand,
+  // not as the flag with the value "version".
+  await expect(main(["check", "--allow-missing-base", "nope"])).resolves.toBe(2);
+  expect(out.join("\n")).toContain("usage: sysspec check");
+  await expect(main(["lint", "--specs-dir", "specs", "specs", "extra"])).rejects.toThrow(
+    "unexpected argument 'extra'",
+  );
+});

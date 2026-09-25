@@ -129,18 +129,21 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<numb
     return 0;
   }
   if (argv.length === 0 || argv.includes("--help") || argv.includes("-h")) {
-    console.log(HELP[argv[0]] ?? USAGE);
+    console.log(HELP[argv.find((a) => !a.startsWith("-")) ?? ""] ?? USAGE);
     return 0;
   }
 
-  const [command, sub, ...rest] = argv;
+  // Flags may sit anywhere, before or after the subcommand: parse the
+  // whole line, then read the command words from what is left.
+  const args = new Args(argv, "sysspec");
+  const [command, sub, ...extra] = args.positional;
   const usage = `sysspec ${command ?? ""} ${sub ?? ""}`.trim();
-  const args = new Args(rest, usage);
+  args.usage = usage;
   // Stray words must not be silently ignored: `lint specs orders` would
   // lint every service while looking like it linted one.
-  if (args.positional.length) {
+  if (extra.length) {
     throw new Exit(
-      `${usage}: unexpected argument '${args.positional[0]}'` +
+      `${usage}: unexpected argument '${extra[0]}'` +
         (command === "lint" || command === "check" ? " - did you mean --service?" : ""),
     );
   }

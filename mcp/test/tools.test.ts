@@ -180,7 +180,10 @@ describe.each(sources)("%s source", (_label, makeSource) => {
   });
 
   test("acceptance_criteria_budget_degrades_to_index", async () => {
-    const out: any = await getAcceptanceCriteria(source, { service: "orders", max_bytes: 10 });
+    const index: any = await getAcceptanceCriteria(source, { service: "orders", names_only: true });
+    // Room for the first file's scenario index, not for any Gherkin body.
+    const max_bytes = new TextEncoder().encode(JSON.stringify(index.features[0].scenarios)).length;
+    const out: any = await getAcceptanceCriteria(source, { service: "orders", max_bytes });
     expect(out.truncated).toBe(true);
     expect(out.features[0].gherkin_omitted).toBe(true);
     expect(out.features[0].scenarios.length).toBeGreaterThan(0);
@@ -195,8 +198,9 @@ describe.each(sources)("%s source", (_label, makeSource) => {
       max_bytes: 10,
     });
     expect(out.truncated).toBe(true);
-    expect(out.features[0].matched[0].gherkin_omitted).toBe(true);
-    expect(out.features[0].matched[0]).not.toHaveProperty("gherkin");
+    // Not even the name fits in 10 bytes: the match is counted, not sent.
+    expect(out.features[0].matched).toEqual([]);
+    expect(out.features[0].unlisted_matches).toBeGreaterThan(0);
     // The header spends the budget too: one that does not fit is not sent.
     expect(out.features[0].header_omitted).toBe(true);
     expect(out.features[0]).not.toHaveProperty("header");
@@ -216,12 +220,12 @@ describe.each(sources)("%s source", (_label, makeSource) => {
       scenario: index.features[0].scenarios[0],
       max_bytes,
     });
+    const bytes = (t: string) => new TextEncoder().encode(t).length;
     let sent = 0;
     for (const f of out.features) {
-      sent += new TextEncoder().encode(f.header ?? "").length;
-      for (const m of f.matched) {
-        sent += new TextEncoder().encode((m.gherkin ?? "") + (m.rule ?? "")).length;
-      }
+      sent += bytes(f.header ?? "");
+      for (const r of f.rules ?? []) sent += bytes(r);
+      for (const m of f.matched) sent += bytes(m.name) + bytes(m.gherkin ?? "");
     }
     expect(sent).toBeLessThanOrEqual(max_bytes);
     expect(out.truncated).toBe(true);

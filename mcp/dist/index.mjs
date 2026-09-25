@@ -29937,8 +29937,18 @@ function splitGherkin(text) {
     if (last) last.end = Math.min(last.end, at);
   };
   const text_ = (from, to) => lines.slice(from, to).join("").replace(/\n+$/, "");
+  let fence = null;
   for (let i = 0; i < lines.length; i++) {
     const stripped = lines[i].trim();
+    const opener = stripped.startsWith('"""') ? '"""' : stripped.startsWith("```") ? "```" : null;
+    if (fence !== null) {
+      if (opener === fence) fence = null;
+      continue;
+    }
+    if (opener !== null) {
+      fence = opener;
+      continue;
+    }
     if (SCENARIO_KEYWORDS.some((k) => stripped.startsWith(k))) {
       const start = blockStart(i);
       headerEnd = Math.min(headerEnd, start);
@@ -30282,15 +30292,33 @@ async function getAcceptanceCriteria(source, args) {
           budget -= headerSize;
           entry.header = header;
         }
-        entry.matched = hits.map((s) => {
-          const size = utf8Len(s.gherkin) + utf8Len(s.rule ?? "");
-          if (size > budget) {
+        const rules = [];
+        const matched = [];
+        let unlisted = 0;
+        for (const s of hits) {
+          const nameSize = utf8Len(s.name);
+          const newRule = s.rule !== void 0 && !rules.includes(s.rule);
+          const bodySize = utf8Len(s.gherkin) + (newRule ? utf8Len(s.rule) : 0);
+          if (nameSize + bodySize <= budget) {
+            budget -= nameSize + bodySize;
+            const item = { name: s.name, gherkin: s.gherkin };
+            if (s.rule !== void 0) {
+              if (newRule) rules.push(s.rule);
+              item.rule_index = rules.indexOf(s.rule);
+            }
+            matched.push(item);
+          } else if (nameSize <= budget) {
+            budget -= nameSize;
             out.truncated = true;
-            return { name: s.name, gherkin_omitted: true };
+            matched.push({ name: s.name, gherkin_omitted: true });
+          } else {
+            out.truncated = true;
+            unlisted += 1;
           }
-          budget -= size;
-          return s;
-        });
+        }
+        if (rules.length) entry.rules = rules;
+        entry.matched = matched;
+        if (unlisted) entry.unlisted_matches = unlisted;
         entry.total_scenarios = scenarios.length;
         out.features.push(entry);
       }
@@ -30298,12 +30326,20 @@ async function getAcceptanceCriteria(source, args) {
     }
     if (utf8Len(text) > budget) {
       out.truncated = true;
-      out.features.push({
-        path: a.path,
-        summary,
-        scenarios: scenarios.map((s) => s.name),
-        gherkin_omitted: true
-      });
+      const names = scenarios.map((s) => s.name);
+      const size = utf8Len(JSON.stringify(names));
+      if (size > budget) {
+        out.features.push({
+          path: a.path,
+          summary,
+          scenario_count: names.length,
+          names_omitted: true,
+          gherkin_omitted: true
+        });
+      } else {
+        budget -= size;
+        out.features.push({ path: a.path, summary, scenarios: names, gherkin_omitted: true });
+      }
       continue;
     }
     budget -= utf8Len(text);
@@ -30318,7 +30354,7 @@ async function getAcceptanceCriteria(source, args) {
     throw new Error(`No scenario matching ${pyRepr(scenario)}. Scenarios: ${pyList(names)}`);
   }
   if (out.truncated) {
-    out.note = `Some Gherkin bodies or names omitted to stay under ${max_bytes} bytes. Fetch narrowly with path= or scenario=, or raise max_bytes.`;
+    out.note = `Some Gherkin text or names omitted to stay under ${max_bytes} bytes (the budget counts the returned text - bodies, headers, rules, names - not JSON framing). Fetch narrowly with path= or scenario=, or raise max_bytes.`;
   }
   return out;
 }
