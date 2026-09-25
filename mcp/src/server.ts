@@ -138,6 +138,15 @@ export function createServer(source: SpecSource): McpServer {
         'Start with names_only=true to see the scenario index, then fetch one\n' +
         'scenario (scenario="substring of its title") or one file (path=...).\n' +
         "Only omit all filters when you are about to implement the whole service.\n\n" +
+        "A scenario= match comes back in matched[] as {name, gherkin}. A\n" +
+        "scenario inside a Rule also has rule_index: rules[rule_index] is that\n" +
+        "Rule's block (Rule line, description, Background). A scenario stands\n" +
+        "alone only as header + rules[rule_index] + gherkin; the header holds\n" +
+        "the Feature and its Background, never a Rule.\n\n" +
+        "Nothing is sent past max_bytes. With truncated=true, what did not\n" +
+        "fit is flagged instead: header_omitted, gherkin_omitted (name only),\n" +
+        "names_omitted (scenario_count only), unlisted_matches (a count of\n" +
+        "matches not even named). Narrow the call or raise max_bytes.\n\n" +
         "These are binding acceptance criteria. Implement toward them. If a\n" +
         "scenario looks wrong, say so and stop rather than adjusting it.",
       inputSchema: {

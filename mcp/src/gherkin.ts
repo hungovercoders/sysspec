@@ -24,8 +24,10 @@ function docstringLines(lines: string[]): boolean[] {
     const stripped = lines[i].trim();
     const fence = stripped.startsWith('"""') ? '"""' : stripped.startsWith("```") ? "```" : null;
     if (fence && lastStep) {
-      const close = lines.findIndex((l, j) => j > i && l.trim().startsWith(fence));
-      if (close !== -1) {
+      // Scan forward from the fence, not from the top: linear overall.
+      let close = i + 1;
+      while (close < lines.length && !lines[close].trim().startsWith(fence)) close += 1;
+      if (close < lines.length) {
         for (let j = i; j <= close; j++) data[j] = true;
         i = close;
         lastStep = false;

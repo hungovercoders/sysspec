@@ -103,4 +103,8 @@ test("SYSSPEC_ALLOW_MISSING_BASE opts the diff gates out when the command line c
   expect(out.join("\n")).toContain("--allow-missing-base: skipping");
   vi.stubEnv("SYSSPEC_ALLOW_MISSING_BASE", "false");
   expect(await main(["check", "version", "--base", "origin/nope"])).toBe(1);
+  // Without --base, SYSSPEC_BASE names the base.
+  vi.stubEnv("SYSSPEC_BASE", "origin/elsewhere");
+  expect(await main(["check", "version"])).toBe(1);
+  expect(out.join("\n")).toContain("base ref 'origin/elsewhere' not found");
 });
