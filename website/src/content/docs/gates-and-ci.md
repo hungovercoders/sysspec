@@ -53,10 +53,16 @@ uses: hungovercoders/sysspec/.github/workflows/sysspec-ci.yml@v0
 
 | Workflow | What it does |
 | --- | --- |
-| `sysspec-ci.yml` | checkout, pinned toolchain via mise, `task ci` |
+| `sysspec-ci.yml` | checkout, pinned toolchain via mise, npm cache, `task ci` (or any `task-command`), with a `timeout-minutes` input |
 | `sysspec-pages.yml` | build the generated docs site and deploy to GitHub Pages |
-| `sysspec-release-tags.yml` | on merge to main, tag each changed service `<service>/v<version>` |
-| `sysspec-mcp-image.yml` | build and push a Docker image of the MCP server with your specs |
+| `sysspec-release-tags.yml` | tag each changed service `<service>/v<version>` at the commit given as `ref` |
+| `sysspec-mcp-image.yml` | build and push a Docker image of the MCP server with your specs: the published `sysspec-mcp` at your `.mcp.json` pin by default, or your own `dockerfile` |
 
 `sysspec init` wires the first three up for you; updates arrive by moving
-the major tag, never by editing your repo.
+the major tag, never by editing your repo. The scaffolded release tagging
+runs only after the `ci` workflow succeeds on a push to main, and tags the
+commit that went green, so a red main never publishes a contract version.
+
+Every third-party action inside these workflows is pinned to a commit SHA,
+each job declares least-privilege `permissions` and a timeout, and inputs
+reach shell steps through the environment, never by interpolation.

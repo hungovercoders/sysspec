@@ -29,9 +29,12 @@ jobs:
     # Fork PRs have no secrets; skip rather than fail.
     if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: jdx/mise-action@v2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
       - name: Build the website
         run: task site:build
         env:
@@ -58,7 +61,7 @@ jobs:
           [ -n "$url" ] || { echo "no preview URL in wrangler output"; exit 1; }
           echo "url=$url" >> "$GITHUB_OUTPUT"
       - name: Post the preview URL as a sticky comment
-        uses: actions/github-script@v7
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           PREVIEW_URL: ${{ steps.upload.outputs.url }}
         with:
@@ -70,8 +73,11 @@ jobs:
               `Updated on every push; the alias is stable for this PR.`;
             const { owner, repo } = context.repo;
             const issue_number = context.payload.pull_request.number;
-            const comments = await github.rest.issues.listComments({ owner, repo, issue_number });
-            const existing = comments.data.find(c => c.body.startsWith(marker));
+            // Paginated: on a busy PR the marker comment may not be on page one.
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner, repo, issue_number, per_page: 100,
+            });
+            const existing = comments.find(c => c.body?.startsWith(marker));
             if (existing) {
               await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
             } else {

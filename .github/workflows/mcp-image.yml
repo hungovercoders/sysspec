@@ -18,4 +18,6 @@ jobs:
   publish:
     uses: ./.github/workflows/sysspec-mcp-image.yml
     with:
+      # This repo builds the server from source, not the published package.
+      dockerfile: mcp/Dockerfile
       image-name: sysspec-mcp

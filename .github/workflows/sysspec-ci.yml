@@ -4,6 +4,7 @@
 # silently.
 #
 # Consumers:
+#   permissions: { contents: read }
 #   jobs:
 #     ci:
 #       uses: hungovercoders/sysspec/.github/workflows/sysspec-ci.yml@v<major>  # current: v0
@@ -13,27 +14,50 @@ on:
   workflow_call:
     inputs:
       task-command:
-        description: The task target to run
+        description: The task target(s) to run, space-separated
         type: string
         default: ci
+      timeout-minutes:
+        description: Job timeout; a hung mock stack must not burn the runner for six hours
+        type: number
+        default: 45
       allow-missing-base:
         description: Let the diff gates skip when the base ref is missing (normally a failure in CI)
         type: boolean
         default: false
 
+permissions:
+  contents: read
+
 jobs:
   ci:
     runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout-minutes }}
     steps:
-      - uses: actions/checkout@v4
+      # Credentials stay persisted: the diff gates `git fetch` the base,
+      # which a private repository only answers when authenticated.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-      - uses: jdx/mise-action@v2
-      - run: task ${{ inputs.task-command }}
+      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+      # npx caches every pinned tool (sysspec, spectral, gherkin-lint,
+      # mermaid-cli) under ~/.npm; the pins live in the lockfiles and the
+      # Taskfile, so those key the cache.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.npm
+          key: npm-${{ runner.os }}-${{ hashFiles('**/package-lock.json', 'Taskfile.yml') }}
+          restore-keys: npm-${{ runner.os }}-
+      # Inputs reach the shell through env, never interpolated into the
+      # script, so a caller-supplied value cannot inject commands.
+      - name: task ${{ inputs.task-command }}
         env:
+          TASK_COMMAND: ${{ inputs.task-command }}
           # The diff gates' base: the PR's base branch, or on a push the
           # repository's default branch - which need not be main. Left
           # empty when the event carries neither (a schedule), so the
           # Taskfile's own fallback applies instead of a bare 'origin/'.
           SYSSPEC_BASE: ${{ (github.base_ref || github.event.repository.default_branch) && format('origin/{0}', github.base_ref || github.event.repository.default_branch) || '' }}
           SYSSPEC_ALLOW_MISSING_BASE: ${{ inputs.allow-missing-base && '1' || '' }}
+        # Unquoted on purpose: several targets are several words.
+        run: task $TASK_COMMAND

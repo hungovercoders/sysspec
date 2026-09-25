@@ -215,15 +215,54 @@ tasks:
         node {{.ROOT_DIR}}/cli/dist/cli.mjs check intent --base "$base" {{if .SERVICE}}--service {{.SERVICE}}{{end}}
 
   ci:
-    desc: Full verification - identical locally and in CI
+    desc: Full verification - identical locally and in CI (the union of the ci:* groups)
     cmds:
-      - defer: { task: mocks:down }
-      - task: check
+      - task: ci:gates
+      - task: ci:cli
+      - task: ci:mcp
+      - task: ci:docs
+      - task: ci:mocks
+
+  # The groups CI runs as parallel jobs (contracts.yml). Every gate lives
+  # in exactly one group, so the matrix and `task ci` cannot drift apart.
+  ci:gates:
+    desc: CI group - branch, lint, version and surface gates, commits, compat, intent
+    cmds:
+      - task: check:branch
+      - task: lint
+      - task: check:version
+      - task: check:plugin
+      - task: check:cli
+      - task: check:mcp
       - task: check:commits
       - task: check:compat
       - task: check:intent
+
+  ci:cli:
+    desc: CI group - CLI bundle freshness, tests, the init scaffold and the null-service self-test
+    cmds:
+      - task: check:cli:dist
+      - task: test:cli
       - task: check:init
       - task: check:null
+
+  ci:mcp:
+    desc: CI group - MCP bundle freshness and tests
+    cmds:
+      - task: check:mcp:dist
+      - task: test:mcp
+
+  ci:docs:
+    desc: CI group - the generated docs site, its diagrams, and the sysspec website
+    cmds:
+      - task: docs:build
+      - task: docs:diagrams
+      - task: site:build
+
+  ci:mocks:
+    desc: CI group - the Microcks mock cycle (needs Docker)
+    cmds:
+      - defer: { task: mocks:down }
       - task: mocks:load
       - task: contract:test
       - task: mocks:test

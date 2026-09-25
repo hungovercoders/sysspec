@@ -5,6 +5,12 @@
 # The staged version goes live only after a maintainer approves it with
 # 2FA: `npm stage approve sysspec@<version>` or on npmjs.com.
 #
+# Two jobs, so the write token never meets third-party code: the build
+# job (checkout, mise, npm) holds only read and id-token; the tag job
+# holds contents: write and runs nothing but git. The major tag moves
+# only once staging has succeeded - approval on npm is still a separate,
+# human step, so approve promptly after a release.
+#
 # One-time setup on npmjs.com: publish the first version manually so the
 # package exists, then add a "trusted publisher" for sysspec pointing at
 # this repository and workflow release.yml, allowed action: stage publish.
@@ -14,16 +20,20 @@ on:
   push:
     tags: ["v[0-9]*"]
 
-permissions:
-  contents: write
-  id-token: write
+permissions: {}
 
 jobs:
   publish:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: jdx/mise-action@v2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
       - name: Verify the tag matches the package version
         working-directory: cli
         run: |
@@ -40,6 +50,15 @@ jobs:
         run: git diff --exit-code -- cli/dist
       - run: npm stage publish
         working-directory: cli
+
+  move-major-tag:
+    needs: publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Move the floating major tag
         run: |
           major="v$(echo "${GITHUB_REF_NAME#v}" | cut -d. -f1)"
