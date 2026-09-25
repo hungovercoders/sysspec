@@ -67,4 +67,25 @@ describe("cloudflare adapter", () => {
     const services = JSON.parse(payload.result.content[0].text);
     expect(services.map((s: any) => s.name)).toContain("orders");
   });
+
+  test("validate_payload and get_system work from the bundle", async () => {
+    // The validator must not generate code (workerd forbids eval), and
+    // the bundle must carry system.yaml.
+    const call = async (name: string, args: object) => {
+      const res = await worker.fetch(
+        rpc({ jsonrpc: "2.0", id: 3, method: "tools/call", params: { name, arguments: args } }),
+      );
+      expect(res.status).toBe(200);
+      return JSON.parse(((await res.json()) as any).result.content[0].text);
+    };
+    const verdict = await call("validate_payload", {
+      service: "orders",
+      message: "OrderPlaced",
+      payload: { specversion: "1.0" },
+    });
+    expect(verdict.valid).toBe(false);
+    expect(verdict.errors.length).toBeGreaterThan(0);
+    const system = await call("get_system", {});
+    expect(system.present).toBe(true);
+  });
 });

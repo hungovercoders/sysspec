@@ -99,12 +99,17 @@ const change: Ask[] = [
 ];
 
 const tools = [
+  ['get_system()', 'What is this system, and what domain is it in?'],
   ['list_services()', 'What is in this system?'],
   ['get_service(name)', 'What does one service own, publish and depend on?'],
   ['get_message_schema(service, message)', 'What is on this event?'],
+  ['get_operation(service, operation_id)', 'What does this API call take and return?'],
+  ['get_data_contract(service, table)', 'What is in this table, and how should I read it?'],
   ['get_acceptance_criteria(service)', 'How is it supposed to behave?'],
   ['get_artifact(service, path)', 'Show me the contract itself.'],
-  ['trace_channel(address)', 'Who do I break if I change this?'],
+  ['trace_channel(address)', 'Who publishes and who listens on this channel?'],
+  ['impact(service, message)', 'Who do I break if I change this?'],
+  ['validate_payload(service, message, payload)', 'Does this event meet the contract?'],
   ['search_specs(query)', 'Where is this idea defined?'],
 ];
 ---
@@ -221,7 +226,7 @@ const tools = [
 
   <h2>What answers, and what it will not do</h2>
   <p>
-    Seven read-only tools serve the answers. There is no write tool: a
+    Twelve read-only tools serve the answers. There is no write tool: a
     conversation can never amend a contract, because changing one is a
     deliberate, versioned act with gates of its own. Reads are confined to
     artifacts a service manifest declares, so nothing is exposed by

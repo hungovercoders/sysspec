@@ -41,13 +41,20 @@ for (const dir of dirs) {
   services.push({ dir, manifestYaml, files });
 }
 
+let systemYaml = null;
+try {
+  systemYaml = await fs.readFile(path.join(specsDir, "system.yaml"), "utf-8");
+} catch {
+  // No suite manifest: get_system reports that rather than failing.
+}
+
 // Write-then-rename: a rename within one directory is atomic, so a reader
 // running alongside (parallel test files, a build) sees the old bundle or
 // the new one, never a half-written file.
 await fs.mkdir(path.dirname(outFile), { recursive: true });
 const tmpFile = `${outFile}.${process.pid}.tmp`;
 try {
-  await fs.writeFile(tmpFile, JSON.stringify({ services }));
+  await fs.writeFile(tmpFile, JSON.stringify({ services, systemYaml }));
   // Windows refuses to replace a file another process has open (EPERM /
   // EBUSY) - a parallel reader, briefly. Retry before giving up.
   for (let attempt = 1; ; attempt++) {

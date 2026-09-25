@@ -4,6 +4,11 @@ import { parse } from "yaml";
 import { ArtifactMissingError, Manifest, ServiceEntry, SpecSource } from "./types.js";
 
 export class FsSpecSource implements SpecSource {
+  /** Parsed manifests keyed by path, reused while the file's mtime and
+   * size are unchanged: edits still show up on the next call, but an
+   * untouched suite is not re-parsed on every tool call. */
+  private readonly manifestCache = new Map<string, { mtimeMs: number; size: number; manifest: Manifest }>();
+
   constructor(private readonly rawSpecsDir: string | undefined) {}
 
   private async specsDir(): Promise<string> {
@@ -30,17 +35,37 @@ export class FsSpecSource implements SpecSource {
       .sort();
     for (const dir of entries) {
       const manifestPath = path.join(root, dir, "service.yaml");
-      let text: string;
-      try {
-        text = await fs.readFile(manifestPath, "utf-8");
-      } catch {
-        continue;
+      const stat = await fs.stat(manifestPath).catch(() => null);
+      if (!stat?.isFile()) continue;
+      let manifest: Manifest;
+      const cached = this.manifestCache.get(manifestPath);
+      if (cached && cached.mtimeMs === stat.mtimeMs && cached.size === stat.size) {
+        manifest = cached.manifest;
+      } else {
+        let text: string;
+        try {
+          text = await fs.readFile(manifestPath, "utf-8");
+        } catch {
+          continue;
+        }
+        manifest = (parse(text) ?? {}) as Manifest;
+        this.manifestCache.set(manifestPath, { mtimeMs: stat.mtimeMs, size: stat.size, manifest });
       }
-      const manifest = (parse(text) ?? {}) as Manifest;
       const name = manifest.name || dir;
       services.set(name, { name, dir, manifest });
     }
     return services;
+  }
+
+  async loadSystem(): Promise<Record<string, unknown> | null> {
+    const root = await this.specsDir();
+    let text: string;
+    try {
+      text = await fs.readFile(path.join(root, "system.yaml"), "utf-8");
+    } catch {
+      return null;
+    }
+    return (parse(text) ?? null) as Record<string, unknown> | null;
   }
 
   async readFile(service: ServiceEntry, relPath: string): Promise<string> {

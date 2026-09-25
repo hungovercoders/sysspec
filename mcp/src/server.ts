@@ -1,12 +1,14 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import pkg from "../package.json" with { type: "json" };
+import { getDataContract, getOperation, impact, validatePayload } from "./contracts.js";
 import {
   DEFAULT_MAX_BYTES,
   getAcceptanceCriteria,
   getArtifact,
   getMessageSchema,
   getService,
+  getSystem,
   listServices,
   searchSpecs,
   traceChannel,
@@ -35,24 +37,47 @@ async function run(fn: () => Promise<unknown>): Promise<ToolResult> {
   }
 }
 
+// Every tool only reads a closed set of spec files: safe to call, safe to
+// repeat, and never reaching outside the suite.
+const READ_ONLY = { readOnlyHint: true, idempotentHint: true, openWorldHint: false } as const;
+
+const MAX_BYTES = z.number().int().min(1).max(1_000_000).default(DEFAULT_MAX_BYTES);
+
 /** Build the sysspec MCP server over a spec source. Tool names, shapes,
- * descriptions and error messages are the served contract — see core.ts.
+ * descriptions and error messages are the served contract — see core.ts
+ * and contracts.ts.
  */
 export function createServer(source: SpecSource): McpServer {
   const server = new McpServer({ name: "sysspec", version: pkg.version });
+  const registerTool: typeof server.registerTool = (name, config, cb) =>
+    server.registerTool(name, { ...config, annotations: { ...READ_ONLY, ...config.annotations } }, cb);
 
-  server.registerTool(
+  registerTool(
+    "get_system",
+    {
+      description:
+        "Describe the system these specs specify: its name, title, business\n" +
+        "domain, event namespace (org), summary and hosted MCP endpoint.\n\n" +
+        "A good first call for a plain-language question about the system as a\n" +
+        "whole; list_services then names its parts.",
+      inputSchema: {},
+    },
+    async () => run(() => getSystem(source)),
+  );
+
+  registerTool(
     "list_services",
     {
       description:
-        "List every service in the specs with its domain, owner and summary.\n\n" +
+        "List every service in the specs with its domain, owner, version and\n" +
+        "summary. The version is the one consumers pin (<service>/v<version>).\n\n" +
         "Start here. Returns no artifact contents — use get_service next.",
       inputSchema: {},
     },
     async () => run(() => listServices(source)),
   );
 
-  server.registerTool(
+  registerTool(
     "get_service",
     {
       description:
@@ -66,7 +91,7 @@ export function createServer(source: SpecSource): McpServer {
     async ({ name }) => run(() => getService(source, name)),
   );
 
-  server.registerTool(
+  registerTool(
     "get_artifact",
     {
       description:
@@ -84,13 +109,13 @@ export function createServer(source: SpecSource): McpServer {
         service: z.string(),
         path: z.string(),
         section: z.string().nullable().optional(),
-        max_bytes: z.number().int().default(DEFAULT_MAX_BYTES),
+        max_bytes: MAX_BYTES,
       },
     },
     async (args) => run(() => getArtifact(source, args)),
   );
 
-  server.registerTool(
+  registerTool(
     "get_message_schema",
     {
       description:
@@ -105,12 +130,12 @@ export function createServer(source: SpecSource): McpServer {
     async ({ service, message }) => run(() => getMessageSchema(source, service, message)),
   );
 
-  server.registerTool(
+  registerTool(
     "get_acceptance_criteria",
     {
       description:
         "Return Gherkin acceptance criteria for a service — narrowly.\n\n" +
-        'Start with names_only=True to see the scenario index, then fetch one\n' +
+        'Start with names_only=true to see the scenario index, then fetch one\n' +
         'scenario (scenario="substring of its title") or one file (path=...).\n' +
         "Only omit all filters when you are about to implement the whole service.\n\n" +
         "A scenario= match comes back in matched[] as {name, gherkin}. A\n" +
@@ -129,13 +154,13 @@ export function createServer(source: SpecSource): McpServer {
         path: z.string().nullable().optional(),
         scenario: z.string().nullable().optional(),
         names_only: z.boolean().default(false),
-        max_bytes: z.number().int().default(DEFAULT_MAX_BYTES),
+        max_bytes: MAX_BYTES,
       },
     },
     async (args) => run(() => getAcceptanceCriteria(source, args)),
   );
 
-  server.registerTool(
+  registerTool(
     "trace_channel",
     {
       description:
@@ -147,16 +172,18 @@ export function createServer(source: SpecSource): McpServer {
     async ({ address }) => run(() => traceChannel(source, address)),
   );
 
-  server.registerTool(
+  registerTool(
     "search_specs",
     {
       description:
-        "Search artifact contents across services.\n\n" +
-        "Returns matching lines only (each capped at 200 chars), never whole\n" +
-        "files or surrounding context — follow up with get_artifact(section=...)\n" +
-        "on a hit's path. Narrow with kind= (asyncapi, openapi, data-contract,\n" +
-        "feature, doc) and service=; raise limit (max 100) only if truncated is\n" +
-        "true and you need more.",
+        "Search artifact contents (and service manifests) across services.\n\n" +
+        "Ranked: every word of the query counts, camelCase and snake_case are\n" +
+        "split, so 'order placed' finds OrderPlaced and orders.placed.v2, and\n" +
+        "exact matches lead. Returns matching lines only (each capped at 200\n" +
+        "chars) with a score and, in YAML files, the JSON pointer of the line —\n" +
+        "pass it to get_artifact(section=...). Narrow with kind= (asyncapi,\n" +
+        "openapi, data-contract, feature, doc, manifest) and service=; raise\n" +
+        "limit (max 100) only if truncated is true and you need more.",
       inputSchema: {
         query: z.string(),
         kind: z.string().nullable().optional(),
@@ -165,6 +192,85 @@ export function createServer(source: SpecSource): McpServer {
       },
     },
     async (args) => run(() => searchSpecs(source, args)),
+  );
+
+  registerTool(
+    "get_operation",
+    {
+      description:
+        "Return one OpenAPI operation with its $refs resolved: parameters\n" +
+        "(path-level included), request body and every response, inline.\n\n" +
+        "Address it by operation_id, or by method + path ('POST', '/orders').\n" +
+        "Call with neither to list the service's operations. Cheaper and more\n" +
+        "complete than get_artifact on the paths section.",
+      inputSchema: {
+        service: z.string(),
+        operation_id: z.string().nullable().optional(),
+        method: z.string().nullable().optional(),
+        path: z.string().nullable().optional(),
+        max_bytes: MAX_BYTES,
+      },
+    },
+    async (args) => run(() => getOperation(source, args)),
+  );
+
+  registerTool(
+    "get_data_contract",
+    {
+      description:
+        "Read an ODCS data contract as tables and columns rather than YAML.\n\n" +
+        "No path: an index of the service's contracts and their tables. With\n" +
+        "path: that contract's purpose, reader context (instructions, verified\n" +
+        "question/answer pairs, constraints) and tables. With table: one table's\n" +
+        "columns (types, required, enum values, synonyms, quality rules) and\n" +
+        "relationships. The context is gated contract text — follow it when\n" +
+        "answering questions about the data.",
+      inputSchema: {
+        service: z.string(),
+        path: z.string().nullable().optional(),
+        table: z.string().nullable().optional(),
+      },
+    },
+    async (args) => run(() => getDataContract(source, args)),
+  );
+
+  registerTool(
+    "impact",
+    {
+      description:
+        "Who and what a change would reach. Pass exactly one of:\n" +
+        "- message= an AsyncAPI message: its channels, their producers and\n" +
+        "  consumers, every scenario (in any service) naming it or its channel,\n" +
+        "  and the data contracts that record the stream;\n" +
+        "- column= '<table>.<column>' in one of the service's data contracts:\n" +
+        "  every ODCS relationship pointing at it, and the scenarios naming it.\n\n" +
+        "Use before changing a contract: what is listed is what you break.",
+      inputSchema: {
+        service: z.string(),
+        message: z.string().nullable().optional(),
+        column: z.string().nullable().optional(),
+      },
+    },
+    async (args) => run(() => impact(source, args)),
+  );
+
+  registerTool(
+    "validate_payload",
+    {
+      description:
+        "Validate a JSON payload against a message schema — an AsyncAPI\n" +
+        "message's payload or, failing that, an OpenAPI component schema —\n" +
+        "with $refs resolved.\n\n" +
+        "Returns valid plus leaf errors (instance path and message). Use it to\n" +
+        "check an example, a fixture or a captured event against the contract\n" +
+        "of record; a failure is a finding about the payload, not the schema.",
+      inputSchema: {
+        service: z.string(),
+        message: z.string(),
+        payload: z.unknown(),
+      },
+    },
+    async (args) => run(() => validatePayload(source, args)),
   );
 
   return server;

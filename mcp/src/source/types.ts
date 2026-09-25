@@ -18,6 +18,7 @@ export interface ArtifactMeta {
 
 export interface Manifest {
   name?: string;
+  version?: string;
   title?: string;
   domain?: string;
   owner?: string;
@@ -44,6 +45,9 @@ export interface SpecSource {
    * sources re-read on every call so spec edits show up without a server
    * restart. */
   loadServices(): Promise<Map<string, ServiceEntry>>;
-  /** Raw text of a file under a service's directory. */
+  /** Raw text of a file under a service's directory. `service.yaml`
+   * (the manifest itself) is always readable. */
   readFile(service: ServiceEntry, relPath: string): Promise<string>;
+  /** The parsed suite-level `system.yaml`, or null when there is none. */
+  loadSystem(): Promise<Record<string, unknown> | null>;
 }
