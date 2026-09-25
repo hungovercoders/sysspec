@@ -33,7 +33,7 @@ running.
 ### The `check` gates
 
 All four compare the working tree against a base ref (`--base`, default
-`origin/main`).
+`$SYSSPEC_BASE`, else `origin/$GITHUB_BASE_REF`, else `origin/main`).
 
 - `check version` fails unless a gated artifact change bumps its manifest
   version *and* the service's top-level version; an artifact major forces a
@@ -49,7 +49,7 @@ All four compare the working tree against a base ref (`--base`, default
 
 | Flag | Applies to | Default |
 | --- | --- | --- |
-| `--base <ref>` | all four | `origin/main` |
+| `--base <ref>` | all four | `$SYSSPEC_BASE`, else `origin/$GITHUB_BASE_REF`, else `origin/main` |
 | `--specs-dir <dir>` | all four | `specs` |
 | `--service <name>` | `compat`, `intent` | all services |
 | `--version-file <file>` | `surface` | required |
@@ -77,25 +77,38 @@ When the gates find no merge-base with the base ref, they work out why:
 
 Check out with `fetch-depth: 0`, as the reusable workflows do, or pass
 `--allow-missing-base` (or set `SYSSPEC_ALLOW_MISSING_BASE=1`) where
-skipping really is what you want. The reusable `sysspec-ci.yml` sets
-`SYSSPEC_BASE` to the pull request's base branch, or on a push to the
-repository's default branch, and the scaffolded Taskfile diffs against
-it, so a repository whose default branch is not `main` works as is. The
-workflow's `allow-missing-base` input sets the variable above.
+skipping really is what you want; it skips in every case above,
+saying why.
+
+Without `--base`, the gates diff against `SYSSPEC_BASE` when it is
+set, else the pull request's base branch on GitHub Actions
+(`origin/$GITHUB_BASE_REF`), else `origin/main`. The scaffolded
+Taskfile resolves the base the same way and fetches that branch before
+diffing. The reusable `sysspec-ci.yml` sets `SYSSPEC_BASE` to the pull
+request's base branch, or on a push to the repository's default branch,
+so a repository whose default branch is not `main` works as is. The
+workflow's `allow-missing-base` input sets `SYSSPEC_ALLOW_MISSING_BASE`.
 
 Versions only go up. `check version` and `check surface` order versions
 the same way: semver precedence when both sides are semver (a
 pre-release promoted to its release, `2.0.0-rc.1` to `2.0.0`, is a
 bump), otherwise PEP 440-style (`1.2` < `1.3`, `1.2.3rc1` < `1.2.3` <
-`1.2.3.post1`). Every declared version is checked whether or not its file
-changed:
+`1.2.3.post1`). When one side is semver-only (build metadata, or a
+pre-release like `1.0.0-SNAPSHOT`), the release numbers decide, then a
+release outranks a pre-release; two pre-releases of one release in
+different schemes cannot be ranked. `check version` checks the
+direction of every declared version, whether or not its file changed:
 
-- A downgrade fails, and so does a version that disappears.
+- A downgrade fails, and so does a version that disappears or is
+  replaced by one no rule can rank (`1.2.3` to `dev`, or to an empty
+  string).
 - The same version respelled (`1.0.0` to `v1.0.0`, `1.2` to `1.2.0`) or
-  differing only in build metadata is harmless on an untouched artifact,
-  but it is not the bump a changed artifact (or `check surface`) needs.
-- A change between versions neither rule can rank (`latest`, say) is
-  accepted with a note.
+  differing only in build metadata passes on an untouched artifact, but
+  it is not the bump a changed artifact (or `check surface`) needs, so
+  there it fails.
+- Any other change no rule can rank (from `latest` to `nightly`, or
+  across schemes as above) is accepted, with a note when it is the bump
+  a change relies on.
 
 ### `lint`
 

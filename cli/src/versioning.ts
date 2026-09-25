@@ -13,10 +13,12 @@ import {
   blob,
   Exit,
   git,
+  isRankable,
   majorOf,
   mergeBase,
   missingBase,
   orderVersions,
+  pyRepr,
   splitLines,
 } from "./util.js";
 
@@ -55,7 +57,7 @@ export function serviceVersion(text: string | null): string | null {
 
 /** How a version moved, when it did not simply go up. */
 export interface NotABump {
-  kind: "backwards" | "lost" | "same" | "unordered";
+  kind: "backwards" | "lost" | "same" | "unrankable" | "unordered";
   message: string;
 }
 
@@ -64,8 +66,11 @@ export interface NotABump {
  * surface consumers may already have pinned. Ordering is the one both
  * version gates share (util.orderVersions). "same" is an equal version
  * respelled - harmless on its own, never the bump a change needs;
- * "unordered" is a change between versions no rule can rank, accepted by
- * callers with a note. `what` names the version in messages. */
+ * "unrankable" is a rankable version replaced by one no rule can rank
+ * (1.2.3 -> dev, or an empty string) - the direction is lost, so it fails
+ * like a downgrade; "unordered" is any other change no rule can rank
+ * (from an unrankable version, or across schemes), accepted by callers
+ * with a note. `what` names the version in messages. */
 export function notABump(
   now: string | null,
   before: string | null,
@@ -74,6 +79,12 @@ export function notABump(
   if (before === null || now === before) return null;
   if (now === null) return { kind: "lost", message: `lost its ${what} (was ${before})` };
   const order = orderVersions(now, before);
+  if (order === null && isRankable(before) && !isRankable(now)) {
+    return {
+      kind: "unrankable",
+      message: `${what} ${before} -> ${pyRepr(now)} is not a version any rule here can rank - versions only go up`,
+    };
+  }
   if (order === null) {
     return {
       kind: "unordered",

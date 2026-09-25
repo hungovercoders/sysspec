@@ -54,8 +54,10 @@ jobs:
         env:
           TASK_COMMAND: ${{ inputs.task-command }}
           # The diff gates' base: the PR's base branch, or on a push the
-          # repository's default branch - which need not be main.
-          SYSSPEC_BASE: origin/${{ github.base_ref || github.event.repository.default_branch }}
+          # repository's default branch - which need not be main. Left
+          # empty when the event carries neither (a schedule), so the
+          # Taskfile's own fallback applies instead of a bare 'origin/'.
+          SYSSPEC_BASE: ${{ (github.base_ref || github.event.repository.default_branch) && format('origin/{0}', github.base_ref || github.event.repository.default_branch) || '' }}
           SYSSPEC_ALLOW_MISSING_BASE: ${{ inputs.allow-missing-base && '1' || '' }}
         # Unquoted on purpose: several targets are several words.
         run: task $TASK_COMMAND

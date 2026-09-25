@@ -27,7 +27,7 @@ import {
 } from "../src/intent.js";
 import { openapiBreaking } from "../src/compat.js";
 import { runGate as surfaceGate, versionOf } from "../src/surface.js";
-import { compareVersions, orderVersions, run } from "../src/util.js";
+import { compareVersions, defaultBase, envFlag, orderVersions, run } from "../src/util.js";
 import { manifestVersions, runGate as versionGate, serviceVersion } from "../src/versioning.js";
 
 describe("intent token extraction", () => {
@@ -241,6 +241,44 @@ describe("versioning helpers", () => {
     expect(orderVersions("latest", "1.0")).toBeNull();
   });
 
+  test("defaultBase: SYSSPEC_BASE, then the PR's base branch, then origin/main", () => {
+    vi.stubEnv("SYSSPEC_BASE", "");
+    vi.stubEnv("GITHUB_BASE_REF", "");
+    expect(defaultBase()).toBe("origin/main");
+    vi.stubEnv("GITHUB_BASE_REF", "release/1.x");
+    expect(defaultBase()).toBe("origin/release/1.x");
+    vi.stubEnv("SYSSPEC_BASE", "upstream/develop");
+    expect(defaultBase()).toBe("upstream/develop");
+  });
+
+  test("envFlag: set means on, except empty, false and 0", () => {
+    for (const [value, on] of [["1", true], ["true", true], ["yes", true], ["", false], ["0", false], [" FALSE ", false]] as const) {
+      vi.stubEnv("SYSSPEC_TEST_FLAG", value);
+      expect(envFlag("SYSSPEC_TEST_FLAG"), JSON.stringify(value)).toBe(on);
+    }
+  });
+
+  test("orderVersions keeps pre-release rank and number apart", () => {
+    // Packed as rank*1000 + n these two tied.
+    expect(orderVersions("1.0b1000", "1.0rc0")).toBeLessThan(0);
+    expect(orderVersions("1.0rc0", "1.0b1000")).toBeGreaterThan(0);
+  });
+
+  test("orderVersions ranks across schemes by release, then phase", () => {
+    // A semver-only spelling (build metadata, a named or multi-part
+    // pre-release) against a PEP 440 one: the release numbers decide.
+    expect(orderVersions("1.0", "1.2.3+build.5")).toBeLessThan(0);
+    expect(orderVersions("0.9", "1.0.0-SNAPSHOT")).toBeLessThan(0);
+    // Same release: a release outranks any pre-release.
+    expect(orderVersions("1.0", "1.0.0-beta.2.1")).toBeGreaterThan(0);
+    expect(orderVersions("1.0.0-SNAPSHOT", "1.0")).toBeLessThan(0);
+    expect(orderVersions("1.0.post1", "1.0.0+build.5")).toBeGreaterThan(0);
+    // Same release, both releases: one version, build metadata aside.
+    expect(orderVersions("1.2", "1.2.0+build.5")).toBe(0);
+    // Two pre-releases of one release in different schemes: no guess.
+    expect(orderVersions("1.0rc1", "1.0.0-SNAPSHOT")).toBeNull();
+  });
+
   test("compareVersions follows semver precedence", () => {
     const order = [
       "1.0.0-alpha",
@@ -320,7 +358,6 @@ describe("gates in a scratch git repo", () => {
     process.chdir(path.dirname(repo));
     rmSync(repo, { recursive: true, force: true });
     vi.restoreAllMocks();
-    vi.unstubAllEnvs();
   });
 
   const manifest = (svc: string, artifact: string) =>
@@ -598,11 +635,14 @@ describe("gates in a scratch git repo", () => {
     writeFileSync(path.join(repo, "v.json"), JSON.stringify({ version: "1.2.0" }));
     expect(surfaceGate("HEAD", "v.json", "version", ["surface.txt"])).toBe(1);
     expect(logs.join("\n")).toContain("is the same version, respelled - not a bump");
-    // Only a version no rule can rank is accepted with a note.
-    logs.length = 0;
-    writeFileSync(path.join(repo, "v.json"), JSON.stringify({ version: "latest" }));
-    expect(surfaceGate("HEAD", "v.json", "version", ["surface.txt"])).toBe(0);
-    expect(logs.join("\n")).toContain("cannot order these versions; accepted");
+    // A rankable version swapped for one no rule can rank loses the
+    // direction: red like a downgrade, word or empty string alike.
+    for (const version of ["latest", "dev", ""]) {
+      logs.length = 0;
+      writeFileSync(path.join(repo, "v.json"), JSON.stringify({ version }));
+      expect(surfaceGate("HEAD", "v.json", "version", ["surface.txt"]), version).toBe(1);
+      expect(logs.join("\n")).toContain("is not a version any rule here can rank");
+    }
     // A key that lands on an object is not a version.
     logs.length = 0;
     writeFileSync(path.join(repo, "v.json"), JSON.stringify({ version: { major: 2 } }));
@@ -683,6 +723,11 @@ describe("gates in a scratch git repo", () => {
       process.chdir(bare);
       expect(versionGate("origin/main", "specs")).toBe(1);
       expect(logs.join("\n")).toContain("not inside a git work tree");
+      // --allow-missing-base skips here too, as it does everywhere else.
+      logs.length = 0;
+      expect(versionGate("origin/main", "specs", true)).toBe(0);
+      expect(logs.join("\n")).toContain("not inside a git work tree");
+      expect(logs.join("\n")).toContain("--allow-missing-base: skipping.");
     } finally {
       process.chdir(repo);
       rmSync(bare, { recursive: true, force: true });

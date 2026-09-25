@@ -28763,7 +28763,7 @@ var EMPTY_COMPLETION_RESULT = {
 // package.json
 var package_default = {
   name: "sysspec-mcp",
-  version: "1.1.0",
+  version: "1.2.0",
   description: "Read-only MCP access to versioned system specs: AsyncAPI, OpenAPI, ODCS data contracts and Gherkin acceptance criteria.",
   license: "MIT",
   repository: {
@@ -29926,8 +29926,9 @@ function docstringLines(lines) {
     const stripped = lines[i].trim();
     const fence = stripped.startsWith('"""') ? '"""' : stripped.startsWith("```") ? "```" : null;
     if (fence && lastStep) {
-      const close = lines.findIndex((l, j) => j > i && l.trim().startsWith(fence));
-      if (close !== -1) {
+      let close = i + 1;
+      while (close < lines.length && !lines[close].trim().startsWith(fence)) close += 1;
+      if (close < lines.length) {
         for (let j = i; j <= close; j++) data[j] = true;
         i = close;
         lastStep = false;
@@ -30279,16 +30280,19 @@ async function getAcceptanceCriteria(source, args) {
     const text = await read(source, svc, a.path);
     const summary = summaryOf(a.summary);
     const { header, scenarios } = splitGherkin(text);
-    if (names_only) {
+    const namesIndex = (extra) => {
       const names = scenarios.map((s) => s.name);
       const size = names.reduce((sum, name) => sum + utf8Len(name), 0);
       if (size > budget) {
         out.truncated = true;
-        out.features.push({ path: a.path, summary, scenario_count: names.length, names_omitted: true });
-        continue;
+        out.features.push({ path: a.path, summary, scenario_count: names.length, names_omitted: true, ...extra });
+      } else {
+        budget -= size;
+        out.features.push({ path: a.path, summary, scenarios: names, ...extra });
       }
-      budget -= size;
-      out.features.push({ path: a.path, summary, scenarios: names });
+    };
+    if (names_only) {
+      namesIndex({});
       continue;
     }
     if (scenario !== null && scenario !== void 0) {
@@ -30338,20 +30342,7 @@ async function getAcceptanceCriteria(source, args) {
     }
     if (utf8Len(text) > budget) {
       out.truncated = true;
-      const names = scenarios.map((s) => s.name);
-      const size = names.reduce((sum, name) => sum + utf8Len(name), 0);
-      if (size > budget) {
-        out.features.push({
-          path: a.path,
-          summary,
-          scenario_count: names.length,
-          names_omitted: true,
-          gherkin_omitted: true
-        });
-      } else {
-        budget -= size;
-        out.features.push({ path: a.path, summary, scenarios: names, gherkin_omitted: true });
-      }
+      namesIndex({ gherkin_omitted: true });
       continue;
     }
     budget -= utf8Len(text);
@@ -30995,7 +30986,25 @@ function createServer(source) {
   registerTool(
     "get_acceptance_criteria",
     {
-      description: 'Return Gherkin acceptance criteria for a service \u2014 narrowly.\n\nStart with names_only=true to see the scenario index, then fetch one\nscenario (scenario="substring of its title") or one file (path=...).\nOnly omit all filters when you are about to implement the whole service.\n\nThese are binding acceptance criteria. Implement toward them. If a\nscenario looks wrong, say so and stop rather than adjusting it.',
+      description: `Return Gherkin acceptance criteria for a service \u2014 narrowly.
+
+Start with names_only=true to see the scenario index, then fetch one
+scenario (scenario="substring of its title") or one file (path=...).
+Only omit all filters when you are about to implement the whole service.
+
+A scenario= match comes back in matched[] as {name, gherkin}. A
+scenario inside a Rule also has rule_index: rules[rule_index] is that
+Rule's block (Rule line, description, Background). A scenario stands
+alone only as header + rules[rule_index] + gherkin; the header holds
+the Feature and its Background, never a Rule.
+
+Nothing is sent past max_bytes. With truncated=true, what did not
+fit is flagged instead: header_omitted, gherkin_omitted (name only),
+names_omitted (scenario_count only), unlisted_matches (a count of
+matches not even named). Narrow the call or raise max_bytes.
+
+These are binding acceptance criteria. Implement toward them. If a
+scenario looks wrong, say so and stop rather than adjusting it.`,
       inputSchema: {
         service: external_exports.string(),
         path: external_exports.string().nullable().optional(),

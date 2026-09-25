@@ -177,6 +177,17 @@ test("a copied manifest repeating another service's name still counts as a secon
   expect(out).toMatch(/channel '[\w.-]+' is produced by orders, orders-copy/);
 });
 
+test("a scoped run reports a double-produced channel its service consumes, and no other", () => {
+  const errs = captureErr();
+  // orders-copy produces everything orders does; payments consumes only
+  // orders.placed.v2 of those.
+  cpSync(path.join(specs, "orders"), path.join(specs, "orders-copy"), { recursive: true });
+  expect(runLint("payments", specs)).toBe(1);
+  const out = errs.join("\n");
+  expect(out).toContain("channel 'orders.placed.v2' is produced by orders, orders-copy");
+  expect(out).not.toContain("orders.cancelled.v2");
+});
+
 test("a channel listed twice in one service's produces is its own problem, not a second producer", () => {
   const errs = captureErr();
   const f = path.join(specs, "orders", "service.yaml");
