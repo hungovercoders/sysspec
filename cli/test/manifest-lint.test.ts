@@ -188,3 +188,13 @@ test("a channel listed twice in one service's produces is its own problem, not a
   expect(out).toContain(`orders: lists '${address}' in produces more than once`);
   expect(out).not.toContain("is produced by");
 });
+
+test("produces that is not a list is a lint problem, not a crash", () => {
+  const errs = captureErr();
+  const f = path.join(specs, "orders", "service.yaml");
+  const text = readFileSync(f, "utf-8");
+  // Replace the produces list with a mapping.
+  writeFileSync(f, text.replace(/^produces:\s*\n(?:\s+-.*\n)+/m, "produces:\n  orders.placed.v2: true\n"));
+  expect(() => runLint("orders", specs)).not.toThrow();
+  expect(errs.join("\n")).toContain("orders: produces must be a list of channel addresses");
+});

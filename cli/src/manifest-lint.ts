@@ -77,6 +77,12 @@ function readYaml(file: string): Record<string, any> {
   return (parse(readFileSync(file, "utf-8")) ?? {}) as Record<string, any>;
 }
 
+/** A manifest's produces/consumes as a list of strings: anything that is
+ * not a list reads as empty here and is reported by lintService. */
+function channelList(value: unknown): string[] {
+  return Array.isArray(value) ? value.map(String) : [];
+}
+
 function findAll(re: RegExp, text: string): Set<string> {
   return new Set([...text.matchAll(re)].map((m) => m[1]));
 }
@@ -358,12 +364,17 @@ function lintService(
     problems.push(`${name}: implementationRepo must be <owner>/<repo>, got ${pyRepr(String(repo))}`);
   }
 
-  const producesList: string[] = manifest.produces ?? [];
+  for (const field of ["produces", "consumes"]) {
+    if (manifest[field] != null && !Array.isArray(manifest[field])) {
+      problems.push(`${name}: ${field} must be a list of channel addresses`);
+    }
+  }
+  const producesList: string[] = channelList(manifest.produces);
   for (const address of pySorted(new Set(producesList.filter((a, i) => producesList.indexOf(a) !== i)))) {
     problems.push(`${name}: lists '${address}' in produces more than once`);
   }
   const produces = new Set<string>(producesList);
-  const consumes = new Set<string>(manifest.consumes ?? []);
+  const consumes = new Set<string>(channelList(manifest.consumes));
 
   for (const address of pySorted([...produces].filter((a) => !sent.has(a)))) {
     problems.push(`${name}: produces '${address}' but no AsyncAPI send operation publishes it`);
@@ -430,7 +441,7 @@ export function runLint(only: string | null, specsDir: string): number {
   const producedBy = new Map<string, Set<string>>();
   for (const d of dirs) {
     const manifest = readYaml(path.join(d, "service.yaml"));
-    for (const address of manifest.produces ?? []) {
+    for (const address of channelList(manifest.produces)) {
       producedBy.set(address, (producedBy.get(address) ?? new Set<string>()).add(path.basename(d)));
     }
   }

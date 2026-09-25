@@ -51,7 +51,11 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<numb
   if (command === "check") {
     const base = args.get("base", "origin/main")!;
     const specsDir = args.get("specs-dir", "specs")!;
-    const allowMissing = args.bool("allow-missing-base");
+    // The flag, or SYSSPEC_ALLOW_MISSING_BASE for callers that cannot
+    // change the command line (the reusable workflow's scaffolded Taskfile).
+    const envAllow = (process.env.SYSSPEC_ALLOW_MISSING_BASE ?? "").trim().toLowerCase();
+    const allowMissing =
+      args.bool("allow-missing-base") || (envAllow !== "" && envAllow !== "0" && envAllow !== "false");
     if (sub === "version") {
       args.only("base", "specs-dir", "allow-missing-base");
       return versioning.runGate(base, specsDir, allowMissing);

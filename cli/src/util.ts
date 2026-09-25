@@ -75,6 +75,10 @@ function refExists(ref: string): boolean {
   return run(["git", "rev-parse", "--verify", "--quiet", `${ref}^{commit}`]).status === 0;
 }
 
+function inWorkTree(): boolean {
+  return run(["git", "rev-parse", "--is-inside-work-tree"]).stdout.trim() === "true";
+}
+
 function headIsBorn(): boolean {
   return run(["git", "rev-parse", "--verify", "--quiet", "HEAD^{commit}"]).status === 0;
 }
@@ -96,6 +100,15 @@ function isShallow(): boolean {
  *
  * `allow` (--allow-missing-base) skips in every case, saying why. */
 export function missingBase(base: string, allow: boolean): number {
+  // Outside a git work tree (no checkout, an extracted tarball) nothing
+  // can be diffed at all: an error, never a skip that passes in CI.
+  if (!inWorkTree()) {
+    console.error(
+      "not inside a git work tree - the diff gates need the repository's history. " +
+        "Run them from a git checkout (actions/checkout with fetch-depth: 0).",
+    );
+    return 1;
+  }
   // Before the first commit HEAD does not exist yet, so there is no
   // merge-base with anything: the working tree is all new, and there is
   // no history to diff against (the scaffold's first commit hits this).
@@ -168,22 +181,52 @@ export function compareVersions(a: string, b: string): number | null {
   return x.pre.length - y.pre.length;
 }
 
-/** Order two versions: semver precedence when both are semver, otherwise
- * their leading dotted numbers ("1.2" < "1.3", PEP 440 "1.0.0.post1" by
- * its "1.0.0" release part). null when they cannot be ordered - no
- * numeric part on either side, or equal numbers with different spelling
- * (1.0.0 vs 1.0.0.post1) that this parser does not rank. */
+// PEP 440-style release with optional pre (a/b/rc), post and dev parts,
+// in any of the spellings pip normalizes: 1.2rc1, 1.2.0-rc.1, 1.0.post2,
+// 2.0.dev3. A bare dotted number (1.2, v1.2.0) is the degenerate case.
+const LOOSE_RE =
+  /^v?(\d+(?:\.\d+)*)(?:[-._]?(a|alpha|b|beta|c|rc|pre|preview)[-._]?(\d*))?(?:[-._]?(post|rev|r)[-._]?(\d*))?(?:[-._]?(dev)[-._]?(\d*))?$/i;
+
+/** Sort key for a loose version, or null when it is not one. Each part
+ * compares as a tuple: release numbers (zero-padded), then phase - dev <
+ * pre-release < release < post-release - then the part's number. */
+function looseKey(v: string): { release: number[]; phase: number[] } | null {
+  const m = LOOSE_RE.exec(v.trim());
+  if (!m) return null;
+  const n = (x: string | undefined) => (x ? Number(x) : 0);
+  const preRank: Record<string, number> = { a: 0, alpha: 0, b: 1, beta: 1, c: 2, rc: 2, pre: 2, preview: 2 };
+  // phase: [stage, stage number, post number, dev flag, dev number]
+  // stage: 0 = pre-release, 1 = release; a dev-only release sorts first.
+  const pre = m[2] ? [0, preRank[m[2].toLowerCase()] * 1000 + n(m[3])] : [1, 0];
+  const post = m[4] ? n(m[5]) + 1 : 0;
+  const dev = m[6] ? [0, n(m[7])] : [1, 0];
+  const devOnly = m[6] && !m[2] && !m[4];
+  return {
+    release: m[1].split(".").map(Number),
+    phase: devOnly ? [-1, 0, 0, ...dev] : [...pre, post, ...dev],
+  };
+}
+
+/** Order two versions for the "versions only go up" gates: negative when
+ * a < b, 0 when they are the same version however spelled (1.2 and
+ * 1.2.0, v1.0.0 and 1.0.0, build metadata aside), positive when a > b.
+ * Semver precedence when both are semver; otherwise PEP 440-style
+ * ordering (1.2 < 1.3, 1.2.3rc1 < 1.2.3 < 1.2.3.post1). null only when
+ * either side is neither - a version no rule here can rank. */
 export function orderVersions(a: string, b: string): number | null {
   const semver = compareVersions(a, b);
   if (semver !== null) return semver;
-  const nums = (v: string) => /^v?(\d+(?:\.\d+)*)/.exec(v.trim())?.[1].split(".").map(Number) ?? null;
-  const [x, y] = [nums(a), nums(b)];
+  const [x, y] = [looseKey(a), looseKey(b)];
   if (!x || !y) return null;
-  for (let i = 0; i < Math.max(x.length, y.length); i++) {
-    const d = (x[i] ?? 0) - (y[i] ?? 0);
+  for (let i = 0; i < Math.max(x.release.length, y.release.length); i++) {
+    const d = (x.release[i] ?? 0) - (y.release[i] ?? 0);
     if (d !== 0) return d;
   }
-  return a.trim() === b.trim() ? 0 : null;
+  for (let i = 0; i < x.phase.length; i++) {
+    const d = x.phase[i] - y.phase[i];
+    if (d !== 0) return d;
+  }
+  return 0;
 }
 
 /** Major version of a semver string; -1 when there is none to read. */

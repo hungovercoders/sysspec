@@ -55,4 +55,13 @@ describe("Args", () => {
     expect(trailing.bool("allow-missing-base")).toBe(true);
     expect(trailing.positional).toEqual(["version", "extra"]);
   });
+
+  test("a presence flag takes an explicit true/false, and nothing else", () => {
+    const off = new Args(["check", "--allow-missing-base", "false", "version"], "t");
+    expect(off.bool("allow-missing-base")).toBe(false);
+    expect(off.positional).toEqual(["check", "version"]);
+    const on = new Args(["check", "--allow-missing-base", "true", "version"], "t");
+    expect(on.bool("allow-missing-base")).toBe(true);
+    expect(on.positional).toEqual(["check", "version"]);
+  });
 });

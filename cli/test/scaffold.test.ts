@@ -3,6 +3,7 @@
 import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { SYSSPEC_MCP } from "../src/pins.js";
 import { runInit } from "../src/scaffold.js";
@@ -92,7 +93,7 @@ test("a non-empty target is refused", () => {
 test("the scaffolded sysspec-mcp pin never runs ahead of the server package", () => {
   // Scaffolds pin a *published* release; a pin above mcp/package.json names
   // a version that cannot exist yet, and every adopter's .mcp.json breaks.
-  const here = path.dirname(new URL(import.meta.url).pathname);
+  const here = path.dirname(fileURLToPath(import.meta.url));
   const mcpPkg = JSON.parse(readFileSync(path.join(here, "..", "..", "mcp", "package.json"), "utf-8"));
   const pinned = SYSSPEC_MCP.split("@")[1];
   expect(compareVersions(pinned, mcpPkg.version), `${SYSSPEC_MCP} vs ${mcpPkg.version}`).toBeLessThanOrEqual(0);
