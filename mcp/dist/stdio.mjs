@@ -30003,6 +30003,26 @@ function bounded(text, maxBytes) {
 
 // src/gherkin.ts
 var SCENARIO_KEYWORDS = ["Scenario:", "Scenario Outline:", "Scenario Template:", "Example:"];
+var STEP_RE = /^(Given|When|Then|And|But|\*)(\s|$)/;
+function docstringLines(lines) {
+  const data = lines.map(() => false);
+  let lastStep = false;
+  for (let i = 0; i < lines.length; i++) {
+    const stripped = lines[i].trim();
+    const fence = stripped.startsWith('"""') ? '"""' : stripped.startsWith("```") ? "```" : null;
+    if (fence && lastStep) {
+      const close = lines.findIndex((l, j) => j > i && l.trim().startsWith(fence));
+      if (close !== -1) {
+        for (let j = i; j <= close; j++) data[j] = true;
+        i = close;
+        lastStep = false;
+        continue;
+      }
+    }
+    if (stripped && !stripped.startsWith("#")) lastStep = STEP_RE.test(stripped);
+  }
+  return data;
+}
 function splitGherkin(text) {
   const lines = text.match(/[^\n]*\n|[^\n]+/g) ?? [];
   let headerEnd = lines.length;
@@ -30022,18 +30042,10 @@ function splitGherkin(text) {
     if (last) last.end = Math.min(last.end, at);
   };
   const text_ = (from, to) => lines.slice(from, to).join("").replace(/\n+$/, "");
-  let fence = null;
+  const data = docstringLines(lines);
   for (let i = 0; i < lines.length; i++) {
+    if (data[i]) continue;
     const stripped = lines[i].trim();
-    const opener = stripped.startsWith('"""') ? '"""' : stripped.startsWith("```") ? "```" : null;
-    if (fence !== null) {
-      if (opener === fence) fence = null;
-      continue;
-    }
-    if (opener !== null) {
-      fence = opener;
-      continue;
-    }
     if (SCENARIO_KEYWORDS.some((k) => stripped.startsWith(k))) {
       const start = blockStart(i);
       headerEnd = Math.min(headerEnd, start);
@@ -30354,7 +30366,7 @@ async function getAcceptanceCriteria(source, args) {
     const { header, scenarios } = splitGherkin(text);
     if (names_only) {
       const names = scenarios.map((s) => s.name);
-      const size = utf8Len(JSON.stringify(names));
+      const size = names.reduce((sum, name) => sum + utf8Len(name), 0);
       if (size > budget) {
         out.truncated = true;
         out.features.push({ path: a.path, summary, scenario_count: names.length, names_omitted: true });
@@ -30412,7 +30424,7 @@ async function getAcceptanceCriteria(source, args) {
     if (utf8Len(text) > budget) {
       out.truncated = true;
       const names = scenarios.map((s) => s.name);
-      const size = utf8Len(JSON.stringify(names));
+      const size = names.reduce((sum, name) => sum + utf8Len(name), 0);
       if (size > budget) {
         out.features.push({
           path: a.path,

@@ -62,6 +62,10 @@ default.
 
 When the gates find no merge-base with the base ref, they work out why:
 
+- Not inside a git work tree at all: they fail, since nothing can be
+  diffed.
+- `HEAD` has no commits yet (the first commit in a new repo): there is
+  no history to compare, so they skip.
 - The ref exists but shares no history with `HEAD`. The history is cut
   short (a shallow clone) or unrelated, so the gates fail wherever they
   run and suggest `git fetch --unshallow`.
@@ -72,12 +76,26 @@ When the gates find no merge-base with the base ref, they work out why:
   fetched, so the gates fail rather than pass without checking anything.
 
 Check out with `fetch-depth: 0`, as the reusable workflows do, or pass
-`--allow-missing-base` where skipping really is what you want.
+`--allow-missing-base` (or set `SYSSPEC_ALLOW_MISSING_BASE=1`) where
+skipping really is what you want. The reusable `sysspec-ci.yml` sets
+`SYSSPEC_BASE` to the pull request's base branch, or on a push to the
+repository's default branch, and the scaffolded Taskfile diffs against
+it, so a repository whose default branch is not `main` works as is. The
+workflow's `allow-missing-base` input sets the variable above.
 
-Versions only go up. Every declared version is compared with semver
-precedence, whether or not its file changed: a downgrade fails, so does a
-version that disappears, and so does a change to build metadata alone. A
-pre-release promoted to its release (`2.0.0-rc.1` to `2.0.0`) is a bump.
+Versions only go up. `check version` and `check surface` order versions
+the same way: semver precedence when both sides are semver (a
+pre-release promoted to its release, `2.0.0-rc.1` to `2.0.0`, is a
+bump), otherwise PEP 440-style (`1.2` < `1.3`, `1.2.3rc1` < `1.2.3` <
+`1.2.3.post1`). Every declared version is checked whether or not its file
+changed:
+
+- A downgrade fails, and so does a version that disappears.
+- The same version respelled (`1.0.0` to `v1.0.0`, `1.2` to `1.2.0`) or
+  differing only in build metadata is harmless on an untouched artifact,
+  but it is not the bump a changed artifact (or `check surface`) needs.
+- A change between versions neither rule can rank (`latest`, say) is
+  accepted with a note.
 
 ### `lint`
 
