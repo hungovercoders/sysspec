@@ -85,10 +85,17 @@ function isCI() {
 function refExists(ref) {
   return run(["git", "rev-parse", "--verify", "--quiet", `${ref}^{commit}`]).status === 0;
 }
+function headIsBorn() {
+  return run(["git", "rev-parse", "--verify", "--quiet", "HEAD^{commit}"]).status === 0;
+}
 function isShallow() {
   return run(["git", "rev-parse", "--is-shallow-repository"]).stdout.trim() === "true";
 }
 function missingBase(base, allow) {
+  if (!headIsBorn()) {
+    console.log("HEAD has no commits yet - nothing to diff against, skipping.");
+    return 0;
+  }
   const shallow = isShallow();
   let problem;
   if (refExists(base)) {
@@ -131,6 +138,18 @@ function compareVersions(a, b) {
     return p < q ? -1 : 1;
   }
   return x.pre.length - y.pre.length;
+}
+function orderVersions(a, b) {
+  const semver = compareVersions(a, b);
+  if (semver !== null) return semver;
+  const nums = (v) => /^v?(\d+(?:\.\d+)*)/.exec(v.trim())?.[1].split(".").map(Number) ?? null;
+  const [x, y] = [nums(a), nums(b)];
+  if (!x || !y) return null;
+  for (let i = 0; i < Math.max(x.length, y.length); i++) {
+    const d = (x[i] ?? 0) - (y[i] ?? 0);
+    if (d !== 0) return d;
+  }
+  return a.trim() === b.trim() ? 0 : null;
 }
 function majorOf(version) {
   if (!version) return -1;
@@ -20234,8 +20253,9 @@ var require__2 = __commonJS({
 
 // src/args.ts
 init_util();
+var PRESENCE_FLAGS = /* @__PURE__ */ new Set(["allow-missing-base"]);
 var Args = class {
-  constructor(argv, usage) {
+  constructor(argv, usage, presence = PRESENCE_FLAGS) {
     this.usage = usage;
     for (let i = 0; i < argv.length; i++) {
       const arg = argv[i];
@@ -20243,6 +20263,8 @@ var Args = class {
         const eq = arg.indexOf("=");
         if (eq !== -1) {
           this.flags.set(arg.slice(2, eq), arg.slice(eq + 1));
+        } else if (presence.has(arg.slice(2))) {
+          this.flags.set(arg.slice(2), true);
         } else if (i + 1 < argv.length && !argv[i + 1].startsWith("--")) {
           this.flags.set(arg.slice(2), argv[++i]);
         } else {
@@ -20303,7 +20325,6 @@ var import_yaml = __toESM(require_dist(), 1);
 init_util();
 import { readFileSync } from "fs";
 var GATED_KINDS = /* @__PURE__ */ new Set(["asyncapi", "openapi", "data-contract", "feature"]);
-var major = majorOf;
 function listManifests(specsDir) {
   const manifests = splitLines(git("ls-files", `${specsDir}/*/service.yaml`)).sort();
   if (manifests.length === 0) {
@@ -20331,15 +20352,24 @@ function serviceVersion(text) {
 }
 function notABump(now, before) {
   if (before === null || now === before) return null;
-  if (now === null) return `lost its version (was ${before})`;
+  if (now === null) return { kind: "lost", message: `lost its version (was ${before})` };
   const cmp = compareVersions(now, before);
   if (cmp === null) {
     console.log(`note: cannot order non-semver versions ${before} -> ${now}; accepted`);
     return null;
   }
-  if (cmp < 0) return `version moved backwards ${before} -> ${now} - versions only go up`;
+  if (cmp < 0) {
+    return {
+      kind: "backwards",
+      message: `version moved backwards ${before} -> ${now} - versions only go up`
+    };
+  }
   if (cmp === 0) {
-    return `version ${before} -> ${now} has the same precedence - build metadata is not a bump`;
+    const build = (v) => v.split("+")[1] ?? "";
+    return {
+      kind: "same",
+      message: build(before) !== build(now) ? `version ${before} -> ${now} has the same precedence - build metadata is not a bump` : `version ${before} -> ${now} is the same version, respelled - not a bump`
+    };
   }
   return null;
 }
@@ -20363,8 +20393,8 @@ function runGate(base, specsDir, allowMissingBase = false) {
       const versionBefore = before.get(rel)?.[1] ?? null;
       const fileChanged = changed.includes(full);
       const wrong = before.has(rel) ? notABump(versionNow, versionBefore) : null;
-      if (wrong) {
-        failures.push(`${full} (${kind}) ${wrong}`);
+      if (wrong && (wrong.kind !== "same" || fileChanged)) {
+        failures.push(`${full} (${kind}) ${wrong.message}`);
         continue;
       }
       if (!fileChanged) continue;
@@ -20377,7 +20407,7 @@ function runGate(base, specsDir, allowMissingBase = false) {
       } else {
         console.log(`ok: ${full} ${versionBefore} -> ${versionNow}`);
         artifactBumped = true;
-        if (major(versionNow) > major(versionBefore)) artifactMajorBumped = true;
+        if (majorOf(versionNow) > majorOf(versionBefore)) artifactMajorBumped = true;
       }
     }
     for (const rel of before.keys()) {
@@ -20390,9 +20420,9 @@ function runGate(base, specsDir, allowMissingBase = false) {
     const svcWrong = notABump(svcNow, svcBefore);
     if (svcBefore === null && svcNow !== null) {
       if (baseText !== null) console.log(`new service version: ${service} @ ${svcNow}`);
-    } else if (svcWrong) {
+    } else if (svcWrong && (svcWrong.kind !== "same" || artifactBumped)) {
       failures.push(
-        `${service}: service ${svcWrong.replace("lost its version", "lost its top-level version")} - consumers pin it`
+        `${service}: service ${svcWrong.message.replace("lost its version", "lost its top-level version")} - consumers pin it`
       );
     } else if (artifactBumped) {
       if (svcNow === null) {
@@ -20403,7 +20433,7 @@ function runGate(base, specsDir, allowMissingBase = false) {
         failures.push(
           `${service}: gated artifact bumped but the service version stayed at ${svcBefore} - bump the top-level version`
         );
-      } else if (artifactMajorBumped && major(svcNow) <= major(svcBefore)) {
+      } else if (artifactMajorBumped && majorOf(svcNow) <= majorOf(svcBefore)) {
         failures.push(
           `${service}: an artifact took a major bump but the service version only moved ${svcBefore} -> ${svcNow} - a major artifact change is a major surface change`
         );
@@ -20580,7 +20610,7 @@ function runGate2(base, only, specsDir, allowMissingBase = false) {
       }
       svcBreaking = true;
       const versionBefore = before.get(rel)?.[1] ?? null;
-      if (major(versionNow) > major(versionBefore)) {
+      if (majorOf(versionNow) > majorOf(versionBefore)) {
         console.log(`breaking ok (major bump ${versionBefore} -> ${versionNow}): ${full}`);
       } else {
         failures.push(
@@ -20592,7 +20622,7 @@ function runGate2(base, only, specsDir, allowMissingBase = false) {
     if (svcBreaking) {
       const svcNow = serviceVersion(manifestText);
       const svcBefore = serviceVersion(baseManifestText);
-      if (svcBefore !== null && major(svcNow) <= major(svcBefore)) {
+      if (svcBefore !== null && majorOf(svcNow) <= majorOf(svcBefore)) {
         failures.push(
           `${serviceDir}: breaking change requires a service major bump (version ${svcBefore} -> ${svcNow})`
         );
@@ -21618,14 +21648,6 @@ function lintService(serviceDir, producedBy, messagesByAddress, ownMessages) {
       problems.push(`${name}: consumes '${address}' but no service produces it`);
     }
   }
-  for (const address of pySorted(produces)) {
-    const others = [...producedBy.get(address) ?? []].filter((o) => o !== name);
-    if (others.length) {
-      problems.push(
-        `${name}: produces '${address}', which is also produced by ` + pySorted(others).join(", ") + " - a channel has exactly one producer"
-      );
-    }
-  }
   const allowedMessages = new Set(ownMessages.get(path7.basename(serviceDir)) ?? []);
   for (const address of consumes) {
     for (const msg of messagesByAddress.get(address) ?? []) allowedMessages.add(msg);
@@ -21659,11 +21681,19 @@ function runLint(only, specsDir) {
   for (const d of dirs) {
     const manifest = readYaml2(path7.join(d, "service.yaml"));
     for (const address of manifest.produces ?? []) {
-      producedBy.set(address, (producedBy.get(address) ?? /* @__PURE__ */ new Set()).add(manifest.name));
+      producedBy.set(address, (producedBy.get(address) ?? /* @__PURE__ */ new Set()).add(path7.basename(d)));
     }
   }
   const [messagesByAddress, ownMessages] = messageIndex(dirs);
   const problems = only ? [] : lintSystem(specsDir);
+  for (const address of pySorted(producedBy.keys())) {
+    const owners = pySorted(producedBy.get(address));
+    if (owners.length > 1 && (!only || owners.includes(only))) {
+      problems.push(
+        `channel '${address}' is produced by ${owners.join(", ")} - a channel has exactly one producer`
+      );
+    }
+  }
   let checked = 0;
   for (const d of dirs) {
     if (only && path7.basename(d) !== only) continue;
@@ -22570,7 +22600,7 @@ function versionOf(text, versionFile, key) {
   if (text === null) return null;
   let doc = versionFile.endsWith(".toml") ? parse8(text) : JSON.parse(text);
   for (const part of key.split(".")) doc = doc?.[part];
-  return doc == null ? null : String(doc);
+  return typeof doc === "string" || typeof doc === "number" ? String(doc) : null;
 }
 function runGate4(base, versionFile, jsonKey, paths, allowMissingBase = false) {
   const mb = mergeBase(base);
@@ -22585,14 +22615,21 @@ function runGate4(base, versionFile, jsonKey, paths, allowMissingBase = false) {
   const before = versionOf(blob(mb, versionFile), versionFile, jsonKey);
   const now = versionOf(readFileSync11(versionFile, "utf-8"), versionFile, jsonKey);
   if (now === null) {
-    console.error(`${versionFile} has no version at '${jsonKey}'`);
+    console.error(`${versionFile} has no version string at '${jsonKey}'`);
     return 1;
   }
   if (before === null) {
     console.log(`new surface manifest @ ${now}`);
     return 0;
   }
-  if ((compareVersions(now, before) ?? 0) > 0) {
+  const order = orderVersions(now, before);
+  if (order === null && now !== before) {
+    console.log(
+      `surface changed (${changed.length} file(s)), version ${before} -> ${now} - cannot order these versions; accepted`
+    );
+    return 0;
+  }
+  if (order !== null && order > 0) {
     console.log(
       `surface changed (${changed.length} file(s)), version ${before} -> ${now} - ok`
     );
@@ -22627,8 +22664,9 @@ async function main(argv = process.argv.slice(2)) {
     tail = argv.slice(split + 1);
     argv = argv.slice(0, split);
   }
-  const [command, sub, ...rest] = argv;
-  const args = new Args(rest, `sysspec ${command ?? ""} ${sub ?? ""}`.trim());
+  const args = new Args(argv, "sysspec");
+  const [command, sub] = args.positional;
+  args.usage = `sysspec ${command ?? ""} ${sub ?? ""}`.trim();
   if (command === "check") {
     const base = args.get("base", "origin/main");
     const specsDir = args.get("specs-dir", "specs");

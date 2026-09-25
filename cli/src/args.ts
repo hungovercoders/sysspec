@@ -4,17 +4,27 @@
 
 import { Exit } from "./util.js";
 
+/** Flags that never take a value: they must not swallow the word after
+ * them (`--allow-missing-base version` is a flag and a subcommand). */
+export const PRESENCE_FLAGS = new Set(["allow-missing-base"]);
+
 export class Args {
   private flags = new Map<string, string | true>();
   positional: string[] = [];
 
-  constructor(argv: string[], private usage: string) {
+  constructor(
+    argv: string[],
+    public usage: string,
+    presence: ReadonlySet<string> = PRESENCE_FLAGS,
+  ) {
     for (let i = 0; i < argv.length; i++) {
       const arg = argv[i];
       if (arg.startsWith("--")) {
         const eq = arg.indexOf("=");
         if (eq !== -1) {
           this.flags.set(arg.slice(2, eq), arg.slice(eq + 1));
+        } else if (presence.has(arg.slice(2))) {
+          this.flags.set(arg.slice(2), true);
         } else if (i + 1 < argv.length && !argv[i + 1].startsWith("--")) {
           this.flags.set(arg.slice(2), argv[++i]);
         } else {

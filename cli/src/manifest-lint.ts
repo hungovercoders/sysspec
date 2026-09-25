@@ -383,18 +383,6 @@ function lintService(
       problems.push(`${name}: consumes '${address}' but no service produces it`);
     }
   }
-  // One channel, one owner: two producers make the channel's schema a
-  // negotiation and trace_channel's answer a coin toss.
-  for (const address of pySorted(produces)) {
-    const others = [...(producedBy.get(address) ?? [])].filter((o) => o !== name);
-    if (others.length) {
-      problems.push(
-        `${name}: produces '${address}', which is also produced by ` +
-          pySorted(others).join(", ") +
-          " - a channel has exactly one producer",
-      );
-    }
-  }
 
   const allowedMessages = new Set(ownMessages.get(path.basename(serviceDir)) ?? []);
   for (const address of consumes) {
@@ -435,19 +423,33 @@ export function runLint(only: string | null, specsDir: string): number {
     return 1;
   }
 
-  // Owners per channel, as a set: one service listing a channel twice is
-  // its own problem (reported per service), not a second producer.
+  // Owners per channel, keyed by service directory (the one identity two
+  // services cannot share - a copied manifest can repeat a `name`). A set:
+  // one service listing a channel twice is its own problem, reported per
+  // service, not a second producer.
   const producedBy = new Map<string, Set<string>>();
   for (const d of dirs) {
     const manifest = readYaml(path.join(d, "service.yaml"));
     for (const address of manifest.produces ?? []) {
-      producedBy.set(address, (producedBy.get(address) ?? new Set<string>()).add(manifest.name));
+      producedBy.set(address, (producedBy.get(address) ?? new Set<string>()).add(path.basename(d)));
     }
   }
   const [messagesByAddress, ownMessages] = messageIndex(dirs);
 
   // Suite-wide, so only on a full run: `--service` scopes to one service.
   const problems: string[] = only ? [] : lintSystem(specsDir);
+  // One channel, one owner: two producers make the channel's schema a
+  // negotiation and trace_channel's answer a coin toss. Reported once per
+  // channel, not once per producer; a scoped run reports the channels its
+  // service is party to.
+  for (const address of pySorted(producedBy.keys())) {
+    const owners = pySorted(producedBy.get(address)!);
+    if (owners.length > 1 && (!only || owners.includes(only))) {
+      problems.push(
+        `channel '${address}' is produced by ${owners.join(", ")} - a channel has exactly one producer`,
+      );
+    }
+  }
   let checked = 0;
   for (const d of dirs) {
     if (only && path.basename(d) !== only) continue;

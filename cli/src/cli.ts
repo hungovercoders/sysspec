@@ -42,8 +42,11 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<numb
     argv = argv.slice(0, split);
   }
 
-  const [command, sub, ...rest] = argv;
-  const args = new Args(rest, `sysspec ${command ?? ""} ${sub ?? ""}`.trim());
+  // Flags may sit anywhere, before or after the subcommand: parse the
+  // whole line, then read the command words from what is left.
+  const args = new Args(argv, "sysspec");
+  const [command, sub] = args.positional;
+  args.usage = `sysspec ${command ?? ""} ${sub ?? ""}`.trim();
 
   if (command === "check") {
     const base = args.get("base", "origin/main")!;

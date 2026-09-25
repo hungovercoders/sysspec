@@ -46,4 +46,13 @@ describe("Args", () => {
     const args = new Args(["dir-a", "--org", "com.acme", "dir-b"], "t");
     expect(args.positional).toEqual(["dir-a", "dir-b"]);
   });
+
+  test("a presence flag never swallows the word after it", () => {
+    const args = new Args(["check", "--allow-missing-base", "version"], "t");
+    expect(args.bool("allow-missing-base")).toBe(true);
+    expect(args.positional).toEqual(["check", "version"]);
+    const trailing = new Args(["version", "--allow-missing-base", "extra"], "t");
+    expect(trailing.bool("allow-missing-base")).toBe(true);
+    expect(trailing.positional).toEqual(["version", "extra"]);
+  });
 });

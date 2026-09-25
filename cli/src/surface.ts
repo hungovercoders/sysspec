@@ -8,7 +8,7 @@
 
 import { readFileSync } from "node:fs";
 import { parse as parseToml } from "smol-toml";
-import { blob, compareVersions, git, mergeBase, missingBase, splitLines } from "./util.js";
+import { blob, git, mergeBase, missingBase, orderVersions, splitLines } from "./util.js";
 
 /** The version string at a dotted key of a JSON or TOML file's text. */
 export function versionOf(
@@ -19,7 +19,9 @@ export function versionOf(
   if (text === null) return null;
   let doc: any = versionFile.endsWith(".toml") ? parseToml(text) : JSON.parse(text);
   for (const part of key.split(".")) doc = doc?.[part];
-  return doc == null ? null : String(doc);
+  // Only a scalar is a version: a key that lands on a table or object
+  // must not read as "[object Object]".
+  return typeof doc === "string" || typeof doc === "number" ? String(doc) : null;
 }
 
 export function runGate(
@@ -42,14 +44,24 @@ export function runGate(
   const before = versionOf(blob(mb, versionFile), versionFile, jsonKey);
   const now = versionOf(readFileSync(versionFile, "utf-8"), versionFile, jsonKey);
   if (now === null) {
-    console.error(`${versionFile} has no version at '${jsonKey}'`);
+    console.error(`${versionFile} has no version string at '${jsonKey}'`);
     return 1;
   }
   if (before === null) {
     console.log(`new surface manifest @ ${now}`);
     return 0;
   }
-  if ((compareVersions(now, before) ?? 0) > 0) {
+  const order = orderVersions(now, before);
+  if (order === null && now !== before) {
+    // Same rule as check version: a change between versions this parser
+    // cannot rank is accepted, and said so.
+    console.log(
+      `surface changed (${changed.length} file(s)), version ${before} -> ${now} - ` +
+        "cannot order these versions; accepted",
+    );
+    return 0;
+  }
+  if (order !== null && order > 0) {
     console.log(
       `surface changed (${changed.length} file(s)), version ` +
         `${before} -> ${now} - ok`,

@@ -75,6 +75,10 @@ function refExists(ref: string): boolean {
   return run(["git", "rev-parse", "--verify", "--quiet", `${ref}^{commit}`]).status === 0;
 }
 
+function headIsBorn(): boolean {
+  return run(["git", "rev-parse", "--verify", "--quiet", "HEAD^{commit}"]).status === 0;
+}
+
 function isShallow(): boolean {
   return run(["git", "rev-parse", "--is-shallow-repository"]).stdout.trim() === "true";
 }
@@ -92,6 +96,13 @@ function isShallow(): boolean {
  *
  * `allow` (--allow-missing-base) skips in every case, saying why. */
 export function missingBase(base: string, allow: boolean): number {
+  // Before the first commit HEAD does not exist yet, so there is no
+  // merge-base with anything: the working tree is all new, and there is
+  // no history to diff against (the scaffold's first commit hits this).
+  if (!headIsBorn()) {
+    console.log("HEAD has no commits yet - nothing to diff against, skipping.");
+    return 0;
+  }
   const shallow = isShallow();
   let problem: string;
   if (refExists(base)) {
@@ -155,6 +166,24 @@ export function compareVersions(a: string, b: string): number | null {
     return p < q ? -1 : 1;
   }
   return x.pre.length - y.pre.length;
+}
+
+/** Order two versions: semver precedence when both are semver, otherwise
+ * their leading dotted numbers ("1.2" < "1.3", PEP 440 "1.0.0.post1" by
+ * its "1.0.0" release part). null when they cannot be ordered - no
+ * numeric part on either side, or equal numbers with different spelling
+ * (1.0.0 vs 1.0.0.post1) that this parser does not rank. */
+export function orderVersions(a: string, b: string): number | null {
+  const semver = compareVersions(a, b);
+  if (semver !== null) return semver;
+  const nums = (v: string) => /^v?(\d+(?:\.\d+)*)/.exec(v.trim())?.[1].split(".").map(Number) ?? null;
+  const [x, y] = [nums(a), nums(b)];
+  if (!x || !y) return null;
+  for (let i = 0; i < Math.max(x.length, y.length); i++) {
+    const d = (x[i] ?? 0) - (y[i] ?? 0);
+    if (d !== 0) return d;
+  }
+  return a.trim() === b.trim() ? 0 : null;
 }
 
 /** Major version of a semver string; -1 when there is none to read. */
