@@ -1,6 +1,6 @@
 ---
 title: MCP server (sysspec-mcp)
-description: Seven read-only tools over any spec tree, stdio locally and streamable HTTP behind a URL.
+description: Twelve read-only tools over any spec tree, stdio locally and streamable HTTP behind a URL.
 ---
 
 import { DEMO_MCP_URL } from '../../lib/links';
@@ -29,13 +29,18 @@ first one.
 
 | Tool | Use | Narrowing parameters |
 | --- | --- | --- |
-| `list_services()` | Discovery. Start here. | none |
-| `get_service(name)` | Artifact index + produce/consume edges. No file contents. | none |
+| `get_system()` | The system as a whole: name, domain, event namespace, summary, hosted endpoint. | none |
+| `list_services()` | Discovery, with each service's pinned version. Start here. | none |
+| `get_service(name)` | Artifact index + produce/consume edges + version. No file contents. | none |
 | `get_message_schema(service, message)` | One event payload, the cheap call. | omit `message` to list message and schema names |
-| `get_acceptance_criteria(service)` | Gherkin, labelled binding. | `names_only` for the scenario index; `scenario` or `path` for one |
+| `get_operation(service, operation_id)` | One OpenAPI operation with parameters, request body and responses, `$ref`s resolved. | `method` + `path` instead of `operation_id`; neither lists operations; `max_bytes` |
+| `get_data_contract(service)` | An ODCS contract read as tables and columns, with its reader `context`. | `path` for one contract; `table` for one table's columns and relationships |
+| `get_acceptance_criteria(service)` | Gherkin, labelled binding. | `names_only` for the scenario index; `scenario` or `path` for one; `max_bytes` |
 | `get_artifact(service, path)` | Any declared artifact, with its authority class. | `section` (RFC 6901 pointer) for one part; `max_bytes` |
 | `trace_channel(address)` | Who produces and consumes it, i.e. who you break. | none |
-| `search_specs(query)` | Matching lines, not whole files. | `kind`, `service`, `limit` (≤ 100) |
+| `impact(service, message)` | What a change reaches: channels, consumers, scenarios in every service, and the data contracts recording the stream. | `column="table.column"` instead, for the ODCS relationships pointing at it |
+| `validate_payload(service, message, payload)` | Checks JSON against a message or schema; returns leaf errors with paths. | none |
+| `search_specs(query)` | Ranked matching lines, each with a score and (in YAML) a JSON pointer for `get_artifact`. | `kind` (incl. `manifest`), `service`, `limit` (≤ 100) |
 
 Responses are bounded and narrowly addressable. Any response that had to
 cut content says so with a `truncated` flag; raise `limit`/`max_bytes`

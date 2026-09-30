@@ -33,19 +33,31 @@ Every `get_artifact` response tells you which class it is. Believe it.
    - `get_message_schema(service)`, with no message argument, to list
      message and schema names; `get_message_schema(service, message)` for
      one payload (AsyncAPI messages and OpenAPI schemas both resolve here)
-   - `get_acceptance_criteria(service, names_only=True)` for the scenario
+   - `get_acceptance_criteria(service, names_only=true)` for the scenario
      index; then `scenario="..."` or `path="..."` for just the ones you
      need. Omit all filters only when implementing the whole service.
+   - `get_operation(service, operation_id="placeOrder")` for one REST
+     operation with its request and responses resolved inline
+   - `get_data_contract(service, table="...")` for one table of a data
+     contract as columns, enums and relationships; without `table` it
+     returns the contract's reader `context` (instructions, verified
+     question/answer pairs, constraints), which you follow when answering
+     questions about the data
    - `get_artifact(service, path, section="/components/schemas/Order")`
      for one section of a YAML spec (RFC 6901 pointer; `~1` escapes `/`
-     in OpenAPI paths); omit `section` only for a whole spec, doc, or
-     data contract
-4. `trace_channel(address)` before changing any published shape, because
-   the consumers it lists are what you will break. Empty `produced_by` and
-   `consumed_by` means nothing references the address, not an error.
+     in OpenAPI paths); omit `section` only for a whole spec or doc
+4. `impact(service, message=...)` (or `column="table.column"`) before
+   changing any published shape: the consumers, scenarios, data contracts
+   and relationships it lists are what you will break.
+   `trace_channel(address)` answers the narrower question for one address;
+   an empty `produced_by` and `consumed_by` means nothing references it,
+   not an error.
 5. `search_specs(query, kind=..., service=...)` when you do not know where
-   something lives. The response says `truncated` when there were more
-   hits than it returned; raise `limit` only then.
+   something lives. Hits are ranked and, in YAML, carry a `pointer` to pass
+   straight to `get_artifact(section=...)`. The response says `truncated`
+   when there were more hits than it returned; raise `limit` only then.
+6. `validate_payload(service, message, payload)` to check an example, a
+   fixture or a captured event against the contract of record.
 
 Do not pull whole documents when a single message or scenario would do.
 Every accessor above has a mode for exactly one, and any response that had
@@ -137,7 +149,7 @@ and the scenario wins on behaviour. Raise the conflict either way.
   answers) and `constraints` (what must not be done with the data). Write
   it as spec rather than as prompt-engineering. It is versioned like the
   schema, and it is what the catalog's *Ask these specs* page and the MCP
-  server serve when someone asks about the domain.
+  server's `get_data_contract` serve when someone asks about the domain.
 - `semanticType: measure` means an aggregate whose expression lives in
   `transformLogic`; a raw per-row column stays the default `column`.
   `dimension` suits the columns people group by.

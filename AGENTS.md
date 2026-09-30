@@ -13,10 +13,11 @@ below are the agent-specific sharp edges.
   green. Do not re-implement checks ad hoc or bypass a failing gate; a red
   gate is information, and the negative result gets reported as it is.
 - **Read the specs through the MCP tools when available** (`sysspec`
-  server: `list_services`, `get_service`, `get_artifact`,
-  `get_message_schema`, `get_acceptance_criteria`, `trace_channel`,
-  `search_specs`) rather than grepping files. The tools tell you which
-  artifacts are gated and who consumes what.
+  server: `get_system`, `list_services`, `get_service`, `get_artifact`,
+  `get_message_schema`, `get_operation`, `get_data_contract`,
+  `get_acceptance_criteria`, `trace_channel`, `impact`,
+  `validate_payload`, `search_specs`) rather than grepping files. The
+  tools tell you which artifacts are gated and who consumes what.
 - **Skills define the deeper processes.** `skills/sysspec/SKILL.md` covers
   the authoring conventions and how to work against specs.
   `skills/implement-service/SKILL.md` covers building a real implementation

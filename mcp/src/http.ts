@@ -14,7 +14,7 @@ export interface HttpOptions {
 /** A stateless streamable-HTTP MCP server as a plain Node http.Server —
  * no session store, so it runs unchanged behind any load balancer or
  * scale-to-zero container host. Each POST gets a fresh transport + server
- * pair (construction just registers seven closures).
+ * pair (construction just registers a closure per tool).
  */
 export function makeHttpServer(opts: HttpOptions): Server {
   const mcpPath = opts.path ?? "/mcp";

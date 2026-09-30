@@ -41,7 +41,7 @@ process: same steps, same commands, whether a human or an agent is driving.
 
 | Skill | What it drives |
 | --- | --- |
-| [`sysspec`](https://github.com/hungovercoders/sysspec/blob/main/skills/sysspec/SKILL.md) | Working against specs: the gated/ungated distinction, the order of operations across the seven tools, implementing from Gherkin, and the full [conventions](/conventions/) list. |
+| [`sysspec`](https://github.com/hungovercoders/sysspec/blob/main/skills/sysspec/SKILL.md) | Working against specs: the gated/ungated distinction, the order of operations across the twelve tools, implementing from Gherkin, and the full [conventions](/conventions/) list. |
 | [`implement-service`](https://github.com/hungovercoders/sysspec/blob/main/skills/implement-service/SKILL.md) | Building the real thing: a new repo pinning a released `<service>/v<version>` tag in `contracts.lock`, verified end to end with `task contracts:verify`. |
 | [`consume-service`](https://github.com/hungovercoders/sysspec/blob/main/skills/consume-service/SKILL.md) | Building a consumer (a UI, client, or downstream system) against the pinned mocks, before or without the real service existing. |
 

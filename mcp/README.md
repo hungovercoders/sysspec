@@ -1,9 +1,11 @@
 # sysspec-mcp
 
 Read-only MCP access to a sysspec spec tree: AsyncAPI, OpenAPI, ODCS data
-contracts and Gherkin acceptance criteria, served as seven narrow tools
-(`list_services`, `get_service`, `get_artifact`, `get_message_schema`,
-`get_acceptance_criteria`, `trace_channel`, `search_specs`). One
+contracts and Gherkin acceptance criteria, served as twelve narrow tools
+(`get_system`, `list_services`, `get_service`, `get_artifact`,
+`get_message_schema`, `get_operation`, `get_data_contract`,
+`get_acceptance_criteria`, `trace_channel`, `impact`, `validate_payload`,
+`search_specs`), all annotated read-only and idempotent. One
 TypeScript implementation behind every route in: stdio for local clients,
 stateless streamable HTTP for a hosted URL. There is no write tool, and
 reads are confined to artifacts a service manifest declares.

@@ -1,4 +1,6 @@
-/** The seven read-only spec tools, as plain functions over a SpecSource.
+/** The core read-only spec tools, as plain functions over a SpecSource.
+ * The contract-shaped queries (operations, data contracts, impact,
+ * payload validation) live in contracts.ts on top of these helpers.
  *
  * Design notes:
  *
@@ -18,7 +20,7 @@
  * them), down to their repr()-style quoting — see pyformat.ts.
  */
 
-import { parse, stringify } from "yaml";
+import { isMap, isScalar, isSeq, parse, parseDocument, stringify } from "yaml";
 import { bounded } from "./bounded.js";
 import { splitGherkin } from "./gherkin.js";
 import { resolvePointer } from "./pointer.js";
@@ -26,14 +28,14 @@ import { pyList, pyRepr, pySorted } from "./pyformat.js";
 import { ArtifactMeta, ArtifactMissingError, ServiceEntry, SpecSource } from "./source/types.js";
 
 export const GATED_KINDS = new Set(["asyncapi", "openapi", "data-contract", "feature"]);
-export const SEARCH_KINDS = new Set(["asyncapi", "openapi", "data-contract", "feature", "doc"]);
+export const SEARCH_KINDS = new Set(["asyncapi", "openapi", "data-contract", "feature", "doc", "manifest"]);
 export const DEFAULT_MAX_BYTES = 50_000;
 
-function artifacts(svc: ServiceEntry): ArtifactMeta[] {
+export function artifacts(svc: ServiceEntry): ArtifactMeta[] {
   return svc.manifest.artifacts ?? [];
 }
 
-function artifactMeta(svc: ServiceEntry, path: string): ArtifactMeta {
+export function artifactMeta(svc: ServiceEntry, path: string): ArtifactMeta {
   for (const a of artifacts(svc)) {
     if (a.path === path) return a;
   }
@@ -44,7 +46,7 @@ function artifactMeta(svc: ServiceEntry, path: string): ArtifactMeta {
   );
 }
 
-async function service(source: SpecSource, name: string): Promise<ServiceEntry> {
+export async function service(source: SpecSource, name: string): Promise<ServiceEntry> {
   const services = await source.loadServices();
   const svc = services.get(name);
   if (!svc) {
@@ -54,20 +56,20 @@ async function service(source: SpecSource, name: string): Promise<ServiceEntry> 
 }
 
 /** Read a declared artifact, confined to the service directory. */
-async function read(source: SpecSource, svc: ServiceEntry, path: string): Promise<string> {
+export async function read(source: SpecSource, svc: ServiceEntry, path: string): Promise<string> {
   artifactMeta(svc, path); // throws unless declared in the manifest
   return source.readFile(svc, path);
 }
 
-function isGated(a: ArtifactMeta): boolean {
+export function isGated(a: ArtifactMeta): boolean {
   return "gated" in a && a.gated !== undefined ? a.gated : GATED_KINDS.has(a.kind);
 }
 
-function summaryOf(v: unknown): string {
+export function summaryOf(v: unknown): string {
   return typeof v === "string" ? v.trim() : "";
 }
 
-function utf8Len(text: string): number {
+export function utf8Len(text: string): number {
   return new TextEncoder().encode(text).length;
 }
 
@@ -91,6 +93,7 @@ export async function listServices(source: SpecSource): Promise<object[]> {
       title: m.title ?? svc.name,
       domain: m.domain ?? "",
       owner: m.owner ?? "",
+      version: m.version != null ? String(m.version) : null,
       summary: summaryOf(m.summary),
       artifact_count: artifacts(svc).length,
     });
@@ -106,6 +109,7 @@ export async function getService(source: SpecSource, name: string): Promise<obje
     title: m.title ?? svc.name,
     domain: m.domain ?? "",
     owner: m.owner ?? "",
+    version: m.version != null ? String(m.version) : null,
     summary: summaryOf(m.summary),
     produces: m.produces ?? [],
     consumes: m.consumes ?? [],
@@ -116,6 +120,28 @@ export async function getService(source: SpecSource, name: string): Promise<obje
       gated: isGated(a),
       summary: summaryOf(a.summary),
     })),
+  };
+}
+
+export async function getSystem(source: SpecSource): Promise<object> {
+  const system = await source.loadSystem();
+  const services = await source.loadServices();
+  if (system === null) {
+    return {
+      present: false,
+      service_count: services.size,
+      note: "This suite has no system.yaml. Use list_services for what it contains.",
+    };
+  }
+  return {
+    present: true,
+    name: system.name ?? null,
+    title: system.title ?? null,
+    domain: system.domain ?? null,
+    org: system.org ?? null,
+    mcp: system.mcp ?? null,
+    summary: summaryOf(system.summary),
+    service_count: services.size,
   };
 }
 
@@ -419,9 +445,78 @@ export interface SearchSpecsArgs {
   limit?: number;
 }
 
+/** Lowercase, with camelCase humps and _ - . / separators turned into
+ * spaces, so "order placed" meets `OrderPlaced`, `order_placed` and
+ * `orders.placed.v2` alike. */
+export function normalizeForSearch(text: string): string {
+  return text
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .toLowerCase()
+    .replace(/[_\-./]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** RFC 6901 pointer to the deepest YAML node that starts at or before
+ * offset on its line - what get_artifact(section=...) takes. Null when
+ * the text is not a YAML mapping document. */
+export function pointerAt(text: string, offset: number): string | null {
+  let doc;
+  try {
+    doc = parseDocument(text);
+  } catch {
+    return null;
+  }
+  if (doc.errors.length) return null;
+  const tokens: string[] = [];
+  let node: unknown = doc.contents;
+  for (;;) {
+    let next: unknown = null;
+    if (isMap(node)) {
+      for (const pair of node.items) {
+        const key = pair.key as { range?: [number, number, number] } | null;
+        const value = pair.value as { range?: [number, number, number] } | null;
+        const start = key?.range?.[0];
+        const end = value?.range?.[2] ?? key?.range?.[2];
+        if (start === undefined || end === undefined) continue;
+        if (start <= offset && offset < Math.max(end, start + 1)) {
+          tokens.push(String(isScalar(pair.key) ? pair.key.value : pair.key));
+          next = pair.value;
+          break;
+        }
+      }
+    } else if (isSeq(node)) {
+      node.items.forEach((item, i) => {
+        const range = (item as { range?: [number, number, number] } | null)?.range;
+        if (next === null && range && range[0] <= offset && offset < range[2]) {
+          tokens.push(String(i));
+          next = item;
+        }
+      });
+    }
+    if (next === null) break;
+    node = next;
+  }
+  if (tokens.length === 0) return null;
+  return "/" + tokens.map((t) => t.replaceAll("~", "~0").replaceAll("/", "~1")).join("/");
+}
+
+interface SearchHit {
+  service: string;
+  kind: string;
+  path: string;
+  line: number;
+  text: string;
+  score: number;
+  pointer?: string | null;
+}
+
 export async function searchSpecs(source: SpecSource, args: SearchSpecsArgs): Promise<object> {
   const { query, kind = null, service: serviceName = null } = args;
   let limit = args.limit ?? 20;
+  if (!query || !query.trim()) {
+    throw new Error("query must not be empty. Search for a message, field, channel or phrase.");
+  }
   if (kind !== null && kind !== undefined && !SEARCH_KINDS.has(kind)) {
     throw new Error(`Unknown kind ${pyRepr(kind)}. Valid kinds: ${pyList(pySorted(SEARCH_KINDS))}`);
   }
@@ -429,44 +524,95 @@ export async function searchSpecs(source: SpecSource, args: SearchSpecsArgs): Pr
     await service(source, serviceName); // throws listing available services if unknown
   }
   limit = Math.max(1, Math.min(limit, 100));
-  const needle = query.toLowerCase();
-  const hits: object[] = [];
-  let totalMatches = 0;
+  const needle = query.trim().toLowerCase();
+  const phrase = normalizeForSearch(query);
+  const terms = [...new Set(phrase.split(" ").filter(Boolean))];
+
+  // Score: one point per distinct term on the line, plus a bonus for the
+  // whole phrase and a bigger one for the query verbatim - so exact
+  // matches lead and a line with every term beats one with some.
+  const score = (line: string): number => {
+    const norm = normalizeForSearch(line);
+    let points = 0;
+    for (const t of terms) if (norm.includes(t)) points += 1;
+    if (points === 0) return 0;
+    if (terms.length > 1 && norm.includes(phrase)) points += terms.length;
+    if (line.toLowerCase().includes(needle)) points += terms.length + 1;
+    return points;
+  };
+
+  const hits: SearchHit[] = [];
   for (const svc of (await source.loadServices()).values()) {
     if (serviceName && svc.name !== serviceName) continue;
-    for (const a of artifacts(svc)) {
-      if (kind && a.kind !== kind) continue;
+    const files: { kind: string; path: string }[] = artifacts(svc).map((a) => ({
+      kind: a.kind,
+      path: a.path,
+    }));
+    files.push({ kind: "manifest", path: "service.yaml" });
+    for (const f of files) {
+      if (kind && f.kind !== kind) continue;
       let text: string;
       try {
-        text = await read(source, svc, a.path);
+        text =
+          f.kind === "manifest"
+            ? await source.readFile(svc, f.path)
+            : await read(source, svc, f.path);
       } catch (err) {
         if (err instanceof ArtifactMissingError) continue;
         throw err;
       }
+      const isYaml = /\.ya?ml$/.test(f.path);
       const lines = splitLines(text);
+      let offset = 0;
+      const offsets: number[] = [];
+      for (const line of lines) {
+        offsets.push(offset);
+        offset += line.length + 1;
+      }
       for (let i = 0; i < lines.length; i++) {
-        if (lines[i].toLowerCase().includes(needle)) {
-          totalMatches += 1;
-          if (hits.length < limit) {
-            hits.push({
-              service: svc.name,
-              kind: a.kind,
-              path: a.path,
-              line: i + 1,
-              text: lines[i].trim().slice(0, 200),
-            });
-          }
+        const points = score(lines[i]);
+        if (points === 0) continue;
+        const hit: SearchHit = {
+          service: svc.name,
+          kind: f.kind,
+          path: f.path,
+          line: i + 1,
+          text: lines[i].trim().slice(0, 200),
+          score: points,
+        };
+        if (isYaml) {
+          const indent = lines[i].length - lines[i].trimStart().length;
+          hit.pointer = pointerAt(text, offsets[i] + indent);
         }
+        hits.push(hit);
       }
     }
   }
+
+  // Best score first; within a score, take services in turn so one
+  // alphabetically early service cannot fill the whole page.
+  const ranked: SearchHit[] = [];
+  for (const points of [...new Set(hits.map((h) => h.score))].sort((a, b) => b - a)) {
+    const queues = new Map<string, SearchHit[]>();
+    for (const h of hits.filter((x) => x.score === points)) {
+      queues.set(h.service, [...(queues.get(h.service) ?? []), h]);
+    }
+    while ([...queues.values()].some((q) => q.length)) {
+      for (const q of queues.values()) {
+        const h = q.shift();
+        if (h) ranked.push(h);
+      }
+    }
+  }
+  const page = ranked.slice(0, limit);
   return {
     query,
     kind: kind ?? null,
     service: serviceName ?? null,
-    hits,
-    total_matches: totalMatches,
-    returned: hits.length,
-    truncated: totalMatches > hits.length,
+    terms,
+    hits: page,
+    total_matches: hits.length,
+    returned: page.length,
+    truncated: hits.length > page.length,
   };
 }

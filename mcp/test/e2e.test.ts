@@ -17,6 +17,7 @@ const specsDir = path.join(repoRoot, "specs");
 const distEntry = path.join(here, "..", "dist", "stdio.mjs");
 
 const TOOL_NAMES = [
+  "get_system",
   "list_services",
   "get_service",
   "get_artifact",
@@ -24,6 +25,10 @@ const TOOL_NAMES = [
   "get_acceptance_criteria",
   "trace_channel",
   "search_specs",
+  "get_operation",
+  "get_data_contract",
+  "impact",
+  "validate_payload",
 ];
 
 describe("dist/stdio.mjs end to end", () => {
@@ -34,7 +39,7 @@ describe("dist/stdio.mjs end to end", () => {
     ).toBe(true);
   });
 
-  test("stdio: lists the seven tools and answers a call", async () => {
+  test("stdio: lists every tool and answers a call", async () => {
     const client = new Client({ name: "e2e", version: "0.0.0" });
     const transport = new StdioClientTransport({
       command: process.execPath,
@@ -47,6 +52,7 @@ describe("dist/stdio.mjs end to end", () => {
       expect(tools.map((t) => t.name).sort()).toEqual([...TOOL_NAMES].sort());
       for (const tool of tools) {
         expect(tool.description, `${tool.name} has a description`).toBeTruthy();
+        expect(tool.annotations?.readOnlyHint, `${tool.name} is read-only`).toBe(true);
       }
       const result: any = await client.callTool({ name: "list_services", arguments: {} });
       const services = JSON.parse(result.content[0].text);

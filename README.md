@@ -194,17 +194,22 @@ there is no second place to forget to update.
 
 ## Tools
 
-Seven read-only tools, the same ones behind both uses above:
+Twelve read-only tools, the same ones behind both uses above:
 
 | Tool | Use |
 | --- | --- |
-| `list_services()` | Discovery. Start here. |
+| `get_system()` | The system as a whole: name, domain, event namespace, summary. |
+| `list_services()` | Discovery, with the version each service is pinned at. Start here. |
 | `get_service(name)` | Artifact index + produce/consume edges. No file contents. |
 | `get_message_schema(service, message)` | One event payload, the cheap call. |
+| `get_operation(service, operation_id)` | One OpenAPI operation, `$ref`s resolved. |
+| `get_data_contract(service, table)` | An ODCS contract as tables, columns and reader context. |
 | `get_acceptance_criteria(service)` | Gherkin, labelled binding. |
 | `get_artifact(service, path)` | Any declared artifact, with its authority class. |
 | `trace_channel(address)` | Who produces and consumes it, i.e. who you break. |
-| `search_specs(query, kind)` | Matching lines, not whole files. |
+| `impact(service, message \| column)` | Consumers, scenarios, records and relationships a change reaches. |
+| `validate_payload(service, message, payload)` | Does this JSON meet the contract? Leaf errors if not. |
+| `search_specs(query, kind)` | Ranked matching lines with JSON pointers, not whole files. |
 
 No write tool exists. Reads are confined to the service directory **and**
 to paths the manifest actually declares, so dropping a file into the tree
