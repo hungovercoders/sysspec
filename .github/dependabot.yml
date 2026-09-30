@@ -1,0 +1,14 @@
+# Keeps the SHA-pinned actions in .github/workflows current: each pin is
+# a commit SHA with its version in a trailing comment, and Dependabot
+# bumps both together. Grouped so an update is one PR, not seven.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: ci

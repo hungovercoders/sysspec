@@ -5,11 +5,19 @@
 # Renovate digest pinning has nothing to peel. Consumers pull these tags
 # via Renovate against their contracts.lock.
 #
-# Consumers (the caller must grant the permission):
+# Call it only for a commit CI passed - a tag is a promise consumers pin
+# to. The scaffolded caller runs on the CI workflow's completion and hands
+# over the commit that went green:
+#
+#   on:
+#     workflow_run: { workflows: [ci], types: [completed], branches: [main] }
 #   permissions: { contents: write }
 #   jobs:
 #     tag:
+#       if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
 #       uses: hungovercoders/sysspec/.github/workflows/sysspec-release-tags.yml@v<major>  # current: v0
+#       with:
+#         ref: ${{ github.event.workflow_run.head_sha }}
 name: sysspec-release-tags
 
 on:
@@ -19,20 +27,31 @@ on:
         description: Directory holding the <service>/service.yaml manifests
         type: string
         default: specs
+      ref:
+        description: The commit to tag (the one CI passed); defaults to the triggering commit
+        type: string
+        default: ""
+
+permissions:
+  contents: read
 
 jobs:
   tag:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ inputs.ref || github.sha }}
           fetch-depth: 0
           fetch-tags: true
       - name: Tag each service at its manifest version
+        env:
+          SPECS_PATH: ${{ inputs.specs-path }}
         run: |
-          for manifest in ${{ inputs.specs-path }}/*/service.yaml; do
+          for manifest in "$SPECS_PATH"/*/service.yaml; do
             service=$(basename "$(dirname "$manifest")")
             version=$(awk '/^version:/{print $2; exit}' "$manifest")
             [ -n "$version" ] || { echo "::warning::$service has no top-level version - not tagged"; continue; }
