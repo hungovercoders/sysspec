@@ -1,5 +1,8 @@
 #!/bin/sh
+# The fast tier before every commit: lint, the version gates and dist
+# freshness. The test suites and site builds run on push (pre-push) and
+# in CI, where `task ci` is the definition of green.
 # git exports GIT_DIR/GIT_INDEX_FILE to hooks; they leak into subprocesses
 # (scratch-repo tests, docs build) and point them at this repo's git dir.
 unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE GIT_COMMON_DIR GIT_PREFIX
-exec task check
+exec task check:fast

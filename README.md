@@ -162,7 +162,9 @@ element added to a contract is named in the service's features
 (`check:intent`, with no escape hatch), ODCS columns and enum values
 included, now that ODCS 3.2 makes every allowed value a first-class
 entry. `task ci` is the definition of green, and it runs identically
-locally, in the pre-commit hook, and in CI.
+locally and in CI. The git hooks run faster tiers of it: lint and the
+version gates before each commit, and the test suites and builds before
+each push.
 
 ## Layout
 

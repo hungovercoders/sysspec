@@ -8,7 +8,7 @@ behind every gate and task. In a scaffolded repo you rarely call it
 directly, because every command is wrapped in a `task`, but the surface is:
 
 ```text
-usage: sysspec <command> ...
+usage: sysspec <command> <subcommand> [flags]
 
 commands:
   check version|compat|intent|surface   diff-based gates against a base ref
@@ -18,7 +18,15 @@ commands:
   mocks up|down|load|test|watch
   contract test
   null run --results <file> -- <suite command>
+
+sysspec <command> --help shows a command's flags; sysspec --version its version.
 ```
+
+Stray arguments are errors: `sysspec lint specs orders` says to use
+`--service orders` rather than quietly linting every service. A tool the
+command shells out to that is missing from `PATH` (oasdiff, uvx, docker)
+produces a one-line setup message, and so does a mock stack that is not
+running.
 
 ## Commands
 

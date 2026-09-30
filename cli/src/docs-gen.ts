@@ -10,40 +10,46 @@
  * syntax error lands in CI instead of a viewer's browser.
  */
 
-import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import {
+  accessSync,
+  constants,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { parse } from "yaml";
 import { MERMAID_CLI } from "./pins.js";
-import { clean, gitLines, run, splitLines } from "./util.js";
+import { clean, gitLines, isDir, isFile, run, splitLines } from "./util.js";
 
 export { clean, gitLines };
 
 export type Dict = Record<string, any>;
 
-function isDir(p: string): boolean {
-  try {
-    return statSync(p).isDirectory();
-  } catch {
-    return false;
-  }
-}
-
-function isFile(p: string): boolean {
-  try {
-    return statSync(p).isFile();
-  } catch {
-    return false;
-  }
-}
-
 export function readYaml(file: string): Dict {
   return (parse(readFileSync(file, "utf-8")) ?? {}) as Dict;
 }
 
+/** First executable named cmd on PATH, or null. Searched in-process:
+ * shelling out to `which` fails on systems that do not ship it. */
 export function which(cmd: string): string | null {
-  const res = run(["which", cmd]);
-  return res.status === 0 ? res.stdout.trim() : null;
+  const exts = process.platform === "win32" ? (process.env.PATHEXT ?? ".EXE").split(";") : [""];
+  for (const dir of (process.env.PATH ?? "").split(path.delimiter).filter(Boolean)) {
+    for (const ext of exts) {
+      const candidate = path.join(dir, cmd + ext);
+      try {
+        accessSync(candidate, constants.X_OK);
+        if (statSync(candidate).isFile()) return candidate;
+      } catch {
+        // not here - keep looking
+      }
+    }
+  }
+  return null;
 }
 
 export function loadManifests(specs: string): Dict[] {
@@ -575,23 +581,35 @@ export async function checkDiagrams(
   try {
     const configFile = path.join(tmp, "puppeteer.json");
     writeFileSync(configFile, JSON.stringify(config));
-    for (const [f, line, source] of blocks) {
-      const mmd = path.join(tmp, "diagram.mmd");
-      writeFileSync(mmd, source);
-      const res = run(
+    const mmdc = (input: string, output: string) =>
+      run(
         [
           "npx", "-y", MERMAID_CLI, "--quiet",
           "--puppeteerConfigFile", configFile,
-          "--input", mmd, "--output", path.join(tmp, "diagram.svg"),
+          "--input", input, "--output", output,
         ],
         { env },
       );
-      if (res.status !== 0) {
-        failures += 1;
-        const detail = (res.stderr || res.stdout).trim();
-        console.error(`mermaid FAILED: ${f}:${line}\n${detail}\n`);
-      } else {
-        console.log(`mermaid ok: ${f}:${line}`);
+
+    // One headless browser for every diagram: mermaid-cli renders each
+    // fence of a markdown input in turn. Only when that batch fails is it
+    // worth one launch per diagram, to say which one broke and why.
+    const batch = path.join(tmp, "all.md");
+    writeFileSync(batch, blocks.map(([, , source]) => "```mermaid\n" + source + "\n```\n").join("\n"));
+    if (mmdc(batch, path.join(tmp, "all-out.md")).status === 0) {
+      for (const [f, line] of blocks) console.log(`mermaid ok: ${f}:${line}`);
+    } else {
+      for (const [f, line, source] of blocks) {
+        const mmd = path.join(tmp, "diagram.mmd");
+        writeFileSync(mmd, source);
+        const res = mmdc(mmd, path.join(tmp, "diagram.svg"));
+        if (res.status !== 0) {
+          failures += 1;
+          const detail = (res.stderr || res.stdout).trim();
+          console.error(`mermaid FAILED: ${f}:${line}\n${detail}\n`);
+        } else {
+          console.log(`mermaid ok: ${f}:${line}`);
+        }
       }
     }
   } finally {

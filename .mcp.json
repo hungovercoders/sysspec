@@ -2,9 +2,9 @@
   "mcpServers": {
     "sysspec": {
       "command": "node",
-      "args": ["${CLAUDE_PLUGIN_ROOT}/mcp/dist/stdio.mjs"],
+      "args": ["${CLAUDE_PLUGIN_ROOT:-.}/mcp/dist/stdio.mjs"],
       "env": {
-        "SPECS_DIR": "${CLAUDE_PLUGIN_ROOT}/specs"
+        "SPECS_DIR": "${CLAUDE_PLUGIN_ROOT:-.}/specs"
       }
     }
   }

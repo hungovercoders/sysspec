@@ -1,0 +1,6 @@
+#!/bin/sh
+# Before a push: everything in the pre-commit tier plus both test suites
+# and the docs and site builds (`task check`). CI adds the diff gates and
+# the mock cycle on top.
+unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE GIT_COMMON_DIR GIT_PREFIX
+exec task check
