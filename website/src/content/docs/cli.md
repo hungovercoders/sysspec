@@ -127,7 +127,9 @@ scope to one service.
 
 ### `docs`
 
-- `docs data` emits the spec data the generated docs site renders from.
+- `docs data` emits the spec data the generated docs site renders from:
+  the manifests, the message surface, each scenario's contract references
+  and diagrams, and the cross-service flows those references chain into.
   Flags: `--specs-dir`, `--site-dir` (default `docs-site`), `--mocks-dir`
   (default `mocks`).
 - `docs diagrams` parses every mermaid diagram in the generated site.

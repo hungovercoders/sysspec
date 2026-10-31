@@ -154,6 +154,35 @@
 .sc-kw--then { color: var(--ss-kind-data); }
 .sc-scenario code { font-size: 0.8em; }
 .sc-scenario-count { font-size: 0.875rem; color: var(--ss-text-2); }
+.sc-scenario .sc-ref { text-decoration: none; border-bottom: 1px dotted var(--ss-accent); }
+.sc-scenario .sc-ref:hover code { color: var(--ss-accent); }
+.sc-scenario .sc-status { font-family: var(--ss-font-mono); font-weight: 600; font-size: 0.85em; }
+.sc-scenario .sc-status--2 { color: var(--ss-ok); }
+.sc-scenario .sc-status--3 { color: var(--ss-accent); }
+.sc-scenario .sc-status--4 { color: var(--ss-warn); }
+.sc-scenario .sc-status--5 { color: var(--ss-danger); }
+
+/* ---------- Flows: scenario sequences, feature maps, journeys ------- */
+.sc-diagram {
+  margin: 0.75rem 0 0.25rem; border: 1px solid var(--ss-hairline); border-radius: var(--ss-radius);
+  background: var(--ss-surface-2); padding: 0.4rem 0.75rem;
+}
+.sc-diagram > summary { cursor: pointer; font-size: 0.8125rem; font-weight: 600; color: var(--ss-text-2); }
+.sc-diagram > summary .sc-digest { font-weight: 500; color: var(--ss-text-3); margin-left: 0.5rem; font-family: var(--ss-font-mono); font-size: 0.75rem; }
+.sc-diagram .mermaid, .sc-flow-map .mermaid, .sc-journey .mermaid { overflow-x: auto; }
+.sc-flow-map { margin: 0.5rem 0 1.5rem; }
+.sc-scenario-links { margin-top: 0.5rem; }
+.sc-scenario-links-none { font-size: 0.8125rem; margin: 0.5rem 0 0; }
+.sc-journey { border-top: 1px solid var(--ss-hairline); padding-top: 0.5rem; margin-top: 1.5rem; }
+.sc-journey-steps { list-style: none; margin: 0.5rem 0 1rem; padding: 0; counter-reset: hop; }
+.sc-journey-steps li { position: relative; padding: 0.35rem 0 0.35rem 2.2rem; font-size: 0.9rem; margin: 0 !important; counter-increment: hop; }
+.sc-journey-steps li::before {
+  content: counter(hop); position: absolute; left: 0; top: 0.3rem; width: 1.5rem; height: 1.5rem; border-radius: 999px;
+  background: var(--ss-accent-soft); color: var(--ss-accent-high); font-size: 0.75rem; font-weight: 700;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.sc-journey-steps .sc-row-note { display: block; color: var(--ss-text-3); font-size: 0.8125rem; }
+.sc-journey-steps .sc-row-note code { font-size: 0.78rem; }
 
 /* ---------- Binding-spec panel -------------------------------------- */
 .sc-spec-panel {

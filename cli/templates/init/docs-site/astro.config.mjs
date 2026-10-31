@@ -8,7 +8,7 @@ import { existsSync, readFileSync } from 'node:fs';
 const dataFile = new URL('./src/data/specs.json', import.meta.url);
 const specs = existsSync(dataFile)
   ? JSON.parse(readFileSync(dataFile, 'utf8'))
-  : { system: null, services: [], edges: [], unconsumed: [] };
+  : { system: null, services: [], edges: [], unconsumed: [], flows: { journeys: [], graph_mermaid: null } };
 
 // specs/system.yaml names the system these specs describe; without one
 // the catalog falls back to the generic title it has always used.
@@ -83,6 +83,11 @@ export default defineConfig({
       },
       sidebar: [
         { label: 'Overview', link: '/' },
+        // The scenarios chained across services: the business flows the
+        // specs already state, read before any one service's page.
+        ...(specs.flows?.journeys?.length || specs.flows?.graph_mermaid
+          ? [{ label: 'Business flows', link: '/flows/' }]
+          : []),
         // Asking comes before building: the specs answer questions for
         // anyone, agents included, and that is the cheapest way in.
         { label: 'Ask these specs', link: '/ask/' },

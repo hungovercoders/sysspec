@@ -2,10 +2,10 @@ apiVersion: v3.2.0
 kind: DataContract
 id: payments-daily-settled
 name: Daily settled payments
-version: 1.0.0
+version: 1.1.0
 status: active
 domain: Commerce
-tenant: hungovecoders
+tenant: hungovercoders
 description:
   purpose: >
     Daily reconciliation of settled payments for finance. One row per
@@ -44,6 +44,7 @@ schema:
     logicalType: object
     physicalName: payments_daily_settled
     physicalType: table
+    description: One row per settled payment, partitioned by settlement date.
     context:
       instructions: >
         Partitioned by settled_at. Treat the most recent three days as
@@ -61,10 +62,12 @@ schema:
         required: true
         unique: true
         primaryKey: true
+        description: The settled payment.
       - name: order_id
         logicalType: string
         physicalType: uuid
         required: true
+        description: The order the payment settles.
         relationships:
           - id: settles_order
             to: ../../orders/data-contracts/orders-events.odcs.yaml#/schema/order_placed_events/properties/order_id
@@ -73,6 +76,7 @@ schema:
         physicalType: timestamp
         required: true
         partitioned: true
+        description: Processor settlement time - the partition key; late arrivals backfill up to D+3.
         semanticType: dimension
         synonyms:
           - synonym: settlement date
@@ -80,7 +84,7 @@ schema:
         logicalType: integer
         physicalType: bigint
         required: true
-        description: Settled amount in pence.
+        description: Settled amount in whole pence.
         synonyms:
           - synonym: settlement amount
         quality:

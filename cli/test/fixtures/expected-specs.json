@@ -14,7 +14,7 @@
     {
       "name": "orders",
       "title": "Orders",
-      "version": "3.3.0",
+      "version": "3.4.0",
       "domain": "Commerce",
       "owner": "team-commerce",
       "summary": "Owns the Order aggregate. Accepts order placement over HTTP, emits lifecycle events, and consumes payment settlement to close orders out.",
@@ -33,7 +33,7 @@
           "kind": "openapi",
           "path": "openapi/orders.openapi.yaml",
           "stem": "orders.openapi",
-          "version": "3.1.0",
+          "version": "3.2.0",
           "gated": true,
           "summary": "Synchronous order placement and lookup API.",
           "history": []
@@ -42,11 +42,11 @@
           "kind": "feature",
           "path": "features/place-order.feature",
           "stem": "place-order",
-          "version": "2.2.0",
+          "version": "2.3.0",
           "gated": true,
           "summary": "Acceptance criteria for order placement and guaranteed event publication.",
           "history": [],
-          "text": "Feature: Placing an order\n  As a customer\n  I want to place an order\n  So that it is fulfilled once payment settles\n\n  These scenarios are acceptance criteria, not suggestions. An\n  implementation that fails any of them is wrong. If a scenario is\n  itself wrong, that is a versioned change to this file.\n\n  Background:\n    Given the customer \"c-1001\" exists\n\n  Scenario: A valid order is accepted and its event is guaranteed\n    When the customer places an order for 2 units of \"SKU-RED\" at 1250 pence\n    Then the response status is 201\n    And the order status is \"placed\"\n    And the order total is 2500 pence\n    And an \"OrderPlaced\" event is guaranteed to be published for the order\n\n  Scenario: The order and its event succeed or fail together\n    Given event publication is unavailable\n    When the customer places an order for 1 unit of \"SKU-RED\" at 1250 pence\n    Then the response status is 201\n    And the \"OrderPlaced\" event is published once publication recovers\n    And no order ever exists without its \"OrderPlaced\" event\n\n  Scenario: Replaying an idempotency key returns the original order\n    Given the customer placed an order with idempotency key \"idem-99\"\n    When the same request is retried with idempotency key \"idem-99\"\n    Then the response status is 201\n    And the same order_id is returned\n    And no second \"OrderPlaced\" event is published\n\n  Scenario: A conflicting body on a used idempotency key is rejected\n    Given the customer placed an order with idempotency key \"idem-99\"\n    When a different order body is sent with idempotency key \"idem-99\"\n    Then the response status is 409\n\n  Scenario: Order events are CloudEvents envelopes\n    When the customer places an order for 2 units of \"SKU-RED\" at 1250 pence\n    Then an \"OrderPlaced\" event is published on \"orders.placed.v2\"\n    And the envelope carries specversion \"1.0\", a unique id and a time\n    And the envelope source is /orders and its type is com.hungovercoders.orders.placed.v2\n    And the envelope subject is the order_id, with datacontenttype \"application/json\"\n    And the data carries the order_id, customer_id, placed_at and total_pence\n    And handlers dedupe on the envelope id, not the natural key\n\n  Scenario: Cancellation is a CloudEvents envelope too\n    Given the customer placed an order\n    When the order is cancelled because \"out_of_stock\"\n    Then an \"OrderCancelled\" event is published on \"orders.cancelled.v2\"\n    And its data carries the order_id, cancelled_at and reason\n\n  Scenario Outline: An order is only cancelled for a declared reason\n    Given the customer placed an order\n    When the order is cancelled because \"<reason>\"\n    Then the cancellation is accepted and records that reason\n    And a reason outside this list is rejected\n\n    Examples:\n      | reason           | meaning                                          |\n      | customer_request | the customer asked for the order to be cancelled |\n      | payment_failed   | no payment settled inside the window             |\n      | out_of_stock     | the order cannot be fulfilled from stock         |\n\n  Scenario: A settled payment marks the order paid\n    Given the customer placed an order\n    When a \"PaymentSettled\" event arrives on \"payments.settled.v2\" for that order_id\n    Then the order status is \"paid\"\n    And replaying the same envelope id does not change the order again\n\n  Scenario: An order can be fetched by its id\n    Given the customer placed an order via placeOrder\n    When the order is fetched by order_id via getOrder\n    Then the response status is 200\n    And the order carries the order_id, customer_id, status and total_pence\n\n  Scenario: Fetching an unknown order returns 404\n    When an unknown order_id is fetched via getOrder\n    Then the response status is 404\n\n  Scenario Outline: Orders must have at least one valid line\n    When the customer places an order with <lines>\n    Then the response status is 400\n\n    Examples:\n      | lines                       |\n      | no lines                    |\n      | a line quantity of 0        |\n      | a negative unit_price_pence |\n      | a line missing its sku      |\n",
+          "text": "Feature: Placing an order\n  As a customer\n  I want to place an order\n  So that it is fulfilled once payment settles\n\n  These scenarios are acceptance criteria, not suggestions. An\n  implementation that fails any of them is wrong. If a scenario is\n  itself wrong, that is a versioned change to this file.\n\n  Background:\n    Given the customer \"c-1001\" exists\n\n  Scenario: A valid order is accepted and its event is guaranteed\n    When the customer places an order for 2 units of \"SKU-RED\" at 1250 pence\n    Then the response status is 201\n    And the order status is \"placed\"\n    And the order total is 2500 pence\n    And an \"OrderPlaced\" event is guaranteed to be published for the order\n\n  Scenario: The order and its event succeed or fail together\n    Given event publication is unavailable\n    When the customer places an order for 1 unit of \"SKU-RED\" at 1250 pence\n    Then the response status is 201\n    And the \"OrderPlaced\" event is published once publication recovers\n    And no order ever exists without its \"OrderPlaced\" event\n\n  Scenario: Replaying an idempotency key returns the original order\n    Given the customer placed an order with \"Idempotency-Key\" header \"idem-99\"\n    When the same request is retried with \"Idempotency-Key\" header \"idem-99\"\n    Then the response status is 201\n    And the same order_id is returned\n    And no second \"OrderPlaced\" event is published\n\n  Scenario: A conflicting body on a used idempotency key is rejected\n    Given the customer placed an order with \"Idempotency-Key\" header \"idem-99\"\n    When a different order body is sent with \"Idempotency-Key\" header \"idem-99\"\n    Then the response status is 409\n    And the problem body carries an error_code and message\n\n  Scenario: Order events are CloudEvents envelopes\n    When the customer places an order for 2 units of \"SKU-RED\" at 1250 pence\n    Then an \"OrderPlaced\" event is published on \"orders.placed.v2\"\n    And the envelope carries specversion \"1.0\", a unique id and a time\n    And the envelope source is /orders and its type is com.hungovercoders.orders.placed.v2\n    And the envelope subject is the order_id, with datacontenttype \"application/json\"\n    And the data carries the order_id, customer_id, placed_at and total_pence\n    And handlers dedupe on the envelope id, not the natural key\n\n  Scenario: Cancellation is a CloudEvents envelope too\n    Given the customer placed an order\n    When the order is cancelled because \"out_of_stock\"\n    Then an \"OrderCancelled\" event is published on \"orders.cancelled.v2\"\n    And its data carries the order_id, cancelled_at and reason\n\n  Scenario Outline: An order is only cancelled for a declared reason\n    Given the customer placed an order\n    When the order is cancelled because \"<reason>\"\n    Then the cancellation is accepted and records that reason\n    And a reason outside this list is rejected\n\n    Examples:\n      | reason           | meaning                                          |\n      | customer_request | the customer asked for the order to be cancelled |\n      | payment_failed   | no payment settled inside the window             |\n      | out_of_stock     | the order cannot be fulfilled from stock         |\n\n  Scenario: A settled payment marks the order paid\n    Given the customer placed an order\n    When a \"PaymentSettled\" event arrives on \"payments.settled.v2\" for that order_id\n    Then the order status is \"paid\"\n    And replaying the same envelope id does not change the order again\n\n  Scenario: An order can be fetched by its id\n    Given the customer placed an order via placeOrder\n    When the order is fetched by order_id via getOrder\n    Then the response status is 200\n    And the order carries the order_id, customer_id, status and total_pence\n\n  Scenario: Fetching an unknown order returns 404\n    When an unknown order_id is fetched via getOrder\n    Then the response status is 404\n    And the problem body carries an error_code and message\n\n  Scenario Outline: Orders must have at least one valid line\n    When the customer places an order with <lines>\n    Then the response status is 400\n    And the problem body carries an error_code and message\n\n    Examples:\n      | lines                       |\n      | no lines                    |\n      | a line quantity of 0        |\n      | a negative unit_price_pence |\n      | a line missing its sku      |\n",
           "feature": {
             "title": "Placing an order",
             "description": [
@@ -94,7 +94,27 @@
                     "phase": "then",
                     "text": "an \"OrderPlaced\" event is guaranteed to be published for the order"
                   }
-                ]
+                ],
+                "refs": {
+                  "operations": [
+                    {
+                      "op_id": "placeOrder",
+                      "via": "status"
+                    }
+                  ],
+                  "inbound": [],
+                  "outbound": [
+                    {
+                      "channel": "orders.placed.v2",
+                      "message": "OrderPlaced",
+                      "negated": false
+                    }
+                  ],
+                  "statuses": [
+                    "201"
+                  ]
+                },
+                "sequence_mermaid": "sequenceDiagram\n    autonumber\n    participant client as Customer\n    participant svc as Orders\n    participant c_orders_placed_v2 as orders.placed.v2\n    client->>svc: POST /orders \u00b7 placeOrder\n    svc-->>client: 201\n    svc-)c_orders_placed_v2: OrderPlaced"
               },
               {
                 "title": "The order and its event succeed or fail together",
@@ -124,7 +144,27 @@
                     "phase": "then",
                     "text": "no order ever exists without its \"OrderPlaced\" event"
                   }
-                ]
+                ],
+                "refs": {
+                  "operations": [
+                    {
+                      "op_id": "placeOrder",
+                      "via": "status"
+                    }
+                  ],
+                  "inbound": [],
+                  "outbound": [
+                    {
+                      "channel": "orders.placed.v2",
+                      "message": "OrderPlaced",
+                      "negated": false
+                    }
+                  ],
+                  "statuses": [
+                    "201"
+                  ]
+                },
+                "sequence_mermaid": "sequenceDiagram\n    autonumber\n    participant client as Customer\n    participant svc as Orders\n    participant c_orders_placed_v2 as orders.placed.v2\n    client->>svc: POST /orders \u00b7 placeOrder\n    svc-->>client: 201\n    svc-)c_orders_placed_v2: OrderPlaced"
               },
               {
                 "title": "Replaying an idempotency key returns the original order",
@@ -132,12 +172,12 @@
                   {
                     "keyword": "Given",
                     "phase": "given",
-                    "text": "the customer placed an order with idempotency key \"idem-99\""
+                    "text": "the customer placed an order with \"Idempotency-Key\" header \"idem-99\""
                   },
                   {
                     "keyword": "When",
                     "phase": "when",
-                    "text": "the same request is retried with idempotency key \"idem-99\""
+                    "text": "the same request is retried with \"Idempotency-Key\" header \"idem-99\""
                   },
                   {
                     "keyword": "Then",
@@ -154,7 +194,27 @@
                     "phase": "then",
                     "text": "no second \"OrderPlaced\" event is published"
                   }
-                ]
+                ],
+                "refs": {
+                  "operations": [
+                    {
+                      "op_id": "placeOrder",
+                      "via": "status"
+                    }
+                  ],
+                  "inbound": [],
+                  "outbound": [
+                    {
+                      "channel": "orders.placed.v2",
+                      "message": "OrderPlaced",
+                      "negated": true
+                    }
+                  ],
+                  "statuses": [
+                    "201"
+                  ]
+                },
+                "sequence_mermaid": "sequenceDiagram\n    autonumber\n    participant client as Customer\n    participant svc as Orders\n    participant c_orders_placed_v2 as orders.placed.v2\n    client->>svc: POST /orders \u00b7 placeOrder\n    svc-->>client: 201\n    svc-xc_orders_placed_v2: no OrderPlaced"
               },
               {
                 "title": "A conflicting body on a used idempotency key is rejected",
@@ -162,19 +222,38 @@
                   {
                     "keyword": "Given",
                     "phase": "given",
-                    "text": "the customer placed an order with idempotency key \"idem-99\""
+                    "text": "the customer placed an order with \"Idempotency-Key\" header \"idem-99\""
                   },
                   {
                     "keyword": "When",
                     "phase": "when",
-                    "text": "a different order body is sent with idempotency key \"idem-99\""
+                    "text": "a different order body is sent with \"Idempotency-Key\" header \"idem-99\""
                   },
                   {
                     "keyword": "Then",
                     "phase": "then",
                     "text": "the response status is 409"
+                  },
+                  {
+                    "keyword": "And",
+                    "phase": "then",
+                    "text": "the problem body carries an error_code and message"
                   }
-                ]
+                ],
+                "refs": {
+                  "operations": [
+                    {
+                      "op_id": "placeOrder",
+                      "via": "status"
+                    }
+                  ],
+                  "inbound": [],
+                  "outbound": [],
+                  "statuses": [
+                    "409"
+                  ]
+                },
+                "sequence_mermaid": "sequenceDiagram\n    autonumber\n    participant client as Customer\n    participant svc as Orders\n    client->>svc: POST /orders \u00b7 placeOrder\n    svc-->>client: 409"
               },
               {
                 "title": "Order events are CloudEvents envelopes",
@@ -214,7 +293,20 @@
                     "phase": "then",
                     "text": "handlers dedupe on the envelope id, not the natural key"
                   }
-                ]
+                ],
+                "refs": {
+                  "operations": [],
+                  "inbound": [],
+                  "outbound": [
+                    {
+                      "channel": "orders.placed.v2",
+                      "message": "OrderPlaced",
+                      "negated": false
+                    }
+                  ],
+                  "statuses": []
+                },
+                "sequence_mermaid": "sequenceDiagram\n    autonumber\n    participant svc as Orders\n    participant c_orders_placed_v2 as orders.placed.v2\n    Note over svc: When the customer places an order for 2 units of 'SKU-RED' at 1250 pence\n    svc-)c_orders_placed_v2: OrderPlaced"
               },
               {
                 "title": "Cancellation is a CloudEvents envelope too",
@@ -239,7 +331,20 @@
                     "phase": "then",
                     "text": "its data carries the order_id, cancelled_at and reason"
                   }
-                ]
+                ],
+                "refs": {
+                  "operations": [],
+                  "inbound": [],
+                  "outbound": [
+                    {
+                      "channel": "orders.cancelled.v2",
+                      "message": "OrderCancelled",
+                      "negated": false
+                    }
+                  ],
+                  "statuses": []
+                },
+                "sequence_mermaid": "sequenceDiagram\n    autonumber\n    participant svc as Orders\n    participant c_orders_cancelled_v2 as orders.cancelled.v2\n    Note over svc: When the order is cancelled because 'out_of_stock'\n    svc-)c_orders_cancelled_v2: OrderCancelled"
               },
               {
                 "title": "An order is only cancelled for a declared reason",
@@ -287,7 +392,14 @@
                       ]
                     ]
                   }
-                ]
+                ],
+                "refs": {
+                  "operations": [],
+                  "inbound": [],
+                  "outbound": [],
+                  "statuses": []
+                },
+                "sequence_mermaid": null
               },
               {
                 "title": "A settled payment marks the order paid",
@@ -312,7 +424,20 @@
                     "phase": "then",
                     "text": "replaying the same envelope id does not change the order again"
                   }
-                ]
+                ],
+                "refs": {
+                  "operations": [],
+                  "inbound": [
+                    {
+                      "channel": "payments.settled.v2",
+                      "message": "PaymentSettled",
+                      "producer": "payments"
+                    }
+                  ],
+                  "outbound": [],
+                  "statuses": []
+                },
+                "sequence_mermaid": "sequenceDiagram\n    autonumber\n    participant c_payments_settled_v2 as payments.settled.v2\n    participant svc as Orders\n    c_payments_settled_v2--)svc: PaymentSettled"
               },
               {
                 "title": "An order can be fetched by its id",
@@ -337,7 +462,25 @@
                     "phase": "then",
                     "text": "the order carries the order_id, customer_id, status and total_pence"
                   }
-                ]
+                ],
+                "refs": {
+                  "operations": [
+                    {
+                      "op_id": "placeOrder",
+                      "via": "name"
+                    },
+                    {
+                      "op_id": "getOrder",
+                      "via": "name"
+                    }
+                  ],
+                  "inbound": [],
+                  "outbound": [],
+                  "statuses": [
+                    "200"
+                  ]
+                },
+                "sequence_mermaid": "sequenceDiagram\n    autonumber\n    participant client as Customer\n    participant svc as Orders\n    client->>svc: POST /orders \u00b7 placeOrder\n    client->>svc: GET /orders/{order_id} \u00b7 getOrder\n    svc-->>client: 200"
               },
               {
                 "title": "Fetching an unknown order returns 404",
@@ -351,8 +494,27 @@
                     "keyword": "Then",
                     "phase": "then",
                     "text": "the response status is 404"
+                  },
+                  {
+                    "keyword": "And",
+                    "phase": "then",
+                    "text": "the problem body carries an error_code and message"
                   }
-                ]
+                ],
+                "refs": {
+                  "operations": [
+                    {
+                      "op_id": "getOrder",
+                      "via": "name"
+                    }
+                  ],
+                  "inbound": [],
+                  "outbound": [],
+                  "statuses": [
+                    "404"
+                  ]
+                },
+                "sequence_mermaid": "sequenceDiagram\n    autonumber\n    participant client as Customer\n    participant svc as Orders\n    client->>svc: GET /orders/{order_id} \u00b7 getOrder\n    svc-->>client: 404"
               },
               {
                 "title": "Orders must have at least one valid line",
@@ -366,6 +528,11 @@
                     "keyword": "Then",
                     "phase": "then",
                     "text": "the response status is 400"
+                  },
+                  {
+                    "keyword": "And",
+                    "phase": "then",
+                    "text": "the problem body carries an error_code and message"
                   },
                   {
                     "heading": "Examples"
@@ -389,9 +556,25 @@
                       ]
                     ]
                   }
-                ]
+                ],
+                "refs": {
+                  "operations": [
+                    {
+                      "op_id": "placeOrder",
+                      "via": "status"
+                    }
+                  ],
+                  "inbound": [],
+                  "outbound": [],
+                  "statuses": [
+                    "400"
+                  ]
+                },
+                "sequence_mermaid": "sequenceDiagram\n    autonumber\n    participant client as Customer\n    participant svc as Orders\n    client->>svc: POST /orders \u00b7 placeOrder\n    svc-->>client: 400"
               }
-            ]
+            ],
+            "actor": "Customer",
+            "flow_mermaid": "flowchart LR\n    subgraph sg_triggers[\"Triggers\"]\n        http_placeOrder[\"POST /orders \u00b7 placeOrder\"]\n        http_getOrder[\"GET /orders/{order_id} \u00b7 getOrder\"]\n        ch_in_payments_settled_v2>\"payments.settled.v2\"]\n    end\n    subgraph sg_scenarios[\"Scenarios\"]\n        sc_1(\"A valid order is accepted and its event is guaranteed\")\n        sc_2(\"The order and its event succeed or fail together\")\n        sc_3(\"Replaying an idempotency key returns the original order\")\n        sc_4(\"A conflicting body on a used idempotency key is rejected\")\n        sc_5(\"Order events are CloudEvents envelopes\")\n        sc_6(\"Cancellation is a CloudEvents envelope too\")\n        sc_7(\"An order is only cancelled for a declared reason\")\n        sc_8(\"A settled payment marks the order paid\")\n        sc_9(\"An order can be fetched by its id\")\n        sc_10(\"Fetching an unknown order returns 404\")\n        sc_11(\"Orders must have at least one valid line\")\n    end\n    subgraph sg_outcomes[\"Outcomes\"]\n        st_200([\"200\"])\n        st_201([\"201\"])\n        st_400([\"400\"])\n        st_404([\"404\"])\n        st_409([\"409\"])\n        ch_out_orders_placed_v2[[\"orders.placed.v2\"]]\n        ch_out_orders_cancelled_v2[[\"orders.cancelled.v2\"]]\n    end\n    http_placeOrder --> sc_1\n    sc_1 --> st_201\n    sc_1 -->|\"OrderPlaced\"| ch_out_orders_placed_v2\n    http_placeOrder --> sc_2\n    sc_2 --> st_201\n    sc_2 -->|\"OrderPlaced\"| ch_out_orders_placed_v2\n    http_placeOrder --> sc_3\n    sc_3 --> st_201\n    sc_3 -.->|\"no OrderPlaced\"| ch_out_orders_placed_v2\n    http_placeOrder --> sc_4\n    sc_4 --> st_409\n    sc_5 -->|\"OrderPlaced\"| ch_out_orders_placed_v2\n    sc_6 -->|\"OrderCancelled\"| ch_out_orders_cancelled_v2\n    ch_in_payments_settled_v2 -->|\"PaymentSettled\"| sc_8\n    http_placeOrder --> sc_9\n    http_getOrder --> sc_9\n    sc_9 --> st_200\n    http_getOrder --> sc_10\n    sc_10 --> st_404\n    http_placeOrder --> sc_11\n    sc_11 --> st_400\n    click http_placeOrder \"../orders.openapi/#placeOrder\"\n    click http_getOrder \"../orders.openapi/#getOrder\"\n    click ch_in_payments_settled_v2 \"../../payments/payments.asyncapi/#payments-settled-v2\"\n    click sc_1 \"#a-valid-order-is-accepted-and-its-event-is-guaranteed\"\n    click sc_2 \"#the-order-and-its-event-succeed-or-fail-together\"\n    click sc_3 \"#replaying-an-idempotency-key-returns-the-original-order\"\n    click sc_4 \"#a-conflicting-body-on-a-used-idempotency-key-is-rejected\"\n    click sc_5 \"#order-events-are-cloudevents-envelopes\"\n    click sc_6 \"#cancellation-is-a-cloudevents-envelope-too\"\n    click sc_7 \"#an-order-is-only-cancelled-for-a-declared-reason\"\n    click sc_8 \"#a-settled-payment-marks-the-order-paid\"\n    click sc_9 \"#an-order-can-be-fetched-by-its-id\"\n    click sc_10 \"#fetching-an-unknown-order-returns-404\"\n    click sc_11 \"#orders-must-have-at-least-one-valid-line\"\n    click ch_out_orders_placed_v2 \"../orders.asyncapi/#orders-placed-v2\"\n    click ch_out_orders_cancelled_v2 \"../orders.asyncapi/#orders-cancelled-v2\""
           }
         },
         {
@@ -668,8 +851,15 @@
           "summary": "Place an order",
           "description": "Accepts an order for the given customer and lines. On success the order is persisted and an OrderPlaced event is guaranteed to be published - never one without the other.",
           "artifact_path": "openapi/orders.openapi.yaml",
-          "artifact_version": "3.1.0",
-          "parameters": [],
+          "artifact_version": "3.2.0",
+          "parameters": [
+            {
+              "name": "Idempotency-Key",
+              "in": "header",
+              "type": "string",
+              "required": false
+            }
+          ],
           "request_rows": [
             {
               "field": "customer_id",
@@ -713,7 +903,7 @@
             },
             {
               "status": "409",
-              "description": "Idempotency key already used with a different body."
+              "description": "Idempotency-Key already used with a different body."
             }
           ],
           "response_body": {
@@ -742,30 +932,6 @@
                 "type": "integer",
                 "required": true,
                 "constraints": "\u2265 0"
-              },
-              {
-                "field": "shipping",
-                "type": "object",
-                "required": false,
-                "constraints": ""
-              },
-              {
-                "field": "shipping.address",
-                "type": "object",
-                "required": true,
-                "constraints": ""
-              },
-              {
-                "field": "shipping.address.line_1",
-                "type": "string",
-                "required": true,
-                "constraints": ""
-              },
-              {
-                "field": "shipping.address.postcode",
-                "type": "string",
-                "required": true,
-                "constraints": ""
               }
             ]
           },
@@ -775,6 +941,32 @@
               "request": "{\n  \"customer_id\": \"22222222-2222-2222-2222-222222222222\",\n  \"lines\": [\n    { \"sku\": \"SKU-001\", \"quantity\": 2, \"unit_price_pence\": 1250 }\n  ]\n}",
               "status": "201",
               "response": "{\n  \"order_id\": \"11111111-1111-1111-1111-111111111111\",\n  \"customer_id\": \"22222222-2222-2222-2222-222222222222\",\n  \"status\": \"placed\",\n  \"total_pence\": 2500\n}"
+            }
+          ],
+          "scenarios": [
+            {
+              "feature": "place-order",
+              "title": "A valid order is accepted and its event is guaranteed"
+            },
+            {
+              "feature": "place-order",
+              "title": "The order and its event succeed or fail together"
+            },
+            {
+              "feature": "place-order",
+              "title": "Replaying an idempotency key returns the original order"
+            },
+            {
+              "feature": "place-order",
+              "title": "A conflicting body on a used idempotency key is rejected"
+            },
+            {
+              "feature": "place-order",
+              "title": "An order can be fetched by its id"
+            },
+            {
+              "feature": "place-order",
+              "title": "Orders must have at least one valid line"
             }
           ]
         },
@@ -786,7 +978,7 @@
           "summary": "Fetch an order",
           "description": "Returns the order's current state by its id.",
           "artifact_path": "openapi/orders.openapi.yaml",
-          "artifact_version": "3.1.0",
+          "artifact_version": "3.2.0",
           "parameters": [
             {
               "name": "order_id",
@@ -832,30 +1024,6 @@
                 "type": "integer",
                 "required": true,
                 "constraints": "\u2265 0"
-              },
-              {
-                "field": "shipping",
-                "type": "object",
-                "required": false,
-                "constraints": ""
-              },
-              {
-                "field": "shipping.address",
-                "type": "object",
-                "required": true,
-                "constraints": ""
-              },
-              {
-                "field": "shipping.address.line_1",
-                "type": "string",
-                "required": true,
-                "constraints": ""
-              },
-              {
-                "field": "shipping.address.postcode",
-                "type": "string",
-                "required": true,
-                "constraints": ""
               }
             ]
           },
@@ -865,6 +1033,16 @@
               "request": null,
               "status": "200",
               "response": "{\n  \"order_id\": \"11111111-1111-1111-1111-111111111111\",\n  \"customer_id\": \"22222222-2222-2222-2222-222222222222\",\n  \"status\": \"placed\",\n  \"total_pence\": 2500\n}"
+            }
+          ],
+          "scenarios": [
+            {
+              "feature": "place-order",
+              "title": "An order can be fetched by its id"
+            },
+            {
+              "feature": "place-order",
+              "title": "Fetching an unknown order returns 404"
             }
           ]
         }
@@ -969,6 +1147,48 @@
               "case": "placed",
               "payload": "{\n  \"specversion\": \"1.0\",\n  \"id\": \"aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa\",\n  \"source\": \"/orders\",\n  \"type\": \"com.hungovercoders.orders.placed.v2\",\n  \"subject\": \"11111111-1111-1111-1111-111111111111\",\n  \"time\": \"2026-08-23T09:00:00Z\",\n  \"datacontenttype\": \"application/json\",\n  \"data\": {\n    \"order_id\": \"11111111-1111-1111-1111-111111111111\",\n    \"customer_id\": \"22222222-2222-2222-2222-222222222222\",\n    \"placed_at\": \"2026-08-23T09:00:00Z\",\n    \"total_pence\": 2500\n  }\n}"
             }
+          ],
+          "scenarios": [
+            {
+              "service": "orders",
+              "feature": "place-order",
+              "title": "A valid order is accepted and its event is guaranteed",
+              "message": "OrderPlaced",
+              "direction": "publishes",
+              "negated": false
+            },
+            {
+              "service": "orders",
+              "feature": "place-order",
+              "title": "The order and its event succeed or fail together",
+              "message": "OrderPlaced",
+              "direction": "publishes",
+              "negated": false
+            },
+            {
+              "service": "orders",
+              "feature": "place-order",
+              "title": "Replaying an idempotency key returns the original order",
+              "message": "OrderPlaced",
+              "direction": "publishes",
+              "negated": true
+            },
+            {
+              "service": "orders",
+              "feature": "place-order",
+              "title": "Order events are CloudEvents envelopes",
+              "message": "OrderPlaced",
+              "direction": "publishes",
+              "negated": false
+            },
+            {
+              "service": "payments",
+              "feature": "settle-payment",
+              "title": "Settlement is anchored to an observed order placement",
+              "message": "OrderPlaced",
+              "direction": "consumes",
+              "negated": false
+            }
           ]
         },
         {
@@ -1056,6 +1276,16 @@
               "case": "cancelled",
               "payload": "{\n  \"specversion\": \"1.0\",\n  \"id\": \"bbbbbbbb-2222-4222-8222-bbbbbbbbbbbb\",\n  \"source\": \"/orders\",\n  \"type\": \"com.hungovercoders.orders.cancelled.v2\",\n  \"subject\": \"33333333-3333-3333-3333-333333333333\",\n  \"time\": \"2026-08-23T09:05:00Z\",\n  \"datacontenttype\": \"application/json\",\n  \"data\": {\n    \"order_id\": \"33333333-3333-3333-3333-333333333333\",\n    \"cancelled_at\": \"2026-08-23T09:05:00Z\",\n    \"reason\": \"customer_request\"\n  }\n}"
             }
+          ],
+          "scenarios": [
+            {
+              "service": "orders",
+              "feature": "place-order",
+              "title": "Cancellation is a CloudEvents envelope too",
+              "message": "OrderCancelled",
+              "direction": "publishes",
+              "negated": false
+            }
           ]
         }
       ],
@@ -1066,7 +1296,7 @@
     {
       "name": "payments",
       "title": "Payments",
-      "version": "3.0.1",
+      "version": "3.2.0",
       "domain": "Commerce",
       "owner": "team-payments",
       "summary": "Authorises and settles payments against orders. Publishes settlement events and a daily reconciliation dataset.",
@@ -1085,7 +1315,7 @@
           "kind": "data-contract",
           "path": "data-contracts/payments-daily.odcs.yaml",
           "stem": "payments-daily.odcs",
-          "version": "1.0.0",
+          "version": "1.1.0",
           "gated": true,
           "summary": "Daily settled-payments table for finance reconciliation.",
           "history": [],
@@ -1094,10 +1324,10 @@
             "kind": "DataContract",
             "id": "payments-daily-settled",
             "name": "Daily settled payments",
-            "version": "1.0.0",
+            "version": "1.1.0",
             "status": "active",
             "domain": "Commerce",
-            "tenant": "hungovecoders",
+            "tenant": "hungovercoders",
             "description": {
               "purpose": "Daily reconciliation of settled payments for finance. One row per settled payment, partitioned by settlement date.\n",
               "usage": "Finance close and chargeback investigation. Not a source for real-time balances \u2014 use the payments service API for that.\n",
@@ -1130,6 +1360,7 @@
                 "logicalType": "object",
                 "physicalName": "payments_daily_settled",
                 "physicalType": "table",
+                "description": "One row per settled payment, partitioned by settlement date.",
                 "context": {
                   "instructions": "Partitioned by settled_at. Treat the most recent three days as provisional: the processor backfills late arrivals up to D+3.\n"
                 },
@@ -1147,13 +1378,15 @@
                     "physicalType": "uuid",
                     "required": true,
                     "unique": true,
-                    "primaryKey": true
+                    "primaryKey": true,
+                    "description": "The settled payment."
                   },
                   {
                     "name": "order_id",
                     "logicalType": "string",
                     "physicalType": "uuid",
                     "required": true,
+                    "description": "The order the payment settles.",
                     "relationships": [
                       {
                         "id": "settles_order",
@@ -1167,6 +1400,7 @@
                     "physicalType": "timestamp",
                     "required": true,
                     "partitioned": true,
+                    "description": "Processor settlement time - the partition key; late arrivals backfill up to D+3.",
                     "semanticType": "dimension",
                     "synonyms": [
                       {
@@ -1179,7 +1413,7 @@
                     "logicalType": "integer",
                     "physicalType": "bigint",
                     "required": true,
-                    "description": "Settled amount in pence.",
+                    "description": "Settled amount in whole pence.",
                     "synonyms": [
                       {
                         "synonym": "settlement amount"
@@ -1227,7 +1461,7 @@
               }
             ]
           },
-          "er_mermaid": "erDiagram\n    payments_daily_settled {\n        string payment_id PK\n        string order_id\n        date settled_at \"partition key\"\n        integer amount_pence \"Settled amount in pence.\"\n    }\n    orders_events_order_placed_events {\n        key order_id \"in orders-events\"\n    }\n    payments_events_payment_settled_events {\n        key payment_id \"in payments-events\"\n    }\n    payments_events_payment_settled_events ||--o{ payments_daily_settled : \"payment_id \u00b7 external\"\n    orders_events_order_placed_events ||--o{ payments_daily_settled : \"order_id \u00b7 external\""
+          "er_mermaid": "erDiagram\n    payments_daily_settled {\n        string payment_id PK \"The settled payment.\"\n        string order_id \"The order the payment settles.\"\n        date settled_at \"Processor settlement time - the partition key; late arrivals ba\u2026\"\n        integer amount_pence \"Settled amount in whole pence.\"\n    }\n    orders_events_order_placed_events {\n        key order_id \"in orders-events\"\n    }\n    payments_events_payment_settled_events {\n        key payment_id \"in payments-events\"\n    }\n    payments_events_payment_settled_events ||--o{ payments_daily_settled : \"payment_id \u00b7 external\"\n    orders_events_order_placed_events ||--o{ payments_daily_settled : \"order_id \u00b7 external\""
         },
         {
           "kind": "data-contract",
@@ -1400,11 +1634,11 @@
           "kind": "feature",
           "path": "features/settle-payment.feature",
           "stem": "settle-payment",
-          "version": "2.0.0",
+          "version": "2.1.0",
           "gated": true,
           "summary": "Acceptance criteria for settlement and reversal handling.",
           "history": [],
-          "text": "Feature: Settling a payment\n  Settlement is terminal. Authorisation is not.\n\n  Scenario: Settlement emits exactly one event\n    Given an authorised payment \"p-1\" for order \"o-1\" of 2500 pence\n    When the processor confirms settlement\n    Then a \"PaymentSettled\" event is published on \"payments.settled.v2\"\n    And the event data amount_pence is 2500\n\n  Scenario: Settlement events are CloudEvents envelopes\n    Given an authorised payment \"p-3\" for order \"o-3\" of 1000 pence\n    When the processor confirms settlement\n    Then a \"PaymentSettled\" event is published on \"payments.settled.v2\"\n    And the envelope carries specversion \"1.0\", a unique id and a time\n    And the envelope source is /payments and its type is com.hungovercoders.payments.settled.v2\n    And the envelope subject is the payment_id, with datacontenttype \"application/json\"\n    And the data carries the payment_id, order_id, settled_at and amount_pence\n    And handlers dedupe on the envelope id\n\n  Scenario: Duplicate settlement callbacks are idempotent\n    Given payment \"p-1\" has already settled\n    When the processor sends the settlement callback again\n    Then no second \"PaymentSettled\" event is published\n\n  Scenario: A reversal after authorisation does not emit settlement\n    Given an authorised payment \"p-2\"\n    When the authorisation is reversed\n    Then no \"PaymentSettled\" event is published for \"p-2\"\n",
+          "text": "Feature: Settling a payment\n  Settlement is terminal. Authorisation is not.\n\n  Scenario: Settlement emits exactly one event\n    Given an authorised payment \"p-1\" for order \"o-1\" of 2500 pence\n    When the processor confirms settlement\n    Then a \"PaymentSettled\" event is published on \"payments.settled.v2\"\n    And the event data amount_pence is 2500\n\n  Scenario: Settlement events are CloudEvents envelopes\n    Given an authorised payment \"p-3\" for order \"o-3\" of 1000 pence\n    When the processor confirms settlement\n    Then a \"PaymentSettled\" event is published on \"payments.settled.v2\"\n    And the envelope carries specversion \"1.0\", a unique id and a time\n    And the envelope source is /payments and its type is com.hungovercoders.payments.settled.v2\n    And the envelope subject is the payment_id, with datacontenttype \"application/json\"\n    And the data carries the payment_id, order_id, settled_at and amount_pence\n    And handlers dedupe on the envelope id\n\n  Scenario: Settlement is anchored to an observed order placement\n    Given an \"OrderPlaced\" event arrived on \"orders.placed.v2\" for order \"o-4\"\n    When the payment for \"o-4\" is authorised and the processor confirms settlement\n    Then the \"PaymentSettled\" event's order_id matches the placed order\n\n  Scenario: Duplicate settlement callbacks are idempotent\n    Given payment \"p-1\" has already settled\n    When the processor sends the settlement callback again\n    Then no second \"PaymentSettled\" event is published\n\n  Scenario: A reversal after authorisation does not emit settlement\n    Given an authorised payment \"p-2\"\n    When the authorisation is reversed\n    Then no \"PaymentSettled\" event is published for \"p-2\"\n",
           "feature": {
             "title": "Settling a payment",
             "description": [
@@ -1435,7 +1669,20 @@
                     "phase": "then",
                     "text": "the event data amount_pence is 2500"
                   }
-                ]
+                ],
+                "refs": {
+                  "operations": [],
+                  "inbound": [],
+                  "outbound": [
+                    {
+                      "channel": "payments.settled.v2",
+                      "message": "PaymentSettled",
+                      "negated": false
+                    }
+                  ],
+                  "statuses": []
+                },
+                "sequence_mermaid": "sequenceDiagram\n    autonumber\n    participant svc as Payments\n    participant c_payments_settled_v2 as payments.settled.v2\n    Note over svc: When the processor confirms settlement\n    svc-)c_payments_settled_v2: PaymentSettled"
               },
               {
                 "title": "Settlement events are CloudEvents envelopes",
@@ -1480,7 +1727,59 @@
                     "phase": "then",
                     "text": "handlers dedupe on the envelope id"
                   }
-                ]
+                ],
+                "refs": {
+                  "operations": [],
+                  "inbound": [],
+                  "outbound": [
+                    {
+                      "channel": "payments.settled.v2",
+                      "message": "PaymentSettled",
+                      "negated": false
+                    }
+                  ],
+                  "statuses": []
+                },
+                "sequence_mermaid": "sequenceDiagram\n    autonumber\n    participant svc as Payments\n    participant c_payments_settled_v2 as payments.settled.v2\n    Note over svc: When the processor confirms settlement\n    svc-)c_payments_settled_v2: PaymentSettled"
+              },
+              {
+                "title": "Settlement is anchored to an observed order placement",
+                "steps": [
+                  {
+                    "keyword": "Given",
+                    "phase": "given",
+                    "text": "an \"OrderPlaced\" event arrived on \"orders.placed.v2\" for order \"o-4\""
+                  },
+                  {
+                    "keyword": "When",
+                    "phase": "when",
+                    "text": "the payment for \"o-4\" is authorised and the processor confirms settlement"
+                  },
+                  {
+                    "keyword": "Then",
+                    "phase": "then",
+                    "text": "the \"PaymentSettled\" event's order_id matches the placed order"
+                  }
+                ],
+                "refs": {
+                  "operations": [],
+                  "inbound": [
+                    {
+                      "channel": "orders.placed.v2",
+                      "message": "OrderPlaced",
+                      "producer": "orders"
+                    }
+                  ],
+                  "outbound": [
+                    {
+                      "channel": "payments.settled.v2",
+                      "message": "PaymentSettled",
+                      "negated": false
+                    }
+                  ],
+                  "statuses": []
+                },
+                "sequence_mermaid": "sequenceDiagram\n    autonumber\n    participant c_orders_placed_v2 as orders.placed.v2\n    participant svc as Payments\n    participant c_payments_settled_v2 as payments.settled.v2\n    c_orders_placed_v2--)svc: OrderPlaced\n    svc-)c_payments_settled_v2: PaymentSettled"
               },
               {
                 "title": "Duplicate settlement callbacks are idempotent",
@@ -1500,7 +1799,20 @@
                     "phase": "then",
                     "text": "no second \"PaymentSettled\" event is published"
                   }
-                ]
+                ],
+                "refs": {
+                  "operations": [],
+                  "inbound": [],
+                  "outbound": [
+                    {
+                      "channel": "payments.settled.v2",
+                      "message": "PaymentSettled",
+                      "negated": true
+                    }
+                  ],
+                  "statuses": []
+                },
+                "sequence_mermaid": "sequenceDiagram\n    autonumber\n    participant svc as Payments\n    participant c_payments_settled_v2 as payments.settled.v2\n    Note over svc: When the processor sends the settlement callback again\n    svc-xc_payments_settled_v2: no PaymentSettled"
               },
               {
                 "title": "A reversal after authorisation does not emit settlement",
@@ -1520,9 +1832,24 @@
                     "phase": "then",
                     "text": "no \"PaymentSettled\" event is published for \"p-2\""
                   }
-                ]
+                ],
+                "refs": {
+                  "operations": [],
+                  "inbound": [],
+                  "outbound": [
+                    {
+                      "channel": "payments.settled.v2",
+                      "message": "PaymentSettled",
+                      "negated": true
+                    }
+                  ],
+                  "statuses": []
+                },
+                "sequence_mermaid": "sequenceDiagram\n    autonumber\n    participant svc as Payments\n    participant c_payments_settled_v2 as payments.settled.v2\n    Note over svc: When the authorisation is reversed\n    svc-xc_payments_settled_v2: no PaymentSettled"
               }
-            ]
+            ],
+            "actor": "Client",
+            "flow_mermaid": "flowchart LR\n    subgraph sg_triggers[\"Triggers\"]\n        ch_in_orders_placed_v2>\"orders.placed.v2\"]\n    end\n    subgraph sg_scenarios[\"Scenarios\"]\n        sc_1(\"Settlement emits exactly one event\")\n        sc_2(\"Settlement events are CloudEvents envelopes\")\n        sc_3(\"Settlement is anchored to an observed order placement\")\n        sc_4(\"Duplicate settlement callbacks are idempotent\")\n        sc_5(\"A reversal after authorisation does not emit settlement\")\n    end\n    subgraph sg_outcomes[\"Outcomes\"]\n        ch_out_payments_settled_v2[[\"payments.settled.v2\"]]\n    end\n    sc_1 -->|\"PaymentSettled\"| ch_out_payments_settled_v2\n    sc_2 -->|\"PaymentSettled\"| ch_out_payments_settled_v2\n    ch_in_orders_placed_v2 -->|\"OrderPlaced\"| sc_3\n    sc_3 -->|\"PaymentSettled\"| ch_out_payments_settled_v2\n    sc_4 -.->|\"no PaymentSettled\"| ch_out_payments_settled_v2\n    sc_5 -.->|\"no PaymentSettled\"| ch_out_payments_settled_v2\n    click ch_in_orders_placed_v2 \"../../orders/orders.asyncapi/#orders-placed-v2\"\n    click sc_1 \"#settlement-emits-exactly-one-event\"\n    click sc_2 \"#settlement-events-are-cloudevents-envelopes\"\n    click sc_3 \"#settlement-is-anchored-to-an-observed-order-placement\"\n    click sc_4 \"#duplicate-settlement-callbacks-are-idempotent\"\n    click sc_5 \"#a-reversal-after-authorisation-does-not-emit-settlement\"\n    click ch_out_payments_settled_v2 \"../payments.asyncapi/#payments-settled-v2\""
           }
         }
       ],
@@ -1637,6 +1964,56 @@
               "case": "settled",
               "payload": "{\n  \"specversion\": \"1.0\",\n  \"id\": \"cccccccc-3333-4333-8333-cccccccccccc\",\n  \"source\": \"/payments\",\n  \"type\": \"com.hungovercoders.payments.settled.v2\",\n  \"subject\": \"44444444-4444-4444-4444-444444444444\",\n  \"time\": \"2026-08-23T09:01:30Z\",\n  \"datacontenttype\": \"application/json\",\n  \"data\": {\n    \"payment_id\": \"44444444-4444-4444-4444-444444444444\",\n    \"order_id\": \"11111111-1111-1111-1111-111111111111\",\n    \"settled_at\": \"2026-08-23T09:01:30Z\",\n    \"amount_pence\": 2500\n  }\n}"
             }
+          ],
+          "scenarios": [
+            {
+              "service": "payments",
+              "feature": "settle-payment",
+              "title": "Settlement emits exactly one event",
+              "message": "PaymentSettled",
+              "direction": "publishes",
+              "negated": false
+            },
+            {
+              "service": "payments",
+              "feature": "settle-payment",
+              "title": "Settlement events are CloudEvents envelopes",
+              "message": "PaymentSettled",
+              "direction": "publishes",
+              "negated": false
+            },
+            {
+              "service": "payments",
+              "feature": "settle-payment",
+              "title": "Settlement is anchored to an observed order placement",
+              "message": "PaymentSettled",
+              "direction": "publishes",
+              "negated": false
+            },
+            {
+              "service": "payments",
+              "feature": "settle-payment",
+              "title": "Duplicate settlement callbacks are idempotent",
+              "message": "PaymentSettled",
+              "direction": "publishes",
+              "negated": true
+            },
+            {
+              "service": "payments",
+              "feature": "settle-payment",
+              "title": "A reversal after authorisation does not emit settlement",
+              "message": "PaymentSettled",
+              "direction": "publishes",
+              "negated": true
+            },
+            {
+              "service": "orders",
+              "feature": "place-order",
+              "title": "A settled payment marks the order paid",
+              "message": "PaymentSettled",
+              "direction": "consumes",
+              "negated": false
+            }
           ]
         }
       ],
@@ -1662,5 +2039,251 @@
       "channel": "orders.cancelled.v2",
       "producer": "orders"
     }
-  ]
+  ],
+  "flows": {
+    "journeys": [
+      {
+        "id": "orders:place-order:1>payments:settle-payment:3>orders:place-order:8",
+        "title": "placeOrder \u2192 OrderPlaced \u2192 PaymentSettled",
+        "services": [
+          "orders",
+          "payments"
+        ],
+        "steps": [
+          {
+            "service": "orders",
+            "feature": "place-order",
+            "index": 1,
+            "scenario": "A valid order is accepted and its event is guaranteed",
+            "trigger": {
+              "op_id": "placeOrder"
+            },
+            "inbound": null,
+            "outbound": [
+              {
+                "channel": "orders.placed.v2",
+                "message": "OrderPlaced"
+              }
+            ]
+          },
+          {
+            "service": "payments",
+            "feature": "settle-payment",
+            "index": 3,
+            "scenario": "Settlement is anchored to an observed order placement",
+            "trigger": null,
+            "inbound": {
+              "channel": "orders.placed.v2",
+              "message": "OrderPlaced"
+            },
+            "outbound": [
+              {
+                "channel": "payments.settled.v2",
+                "message": "PaymentSettled"
+              }
+            ]
+          },
+          {
+            "service": "orders",
+            "feature": "place-order",
+            "index": 8,
+            "scenario": "A settled payment marks the order paid",
+            "trigger": null,
+            "inbound": {
+              "channel": "payments.settled.v2",
+              "message": "PaymentSettled"
+            },
+            "outbound": []
+          }
+        ],
+        "sequence_mermaid": "sequenceDiagram\n    autonumber\n    participant client as Customer\n    participant s_orders as Orders\n    participant c_orders_placed_v2 as orders.placed.v2\n    participant s_payments as Payments\n    participant c_payments_settled_v2 as payments.settled.v2\n    Note over s_orders: A valid order is accepted and its event is guaranteed\n    client->>s_orders: POST /orders \u00b7 placeOrder\n    s_orders-->>client: 201\n    s_orders-)c_orders_placed_v2: OrderPlaced\n    c_orders_placed_v2--)s_payments: OrderPlaced\n    Note over s_payments: Settlement is anchored to an observed order placement\n    s_payments-)c_payments_settled_v2: PaymentSettled\n    c_payments_settled_v2--)s_orders: PaymentSettled\n    Note over s_orders: A settled payment marks the order paid"
+      },
+      {
+        "id": "orders:place-order:2>payments:settle-payment:3>orders:place-order:8",
+        "title": "placeOrder \u2192 OrderPlaced \u2192 PaymentSettled",
+        "services": [
+          "orders",
+          "payments"
+        ],
+        "steps": [
+          {
+            "service": "orders",
+            "feature": "place-order",
+            "index": 2,
+            "scenario": "The order and its event succeed or fail together",
+            "trigger": {
+              "op_id": "placeOrder"
+            },
+            "inbound": null,
+            "outbound": [
+              {
+                "channel": "orders.placed.v2",
+                "message": "OrderPlaced"
+              }
+            ]
+          },
+          {
+            "service": "payments",
+            "feature": "settle-payment",
+            "index": 3,
+            "scenario": "Settlement is anchored to an observed order placement",
+            "trigger": null,
+            "inbound": {
+              "channel": "orders.placed.v2",
+              "message": "OrderPlaced"
+            },
+            "outbound": [
+              {
+                "channel": "payments.settled.v2",
+                "message": "PaymentSettled"
+              }
+            ]
+          },
+          {
+            "service": "orders",
+            "feature": "place-order",
+            "index": 8,
+            "scenario": "A settled payment marks the order paid",
+            "trigger": null,
+            "inbound": {
+              "channel": "payments.settled.v2",
+              "message": "PaymentSettled"
+            },
+            "outbound": []
+          }
+        ],
+        "sequence_mermaid": "sequenceDiagram\n    autonumber\n    participant client as Customer\n    participant s_orders as Orders\n    participant c_orders_placed_v2 as orders.placed.v2\n    participant s_payments as Payments\n    participant c_payments_settled_v2 as payments.settled.v2\n    Note over s_orders: The order and its event succeed or fail together\n    client->>s_orders: POST /orders \u00b7 placeOrder\n    s_orders-->>client: 201\n    s_orders-)c_orders_placed_v2: OrderPlaced\n    c_orders_placed_v2--)s_payments: OrderPlaced\n    Note over s_payments: Settlement is anchored to an observed order placement\n    s_payments-)c_payments_settled_v2: PaymentSettled\n    c_payments_settled_v2--)s_orders: PaymentSettled\n    Note over s_orders: A settled payment marks the order paid"
+      },
+      {
+        "id": "orders:place-order:5>payments:settle-payment:3>orders:place-order:8",
+        "title": "OrderPlaced \u2192 PaymentSettled",
+        "services": [
+          "orders",
+          "payments"
+        ],
+        "steps": [
+          {
+            "service": "orders",
+            "feature": "place-order",
+            "index": 5,
+            "scenario": "Order events are CloudEvents envelopes",
+            "trigger": null,
+            "inbound": null,
+            "outbound": [
+              {
+                "channel": "orders.placed.v2",
+                "message": "OrderPlaced"
+              }
+            ]
+          },
+          {
+            "service": "payments",
+            "feature": "settle-payment",
+            "index": 3,
+            "scenario": "Settlement is anchored to an observed order placement",
+            "trigger": null,
+            "inbound": {
+              "channel": "orders.placed.v2",
+              "message": "OrderPlaced"
+            },
+            "outbound": [
+              {
+                "channel": "payments.settled.v2",
+                "message": "PaymentSettled"
+              }
+            ]
+          },
+          {
+            "service": "orders",
+            "feature": "place-order",
+            "index": 8,
+            "scenario": "A settled payment marks the order paid",
+            "trigger": null,
+            "inbound": {
+              "channel": "payments.settled.v2",
+              "message": "PaymentSettled"
+            },
+            "outbound": []
+          }
+        ],
+        "sequence_mermaid": "sequenceDiagram\n    autonumber\n    participant s_orders as Orders\n    participant c_orders_placed_v2 as orders.placed.v2\n    participant s_payments as Payments\n    participant c_payments_settled_v2 as payments.settled.v2\n    Note over s_orders: Order events are CloudEvents envelopes\n    s_orders-)c_orders_placed_v2: OrderPlaced\n    c_orders_placed_v2--)s_payments: OrderPlaced\n    Note over s_payments: Settlement is anchored to an observed order placement\n    s_payments-)c_payments_settled_v2: PaymentSettled\n    c_payments_settled_v2--)s_orders: PaymentSettled\n    Note over s_orders: A settled payment marks the order paid"
+      },
+      {
+        "id": "payments:settle-payment:1>orders:place-order:8",
+        "title": "PaymentSettled",
+        "services": [
+          "payments",
+          "orders"
+        ],
+        "steps": [
+          {
+            "service": "payments",
+            "feature": "settle-payment",
+            "index": 1,
+            "scenario": "Settlement emits exactly one event",
+            "trigger": null,
+            "inbound": null,
+            "outbound": [
+              {
+                "channel": "payments.settled.v2",
+                "message": "PaymentSettled"
+              }
+            ]
+          },
+          {
+            "service": "orders",
+            "feature": "place-order",
+            "index": 8,
+            "scenario": "A settled payment marks the order paid",
+            "trigger": null,
+            "inbound": {
+              "channel": "payments.settled.v2",
+              "message": "PaymentSettled"
+            },
+            "outbound": []
+          }
+        ],
+        "sequence_mermaid": "sequenceDiagram\n    autonumber\n    participant s_payments as Payments\n    participant c_payments_settled_v2 as payments.settled.v2\n    participant s_orders as Orders\n    Note over s_payments: Settlement emits exactly one event\n    s_payments-)c_payments_settled_v2: PaymentSettled\n    c_payments_settled_v2--)s_orders: PaymentSettled\n    Note over s_orders: A settled payment marks the order paid"
+      },
+      {
+        "id": "payments:settle-payment:2>orders:place-order:8",
+        "title": "PaymentSettled",
+        "services": [
+          "payments",
+          "orders"
+        ],
+        "steps": [
+          {
+            "service": "payments",
+            "feature": "settle-payment",
+            "index": 2,
+            "scenario": "Settlement events are CloudEvents envelopes",
+            "trigger": null,
+            "inbound": null,
+            "outbound": [
+              {
+                "channel": "payments.settled.v2",
+                "message": "PaymentSettled"
+              }
+            ]
+          },
+          {
+            "service": "orders",
+            "feature": "place-order",
+            "index": 8,
+            "scenario": "A settled payment marks the order paid",
+            "trigger": null,
+            "inbound": {
+              "channel": "payments.settled.v2",
+              "message": "PaymentSettled"
+            },
+            "outbound": []
+          }
+        ],
+        "sequence_mermaid": "sequenceDiagram\n    autonumber\n    participant s_payments as Payments\n    participant c_payments_settled_v2 as payments.settled.v2\n    participant s_orders as Orders\n    Note over s_payments: Settlement events are CloudEvents envelopes\n    s_payments-)c_payments_settled_v2: PaymentSettled\n    c_payments_settled_v2--)s_orders: PaymentSettled\n    Note over s_orders: A settled payment marks the order paid"
+      }
+    ],
+    "truncated": false,
+    "graph_mermaid": "flowchart LR\n    http_orders_placeOrder[\"POST /orders \u00b7 placeOrder\"]\n    subgraph sg_orders[\"Orders\"]\n        sc_orders_place_order_1(\"A valid order is accepted and its event is guaranteed\")\n        sc_orders_place_order_2(\"The order and its event succeed or fail together\")\n        sc_orders_place_order_5(\"Order events are CloudEvents envelopes\")\n        sc_orders_place_order_8(\"A settled payment marks the order paid\")\n    end\n    subgraph sg_payments[\"Payments\"]\n        sc_payments_settle_payment_1(\"Settlement emits exactly one event\")\n        sc_payments_settle_payment_2(\"Settlement events are CloudEvents envelopes\")\n        sc_payments_settle_payment_3(\"Settlement is anchored to an observed order placement\")\n    end\n    http_orders_placeOrder --> sc_orders_place_order_1\n    http_orders_placeOrder --> sc_orders_place_order_2\n    sc_orders_place_order_1 -->|\"OrderPlaced\"| sc_payments_settle_payment_3\n    sc_orders_place_order_2 -->|\"OrderPlaced\"| sc_payments_settle_payment_3\n    sc_orders_place_order_5 -->|\"OrderPlaced\"| sc_payments_settle_payment_3\n    sc_payments_settle_payment_1 -->|\"PaymentSettled\"| sc_orders_place_order_8\n    sc_payments_settle_payment_2 -->|\"PaymentSettled\"| sc_orders_place_order_8\n    sc_payments_settle_payment_3 -->|\"PaymentSettled\"| sc_orders_place_order_8\n    click http_orders_placeOrder \"../services/orders/orders.openapi/#placeOrder\"\n    click sc_orders_place_order_1 \"../services/orders/features/#a-valid-order-is-accepted-and-its-event-is-guaranteed\"\n    click sc_orders_place_order_2 \"../services/orders/features/#the-order-and-its-event-succeed-or-fail-together\"\n    click sc_orders_place_order_5 \"../services/orders/features/#order-events-are-cloudevents-envelopes\"\n    click sc_orders_place_order_8 \"../services/orders/features/#a-settled-payment-marks-the-order-paid\"\n    click sc_payments_settle_payment_1 \"../services/payments/features/#settlement-emits-exactly-one-event\"\n    click sc_payments_settle_payment_2 \"../services/payments/features/#settlement-events-are-cloudevents-envelopes\"\n    click sc_payments_settle_payment_3 \"../services/payments/features/#settlement-is-anchored-to-an-observed-order-placement\""
+  }
 }

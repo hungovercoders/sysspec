@@ -5,15 +5,29 @@ import { Code } from 'astro:components';
 import { marked } from 'marked';
 import AsyncApi from '../../../components/AsyncApi.astro';
 import ContractOfRecord from '../../../components/ContractOfRecord.astro';
+import FeatureFlowMap from '../../../components/FeatureFlowMap.astro';
 import GherkinSteps from '../../../components/GherkinSteps.astro';
+import type { StepLinks } from '../../../components/GherkinSteps.astro';
 import Mermaid from '../../../components/Mermaid.astro';
 import OdcsContract from '../../../components/OdcsContract.astro';
 import OpenApi from '../../../components/OpenApi.astro';
 import ParamsTable from '../../../components/ParamsTable.astro';
+import ScenarioFlow from '../../../components/ScenarioFlow.astro';
+import ScenarioLinks from '../../../components/ScenarioLinks.astro';
 import SchemaTable from '../../../components/SchemaTable.astro';
 import SpecPanel from '../../../components/SpecPanel.astro';
-import { anchor, artifactUrl, serviceByName, services, slug, withBase } from '../../../lib/specs';
-import type { Artifact, Service } from '../../../lib/specs';
+import {
+  anchor,
+  artifactUrl,
+  channelHref,
+  messageHref,
+  operationHref,
+  serviceByName,
+  services,
+  slug,
+  withBase,
+} from '../../../lib/specs';
+import type { Artifact, Scenario, Service } from '../../../lib/specs';
 
 export function getStaticPaths() {
   const paths = [];
@@ -89,6 +103,23 @@ const artifactOps =
   artifact?.kind === 'openapi'
     ? service.operations.filter((o) => o.artifact_path === artifact.path)
     : [];
+
+// Where each name a scenario uses resolves to, from the references the
+// catalog drew for it: a step links exactly what the diagrams link.
+const stepLinks = (sc: Scenario): StepLinks => {
+  const links: StepLinks = { messages: {}, channels: {}, operations: {} };
+  for (const ref of [...sc.refs.inbound, ...sc.refs.outbound]) {
+    const channel = channelHref(ref.channel);
+    if (channel) links.channels[ref.channel] = channel;
+    const message = ref.message ? messageHref(ref.channel, ref.message) : null;
+    if (ref.message && message) links.messages[ref.message] = message;
+  }
+  for (const op of sc.refs.operations) {
+    const href = operationHref(service.name, op.op_id);
+    if (href) links.operations[op.op_id] = href;
+  }
+  return links;
+};
 
 const prettyJson = (payload: unknown): string => {
   try {
@@ -195,6 +226,7 @@ const description = changelog
           </p>
           <SpecPanel service={service} artifact={a} />
           {f.description.length > 0 && <p>{f.description.join(' ')}</p>}
+          <FeatureFlowMap feature={f} />
           {f.background.length > 0 && (
             <Aside type="note" title="Background">
               <GherkinSteps steps={f.background} />
@@ -204,7 +236,8 @@ const description = changelog
             <>
               <h3 id={slug(sc.title)}>{sc.title}</h3>
               <div class="sc-scenario">
-                <GherkinSteps steps={sc.steps} />
+                <GherkinSteps steps={sc.steps} links={stepLinks(sc)} />
+                <ScenarioFlow scenario={sc} />
               </div>
             </>
           ))}
@@ -260,6 +293,7 @@ const description = changelog
           <SchemaTable rows={o.response_body.rows} />
         </>
       )}
+      <ScenarioLinks service={service.name} scenarios={o.scenarios} />
       {o.examples.length > 0 && (
         <details>
           <summary>Examples (Microcks fixtures)</summary>
@@ -304,6 +338,7 @@ const description = changelog
         )}
       </p>
       <Mermaid chart={c.sequence_mermaid} />
+      <ScenarioLinks scenarios={c.scenarios} />
       {c.messages.map((m) => (
         <div class="sc-message">
           <h3 id={anchor(`${c.address}-${m.name}`)}>{m.name}</h3>

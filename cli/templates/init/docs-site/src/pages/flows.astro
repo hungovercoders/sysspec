@@ -1,0 +1,130 @@
+---
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import Mermaid from '../components/Mermaid.astro';
+import {
+  channelHref,
+  flows,
+  messageHref,
+  operationHref,
+  scenarioHref,
+  serviceByName,
+  slug,
+  system,
+  withBase,
+} from '../lib/specs';
+
+// Journeys are scenarios chained across services by the messages they
+// publish and consume - the business flows the specs already state,
+// derived by `sysspec docs data` from the names each scenario uses.
+// Nothing here is authored: a flow appears the moment one service's
+// scenario publishes what another service's scenario consumes.
+const { journeys, truncated, graph_mermaid } = flows;
+const serviceTitle = (name: string) => serviceByName[name]?.title ?? name;
+
+const headings = [
+  ...journeys.map((j, i) => ({ depth: 2, slug: slug(j.id), text: `${i + 1}. ${j.title}` })),
+  ...(graph_mermaid ? [{ depth: 2, slug: 'scenario-graph', text: 'Scenario graph' }] : []),
+];
+---
+<StarlightPage
+  frontmatter={{
+    title: 'Business flows',
+    description: `What ${system.title} does end to end, as its acceptance criteria state it.`,
+  }}
+  headings={headings}
+>
+  <p>
+    Each flow below is a chain of scenarios across services: one service's
+    scenario publishes an event, another's consumes it and publishes the
+    next. They are read from the acceptance criteria, not written for this
+    page, so a flow is exactly as true as the scenarios that make it up.
+    Every step links to the scenario and the contract it exercises.
+  </p>
+
+  {journeys.length === 0 && (
+    <p class="sc-notice">
+      No scenario in these specs yet consumes what another service's
+      scenario publishes, so there is no cross-service flow to draw. A flow
+      appears as soon as one does: name the inbound event in a scenario of
+      the consuming service, as <code>Given an "OrderPlaced" event arrived
+      on "orders.placed.v2"</code>.
+    </p>
+  )}
+
+  {truncated && (
+    <p class="sc-notice">
+      These specs chain into more flows than the catalog draws; the first
+      {journeys.length} are shown. The remaining chains are variations of
+      these through other scenarios.
+    </p>
+  )}
+
+  {journeys.map((j, i) => (
+    <section class="sc-journey">
+      <h2 id={slug(j.id)}>{i + 1}. {j.title}</h2>
+      <p class="sc-row-note">
+        {j.services.map((s, k) => (
+          <>
+            {k > 0 && ' → '}
+            <a href={withBase(`/services/${s}/`)}>{serviceTitle(s)}</a>
+          </>
+        ))}
+        {' '}· {j.steps.length} scenarios
+      </p>
+      <ol class="sc-journey-steps">
+        {j.steps.map((step) => {
+          const op = step.trigger ? operationHref(step.service, step.trigger.op_id) : null;
+          return (
+            <li>
+              <a href={scenarioHref(step.service, step.scenario)}>{step.scenario}</a>
+              <span class="sc-row-note">
+                {serviceTitle(step.service)}
+                {step.trigger && (
+                  <>
+                    {' '}· called via{' '}
+                    {op ? <a href={op}><code>{step.trigger.op_id}</code></a> : <code>{step.trigger.op_id}</code>}
+                  </>
+                )}
+                {step.inbound && (
+                  <>
+                    {' '}· on{' '}
+                    <a href={messageHref(step.inbound.channel, step.inbound.message) ?? channelHref(step.inbound.channel) ?? '#'}>
+                      <code>{step.inbound.message}</code>
+                    </a>
+                  </>
+                )}
+                {step.outbound.length > 0 && (
+                  <>
+                    {' '}· publishes{' '}
+                    {step.outbound.map((o, k) => (
+                      <>
+                        {k > 0 && ', '}
+                        <a href={(o.message ? messageHref(o.channel, o.message) : null) ?? channelHref(o.channel) ?? '#'}>
+                          <code>{o.message ?? o.channel}</code>
+                        </a>
+                      </>
+                    ))}
+                  </>
+                )}
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+      <Mermaid chart={j.sequence_mermaid} />
+    </section>
+  ))}
+
+  {graph_mermaid && (
+    <>
+      <h2 id="scenario-graph">Scenario graph</h2>
+      <p class="sc-graph-hint">
+        Every scenario that hands over to another service, grouped by
+        service, with the message that carries each hand-over. Scenarios
+        that stay inside one service are on that service's own page.
+        Click a node to open it.
+      </p>
+      <Mermaid chart={graph_mermaid} />
+    </>
+  )}
+</StarlightPage>

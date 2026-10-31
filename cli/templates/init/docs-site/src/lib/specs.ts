@@ -21,6 +21,8 @@ export interface Operation {
   responses: { status: string; description: string }[];
   response_body: { status: string; rows: SchemaRow[] } | null;
   examples: { case: string; request: string | null; status: string | null; response: string | null }[];
+  /** Scenarios that name this operation, or assert a status only it answers. */
+  scenarios: { feature: string; title: string }[];
 }
 
 export interface ChannelMessage {
@@ -42,6 +44,17 @@ export interface Channel {
   sequence_mermaid: string;
   messages: ChannelMessage[];
   examples: { case: string; payload: string }[];
+  /** Scenarios that publish to or consume from this channel, anywhere in the suite. */
+  scenarios: ChannelScenario[];
+}
+
+export interface ChannelScenario {
+  service: string;
+  feature: string;
+  title: string;
+  message: string | null;
+  direction: 'publishes' | 'consumes';
+  negated: boolean;
 }
 
 export interface Release {
@@ -84,11 +97,62 @@ export interface GherkinStep {
   prose?: string;
 }
 
+/** What a scenario does to the contract, read from the names it uses:
+ * the operations it calls, the events it consumes and publishes (a
+ * negated one is asserted *not* to be published), and the statuses it
+ * expects. Direction comes from the service's produces/consumes. */
+export interface ScenarioRefs {
+  operations: { op_id: string; via: 'name' | 'status' }[];
+  inbound: { channel: string; message: string | null; producer: string | null }[];
+  outbound: { channel: string; message: string | null; negated: boolean }[];
+  statuses: string[];
+}
+
+export interface Scenario {
+  title: string;
+  steps: GherkinStep[];
+  refs: ScenarioRefs;
+  /** The scenario as a sequence diagram; null when it names no contract. */
+  sequence_mermaid: string | null;
+}
+
 export interface Feature {
   title: string;
   description: string[];
+  /** Who the feature speaks for (its `As a` line), else Client. */
+  actor: string;
   background: GherkinStep[];
-  scenarios: { title: string; steps: GherkinStep[] }[];
+  scenarios: Scenario[];
+  /** Triggers → scenarios → outcomes, as a flowchart; null without scenarios. */
+  flow_mermaid: string | null;
+}
+
+export interface JourneyStep {
+  service: string;
+  feature: string;
+  index: number;
+  scenario: string;
+  trigger: { op_id: string } | null;
+  inbound: { channel: string; message: string } | null;
+  outbound: { channel: string; message: string | null }[];
+}
+
+/** Scenarios chained across services by the messages they publish and
+ * consume: an end-to-end business flow the specs already state. */
+export interface Journey {
+  id: string;
+  title: string;
+  services: string[];
+  steps: JourneyStep[];
+  sequence_mermaid: string;
+}
+
+export interface Flows {
+  journeys: Journey[];
+  /** True when the suite has more journeys than the catalog draws. */
+  truncated: boolean;
+  /** Every scenario on a cross-service edge, as one graph; null without edges. */
+  graph_mermaid: string | null;
 }
 
 export interface Service {
@@ -135,6 +199,11 @@ export const system = (data as { system?: System }).system ?? {
 };
 
 export const services = data.services as Service[];
+export const flows = ((data as { flows?: Flows }).flows ?? {
+  journeys: [],
+  truncated: false,
+  graph_mermaid: null,
+}) as Flows;
 export const edges = data.edges as { from: string; channel: string; to: string }[];
 export const unconsumed = data.unconsumed as { channel: string; producer: string }[];
 
@@ -192,6 +261,26 @@ export const artifactPage = (service: string, artifact: Artifact) =>
   artifact.kind === 'feature'
     ? withBase(`/services/${service}/features/`)
     : withBase(`/services/${service}/${artifact.stem}/`);
+
+/** A scenario's heading on its service's acceptance-criteria page. */
+export const scenarioHref = (service: string, title: string) =>
+  withBase(`/services/${service}/features/#${slug(title)}`);
+
+/** An operation's section on its service's rendered OpenAPI page, or
+ * null when the service has no OpenAPI artifact to render it on. */
+export const operationHref = (service: string, opId: string) => {
+  const openapi = serviceByName[service]?.artifacts.find((a) => a.kind === 'openapi');
+  return openapi ? `${artifactPage(service, openapi)}#${anchor(opId)}` : null;
+};
+
+/** A message's section under its channel on the producer's page. */
+export const messageHref = (address: string, message: string) => {
+  const producer = channelProducers[address];
+  const channel = producer?.channels.find((c) => c.address === address);
+  const stem = channel?.artifact_path.split('/').pop()?.replace(/\.[^.]+$/, '');
+  if (!producer || !stem) return null;
+  return withBase(`/services/${producer.name}/${stem}/#${anchor(`${address}-${message}`)}`);
+};
 
 /** Link target for a channel: its section on the producer's rendered
  * AsyncAPI page. */

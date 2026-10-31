@@ -1,0 +1,33 @@
+---
+// A feature's scenarios between what triggers them and what they lead
+// to, drawn by `sysspec docs data` from the names the scenarios use.
+// Nodes link to the contract sections and the scenario headings below.
+import Mermaid from './Mermaid.astro';
+import type { Feature } from '../lib/specs';
+
+interface Props {
+  feature: Feature;
+}
+const { feature } = Astro.props;
+const linked = feature.scenarios.filter(
+  (sc) =>
+    sc.refs.operations.length + sc.refs.inbound.length + sc.refs.outbound.length + sc.refs.statuses.length > 0,
+).length;
+const orphans = feature.scenarios.length - linked;
+---
+{feature.flow_mermaid && (
+  <div class="sc-flow-map">
+    <p class="sc-graph-hint">
+      What triggers each scenario and what it leads to, read from the
+      operations, channels, messages and statuses the scenarios name.
+      {orphans > 0 && (
+        <>
+          {' '}{orphans} scenario{orphans === 1 ? '' : 's'} name{orphans === 1 ? 's' : ''} no contract element and
+          {orphans === 1 ? ' stands' : ' stand'} alone.
+        </>
+      )}
+      {' '}Click a node to jump to it.
+    </p>
+    <Mermaid chart={feature.flow_mermaid} />
+  </div>
+)}
