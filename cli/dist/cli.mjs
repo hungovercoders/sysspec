@@ -260,6 +260,12 @@ function pyRepr(v) {
 function pySorted(items) {
   return [...items].sort((a, b) => a < b ? -1 : a > b ? 1 : 0);
 }
+function findAll(re, text) {
+  return new Set([...text.matchAll(re)].map((m) => m[1]));
+}
+function slug(text) {
+  return text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+}
 function isFile(p) {
   try {
     return statSync(p).isFile();
@@ -282,7 +288,7 @@ function serviceDirs(specsDir) {
   if (!isDir(specsDir)) return [];
   return readdirSync(specsDir).sort().map((d) => path.join(specsDir, d)).filter((d) => isFile(path.join(d, "service.yaml")));
 }
-var Exit, LOOSE_RE, ORG_RE;
+var Exit, LOOSE_RE, ORG_RE, MESSAGE_RE, CHANNEL_RE;
 var init_util = __esm({
   "src/util.ts"() {
     "use strict";
@@ -293,6 +299,8 @@ var init_util = __esm({
     };
     LOOSE_RE = /^v?(\d+(?:\.\d+)*)(?:[-._]?(a|alpha|b|beta|c|rc|pre|preview)[-._]?(\d*))?(?:[-._]?(post|rev|r)[-._]?(\d*))?(?:[-._]?(dev)[-._]?(\d*))?$/i;
     ORG_RE = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/;
+    MESSAGE_RE = /"([A-Z][a-z0-9]*(?:[A-Z][a-z0-9]*)+)"/g;
+    CHANNEL_RE = /"([a-z0-9]+(?:\.[a-z0-9-]+)*\.v\d+)"/g;
   }
 });
 
@@ -7637,6 +7645,468 @@ var init_pins = __esm({
   }
 });
 
+// src/flows.ts
+function escapeRe(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+function negatedIn(text, message) {
+  return new RegExp(`\\bno(?:\\s+\\w+)?\\s+"${escapeRe(message)}"`).test(text);
+}
+function featureActor(description) {
+  for (const line of description) {
+    const m = line.trim().match(/^As an?\s+(.+?)[,.]?$/i);
+    if (m) return m[1].charAt(0).toUpperCase() + m[1].slice(1);
+  }
+  return "Client";
+}
+function extractRefs(steps, ctx) {
+  const events = [];
+  const ops = /* @__PURE__ */ new Map();
+  const inbound = /* @__PURE__ */ new Map();
+  const outbound = /* @__PURE__ */ new Map();
+  const statuses = [];
+  const produces = new Set(ctx.produces);
+  const consumes = new Set(ctx.consumes);
+  let cause = null;
+  const addOp = (op, phase) => {
+    const seen = ops.get(op.op_id);
+    if (seen) {
+      if (seen.via === "status" && op.via === "name") seen.via = "name";
+      return;
+    }
+    ops.set(op.op_id, op);
+    events.push({ kind: "op", phase, op });
+  };
+  const addMessage = (channel, message, text, phase) => {
+    const key = `${channel}\0${message ?? ""}`;
+    if (produces.has(channel)) {
+      const negated = message !== null && negatedIn(text, message);
+      const seen = outbound.get(key);
+      if (seen) {
+        if (!negated) seen.negated = false;
+        return;
+      }
+      const ref = { channel, message, negated };
+      outbound.set(key, ref);
+      events.push({ kind: "out", phase, ref });
+    } else if (consumes.has(channel)) {
+      if (inbound.has(key)) return;
+      const ref = {
+        channel,
+        message,
+        producer: ctx.channelProducer.get(channel) ?? null
+      };
+      inbound.set(key, ref);
+      events.push({ kind: "in", phase, ref });
+    }
+  };
+  for (const step of steps) {
+    const text = step.text;
+    if (typeof text !== "string") continue;
+    const phase = step.phase ?? "given";
+    if (cause === null && phase === "when") cause = `${step.keyword} ${text}`;
+    for (const op of ctx.ops) {
+      if (new RegExp(`\\b${escapeRe(op.op_id)}\\b`).test(text)) {
+        addOp({ op_id: op.op_id, via: "name" }, phase);
+      }
+    }
+    const quotedChannels = [...text.matchAll(CHANNEL_RE)].map((m) => m[1]);
+    const claimed = /* @__PURE__ */ new Set();
+    for (const m of text.matchAll(MESSAGE_RE)) {
+      const message = m[1];
+      const channel = ctx.messageChannel.get(message);
+      if (!channel) continue;
+      claimed.add(channel);
+      addMessage(channel, message, text, phase);
+    }
+    for (const channel of quotedChannels) {
+      if (claimed.has(channel)) continue;
+      addMessage(channel, null, text, phase);
+    }
+    for (const m of text.matchAll(STATUS_RE)) {
+      const status = m[1];
+      if (!statuses.includes(status)) {
+        statuses.push(status);
+        events.push({ kind: "status", phase, status });
+      }
+      const answering = ctx.ops.filter((op) => op.statuses.includes(status));
+      if (answering.length === 1) addOp({ op_id: answering[0].op_id, via: "status" }, phase);
+    }
+  }
+  const inferred = events.filter((e) => e.kind === "op" && e.op.via === "status");
+  if (inferred.length) {
+    const rest = events.filter((e) => !inferred.includes(e));
+    let at = rest.findIndex((e) => e.phase !== "given");
+    if (at === -1) at = rest.length;
+    events.splice(0, events.length, ...rest.slice(0, at), ...inferred, ...rest.slice(at));
+  }
+  const refs = {
+    operations: events.filter((e) => e.kind === "op").map((e) => e.op),
+    inbound: events.filter((e) => e.kind === "in").map((e) => e.ref),
+    outbound: events.filter((e) => e.kind === "out").map((e) => e.ref),
+    statuses
+  };
+  const hasTrigger = refs.operations.length > 0 || refs.inbound.length > 0;
+  const hasRefs = hasTrigger || refs.outbound.length > 0 || statuses.length > 0;
+  return { refs, events, cause: hasRefs && !hasTrigger ? cause : null };
+}
+function noteText(text, max = 80) {
+  const label = mermaidLabel(text);
+  return label.length > max ? label.slice(0, max - 1).trimEnd() + "\u2026" : label;
+}
+function scenarioSequence(extraction, ctx) {
+  const { refs, events, cause } = extraction;
+  const hasRefs = refs.operations.length + refs.inbound.length + refs.outbound.length + refs.statuses.length > 0;
+  if (!hasRefs) return [];
+  const opsById = new Map(ctx.ops.map((op) => [op.op_id, op]));
+  const client = refs.operations.length > 0 || refs.statuses.length > 0;
+  const lines = ["```mermaid", "sequenceDiagram", "    autonumber"];
+  if (client) lines.push(`    participant client as ${mermaidLabel(ctx.actor)}`);
+  for (const ref of refs.inbound) {
+    lines.push(`    participant ${chanId(ref.channel)} as ${mermaidLabel(ref.channel)}`);
+  }
+  lines.push(`    participant svc as ${mermaidLabel(ctx.title)}`);
+  for (const ref of refs.outbound) {
+    lines.push(`    participant ${chanId(ref.channel)} as ${mermaidLabel(ref.channel)}`);
+  }
+  if (cause) lines.push(`    Note over svc: ${noteText(cause)}`);
+  for (const e of events) {
+    if (e.kind === "op") {
+      const op = opsById.get(e.op.op_id);
+      lines.push(`    client->>svc: ${op ? opLabel(op) : mermaidLabel(e.op.op_id)}`);
+    } else if (e.kind === "status") {
+      lines.push(`    svc-->>client: ${e.status}`);
+    } else if (e.kind === "in") {
+      lines.push(`    ${chanId(e.ref.channel)}--)svc: ${mermaidLabel(e.ref.message ?? "event")}`);
+    } else if (e.ref.negated) {
+      lines.push(`    svc-x${chanId(e.ref.channel)}: no ${mermaidLabel(e.ref.message ?? "event")}`);
+    } else {
+      lines.push(`    svc-)${chanId(e.ref.channel)}: ${mermaidLabel(e.ref.message ?? "event")}`);
+    }
+  }
+  lines.push("```");
+  return lines;
+}
+function channelHref(address, ctx) {
+  const page = ctx.channelPage.get(address);
+  if (!page) return null;
+  const hash = `#${address.replaceAll(".", "-")}`;
+  return page.service === ctx.service ? `../${page.stem}/${hash}` : `../../${page.service}/${page.stem}/${hash}`;
+}
+function featureFlow(scenarios, ctx) {
+  if (scenarios.length === 0) return [];
+  const usedOps = new Set(scenarios.flatMap((s) => s.refs.operations.map((o) => o.op_id)));
+  const usedIn = new Set(scenarios.flatMap((s) => s.refs.inbound.map((r) => r.channel)));
+  const usedOut = new Set(scenarios.flatMap((s) => s.refs.outbound.map((r) => r.channel)));
+  const statuses = [...new Set(scenarios.flatMap((s) => s.refs.statuses))].sort();
+  const ops = ctx.ops.filter((op) => usedOps.has(op.op_id));
+  const inbound = ctx.consumes.filter((c) => usedIn.has(c));
+  const outbound = ctx.produces.filter((c) => usedOut.has(c));
+  const lines = ["```mermaid", "flowchart LR"];
+  const clicks = [];
+  if (ops.length || inbound.length) {
+    lines.push('    subgraph sg_triggers["Triggers"]');
+    for (const op of ops) {
+      lines.push(`        http_${nodeId(op.op_id)}["${opLabel(op)}"]`);
+      clicks.push(`    click http_${nodeId(op.op_id)} "../${op.stem}/#${nodeId(op.op_id)}"`);
+    }
+    for (const address of inbound) {
+      lines.push(`        ch_in_${nodeId(address)}>"${mermaidLabel(address)}"]`);
+      const href = channelHref(address, ctx);
+      if (href) clicks.push(`    click ch_in_${nodeId(address)} "${href}"`);
+    }
+    lines.push("    end");
+  }
+  lines.push('    subgraph sg_scenarios["Scenarios"]');
+  scenarios.forEach((s, i) => {
+    lines.push(`        sc_${i + 1}("${mermaidLabel(s.title)}")`);
+    clicks.push(`    click sc_${i + 1} "#${slug(s.title)}"`);
+  });
+  lines.push("    end");
+  if (statuses.length || outbound.length) {
+    lines.push('    subgraph sg_outcomes["Outcomes"]');
+    for (const status of statuses) lines.push(`        st_${status}(["${status}"])`);
+    for (const address of outbound) {
+      lines.push(`        ch_out_${nodeId(address)}[["${mermaidLabel(address)}"]]`);
+      const href = channelHref(address, ctx);
+      if (href) clicks.push(`    click ch_out_${nodeId(address)} "${href}"`);
+    }
+    lines.push("    end");
+  }
+  scenarios.forEach((s, i) => {
+    const sc = `sc_${i + 1}`;
+    for (const op of s.refs.operations) lines.push(`    http_${nodeId(op.op_id)} --> ${sc}`);
+    for (const ref of s.refs.inbound) {
+      const label = ref.message ? `|"${mermaidLabel(ref.message)}"|` : "";
+      lines.push(`    ch_in_${nodeId(ref.channel)} -->${label} ${sc}`);
+    }
+    for (const status of s.refs.statuses) lines.push(`    ${sc} --> st_${status}`);
+    for (const ref of s.refs.outbound) {
+      const name = mermaidLabel(ref.message ?? "event");
+      lines.push(
+        ref.negated ? `    ${sc} -.->|"no ${name}"| ch_out_${nodeId(ref.channel)}` : `    ${sc} -->|"${name}"| ch_out_${nodeId(ref.channel)}`
+      );
+    }
+  });
+  lines.push(...clicks, "```");
+  return lines;
+}
+function scenarioNodes(services) {
+  const nodes = [];
+  for (const s of services) {
+    const openapi = (s.artifacts ?? []).find((a) => a.kind === "openapi");
+    const ops = new Map((s.operations ?? []).map((o) => [o.op_id, o]));
+    for (const a of s.artifacts ?? []) {
+      if (a.kind !== "feature" || !a.feature) continue;
+      (a.feature.scenarios ?? []).forEach((sc, i) => {
+        if (!sc.refs) return;
+        nodes.push({
+          order: nodes.length,
+          service: s.name,
+          serviceTitle: s.title,
+          actor: a.feature.actor ?? "Client",
+          feature: a.stem,
+          index: i + 1,
+          title: sc.title,
+          refs: sc.refs,
+          consumes: new Set(s.consumes ?? []),
+          ops,
+          openapiStem: openapi ? stemOf(openapi.path) : null
+        });
+      });
+    }
+  }
+  return nodes;
+}
+function scenarioEdges(nodes) {
+  const edges = [];
+  for (const from of nodes) {
+    for (const out of from.refs.outbound) {
+      if (out.negated || !out.message) continue;
+      for (const to of nodes) {
+        if (to.service === from.service || !to.consumes.has(out.channel)) continue;
+        const listens = to.refs.inbound.some(
+          (r) => r.channel === out.channel && (r.message === out.message || r.message === null)
+        );
+        if (listens) edges.push({ from, to, channel: out.channel, message: out.message });
+      }
+    }
+  }
+  return edges;
+}
+function journeySequence(path10, via) {
+  const body = [];
+  const participants = [];
+  const declare = (id, label) => {
+    if (!participants.some(([p]) => p === id)) participants.push([id, mermaidLabel(label)]);
+  };
+  const entryOp = path10[0].refs.operations[0];
+  if (entryOp) declare("client", path10[0].actor);
+  path10.forEach((node, i) => {
+    const svc = `s_${nodeId(node.service)}`;
+    declare(svc, node.serviceTitle);
+    body.push(`    Note over ${svc}: ${noteText(node.title)}`);
+    if (i === 0 && entryOp) {
+      const op = node.ops.get(entryOp.op_id);
+      const label = op ? `${op.method} ${op.path} \xB7 ${op.op_id}` : entryOp.op_id;
+      body.push(`    client->>${svc}: ${mermaidLabel(label)}`);
+      for (const status of node.refs.statuses) body.push(`    ${svc}-->>client: ${status}`);
+    }
+    for (const out of node.refs.outbound) {
+      if (out.negated) continue;
+      declare(chanId(out.channel), out.channel);
+      body.push(`    ${svc}-)${chanId(out.channel)}: ${mermaidLabel(out.message ?? "event")}`);
+    }
+    const edge = via[i];
+    if (edge) {
+      const next = `s_${nodeId(edge.to.service)}`;
+      declare(next, edge.to.serviceTitle);
+      body.push(`    ${chanId(edge.channel)}--)${next}: ${mermaidLabel(edge.message)}`);
+    }
+  });
+  return [
+    "```mermaid",
+    "sequenceDiagram",
+    "    autonumber",
+    ...participants.map(([id, label]) => `    participant ${id} as ${label}`),
+    ...body,
+    "```"
+  ];
+}
+function scenarioGraph(nodes, edges, services) {
+  if (edges.length === 0) return [];
+  const onGraph = /* @__PURE__ */ new Set();
+  for (const e of edges) onGraph.add(e.from).add(e.to);
+  const shown = nodes.filter((n) => onGraph.has(n));
+  const scId = (n) => `sc_${nodeId(n.service)}_${nodeId(n.feature)}_${n.index}`;
+  const lines = ["```mermaid", "flowchart LR"];
+  const clicks = [];
+  const opEdges = [];
+  for (const n of shown) {
+    for (const op of n.refs.operations) {
+      const id = `http_${nodeId(n.service)}_${nodeId(op.op_id)}`;
+      const spec = n.ops.get(op.op_id);
+      const label = spec ? `${spec.method} ${spec.path} \xB7 ${op.op_id}` : op.op_id;
+      if (!lines.some((l) => l.startsWith(`    ${id}[`))) {
+        lines.push(`    ${id}["${mermaidLabel(label)}"]`);
+        if (n.openapiStem) {
+          clicks.push(`    click ${id} "../services/${n.service}/${n.openapiStem}/#${nodeId(op.op_id)}"`);
+        }
+      }
+      opEdges.push(`    ${id} --> ${scId(n)}`);
+    }
+  }
+  for (const s of services) {
+    const own = shown.filter((n) => n.service === s.name);
+    if (own.length === 0) continue;
+    lines.push(`    subgraph sg_${nodeId(s.name)}["${mermaidLabel(s.title)}"]`);
+    for (const n of own) {
+      lines.push(`        ${scId(n)}("${mermaidLabel(n.title)}")`);
+      clicks.push(`    click ${scId(n)} "../services/${n.service}/features/#${slug(n.title)}"`);
+    }
+    lines.push("    end");
+  }
+  lines.push(...opEdges);
+  for (const e of edges) {
+    lines.push(`    ${scId(e.from)} -->|"${mermaidLabel(e.message)}"| ${scId(e.to)}`);
+  }
+  lines.push(...clicks, "```");
+  return lines;
+}
+function unfence(lines) {
+  return lines.slice(1, -1).join("\n");
+}
+function deriveFlows(services) {
+  const nodes = scenarioNodes(services);
+  const edges = scenarioEdges(nodes);
+  const outgoing = /* @__PURE__ */ new Map();
+  for (const e of edges) {
+    const list = outgoing.get(e.from) ?? [];
+    list.push(e);
+    outgoing.set(e.from, list);
+  }
+  for (const list of outgoing.values()) {
+    list.sort((a, b) => a.to.order - b.to.order || (a.message < b.message ? -1 : 1));
+  }
+  const entries = nodes.filter(
+    (n) => (n.refs.operations.length > 0 || n.refs.inbound.length === 0) && n.refs.outbound.some((o) => !o.negated && o.message)
+  );
+  const found = /* @__PURE__ */ new Map();
+  let steps = 0;
+  let truncated = false;
+  const walk = (path10, via) => {
+    if (steps++ > MAX_SEARCH_STEPS) {
+      truncated = true;
+      return;
+    }
+    const last = path10[path10.length - 1];
+    const next = (outgoing.get(last) ?? []).filter(
+      (e) => !path10.includes(e.to) && path10.length - 1 < MAX_DEPTH
+    );
+    if (next.length === 0) {
+      if (path10.length >= 2) {
+        const id = path10.map(nodeKey).join(">");
+        if (!found.has(id)) found.set(id, { path: path10, via });
+      }
+      return;
+    }
+    for (const e of next) walk([...path10, e.to], [...via, e]);
+  };
+  for (const entry of entries) walk([entry], []);
+  const ordered = [...found.values()].sort((a, b) => {
+    for (let i = 0; i < Math.min(a.path.length, b.path.length); i++) {
+      if (a.path[i].order !== b.path[i].order) return a.path[i].order - b.path[i].order;
+    }
+    return a.path.length - b.path.length;
+  });
+  if (ordered.length > MAX_JOURNEYS) truncated = true;
+  const journeys = ordered.slice(0, MAX_JOURNEYS).map(({ path: path10, via }) => {
+    const entryOp = path10[0].refs.operations[0];
+    const messages = via.map((e) => e.message);
+    return {
+      id: path10.map(nodeKey).join(">"),
+      title: [...entryOp ? [entryOp.op_id] : [], ...messages].join(" \u2192 "),
+      services: [...new Set(path10.map((n) => n.service))],
+      steps: path10.map((n, i) => ({
+        service: n.service,
+        feature: n.feature,
+        index: n.index,
+        scenario: n.title,
+        trigger: i === 0 && entryOp ? { op_id: entryOp.op_id } : null,
+        inbound: i > 0 ? { channel: via[i - 1].channel, message: via[i - 1].message } : null,
+        outbound: n.refs.outbound.filter((o) => !o.negated).map((o) => ({ channel: o.channel, message: o.message }))
+      })),
+      sequence_mermaid: unfence(journeySequence(path10, via))
+    };
+  });
+  const graph = scenarioGraph(nodes, edges, services);
+  return { journeys, truncated, graph_mermaid: graph.length ? unfence(graph) : null };
+}
+function backLinks(services) {
+  const channelOwner = /* @__PURE__ */ new Map();
+  for (const s of services) {
+    for (const c of s.channels ?? []) channelOwner.set(c.address, c);
+    for (const o of s.operations ?? []) o.scenarios = [];
+    for (const c of s.channels ?? []) c.scenarios = [];
+  }
+  const sorted = [...services].sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0);
+  for (const s of sorted) {
+    const opsById = new Map((s.operations ?? []).map((o) => [o.op_id, o]));
+    const features2 = (s.artifacts ?? []).filter((a) => a.kind === "feature" && a.feature).sort((a, b) => a.stem < b.stem ? -1 : a.stem > b.stem ? 1 : 0);
+    for (const a of features2) {
+      for (const sc of a.feature.scenarios ?? []) {
+        const refs = sc.refs;
+        if (!refs) continue;
+        for (const op of refs.operations) {
+          opsById.get(op.op_id)?.scenarios.push({ feature: a.stem, title: sc.title });
+        }
+        for (const out of refs.outbound) {
+          channelOwner.get(out.channel)?.scenarios.push({
+            service: s.name,
+            feature: a.stem,
+            title: sc.title,
+            message: out.message,
+            direction: "publishes",
+            negated: out.negated
+          });
+        }
+        for (const inb of refs.inbound) {
+          channelOwner.get(inb.channel)?.scenarios.push({
+            service: s.name,
+            feature: a.stem,
+            title: sc.title,
+            message: inb.message,
+            direction: "consumes",
+            negated: false
+          });
+        }
+      }
+    }
+  }
+  for (const c of channelOwner.values()) {
+    c.scenarios = [
+      ...c.scenarios.filter((x) => x.direction === "publishes"),
+      ...c.scenarios.filter((x) => x.direction !== "publishes")
+    ];
+  }
+}
+var STATUS_RE, MAX_DEPTH, MAX_JOURNEYS, MAX_SEARCH_STEPS, opLabel, chanId, stemOf, nodeKey;
+var init_flows = __esm({
+  "src/flows.ts"() {
+    "use strict";
+    init_docs_gen();
+    init_util();
+    STATUS_RE = /\bstatus\s+is\s+(\d{3})\b/g;
+    MAX_DEPTH = 6;
+    MAX_JOURNEYS = 50;
+    MAX_SEARCH_STEPS = 5e3;
+    opLabel = (op) => mermaidLabel(`${op.method} ${op.path} \xB7 ${op.op_id}`);
+    chanId = (address) => `c_${nodeId(address)}`;
+    stemOf = (p) => String(p).split("/").pop().replace(/\.[^.]*$/, "");
+    nodeKey = (n) => `${n.service}:${n.feature}:${n.index}`;
+  }
+});
+
 // src/docs-data.ts
 var docs_data_exports = {};
 __export(docs_data_exports, {
@@ -7644,6 +8114,7 @@ __export(docs_data_exports, {
   collectMermaid: () => collectMermaid,
   featureData: () => featureData,
   flattenSchema: () => flattenSchema,
+  flowLookups: () => flowLookups,
   releaseTags: () => releaseTags,
   runData: () => runData,
   structuredSteps: () => structuredSteps,
@@ -7651,7 +8122,7 @@ __export(docs_data_exports, {
 });
 import { cpSync, mkdirSync, readFileSync as readFileSync3, rmSync as rmSync2, writeFileSync as writeFileSync2 } from "fs";
 import path3 from "path";
-function unfence(lines) {
+function unfence2(lines) {
   return lines.slice(1, -1).join("\n");
 }
 function flattenSchema(properties, required, prefix = "", doc = null, depth = 0) {
@@ -7783,7 +8254,7 @@ function channelEntry(address, info2, consumers, examples) {
     artifact_version: info2.artifact_version,
     description: info2.description,
     consumers: consuming.map((c) => c.name),
-    sequence_mermaid: unfence(channelSequence(address, info2, consuming, messages)),
+    sequence_mermaid: unfence2(channelSequence(address, info2, consuming, messages)),
     messages,
     examples: (examples.get(info2.op_name) ?? []).map(([caseName, payload]) => ({
       case: caseName,
@@ -7827,17 +8298,45 @@ function structuredSteps(blockLines) {
   flushTable();
   return out;
 }
-function featureData(a, source) {
+function featureData(a, source, ctx = null) {
   const [title, description, background, scenarios] = parseFeature(source);
   const prose = description.map((line) => line.trim());
   while (prose.length && !prose[0]) prose.shift();
   while (prose.length && !prose[prose.length - 1]) prose.pop();
-  return {
+  const backgroundSteps = structuredSteps(background);
+  const out = {
     title: title || stem(a.path),
     description: prose,
-    background: structuredSteps(background),
+    background: backgroundSteps,
     scenarios: scenarios.map(([t, lines]) => ({ title: t, steps: structuredSteps(lines) }))
   };
+  if (ctx) {
+    const actor = featureActor(prose);
+    const flowCtx = { ...ctx, actor };
+    out.actor = actor;
+    for (const sc of out.scenarios) {
+      const extraction = extractRefs([...backgroundSteps, ...sc.steps], flowCtx);
+      sc.refs = extraction.refs;
+      const chart = scenarioSequence(extraction, flowCtx);
+      sc.sequence_mermaid = chart.length ? unfence2(chart) : null;
+    }
+    const flow = featureFlow(out.scenarios, flowCtx);
+    out.flow_mermaid = flow.length ? unfence2(flow) : null;
+  }
+  return out;
+}
+function flowLookups(index) {
+  const messageChannel = /* @__PURE__ */ new Map();
+  const channelProducer = /* @__PURE__ */ new Map();
+  const channelPage = /* @__PURE__ */ new Map();
+  for (const [address, info2] of [...index].sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)) {
+    channelProducer.set(address, info2.service);
+    channelPage.set(address, { service: info2.service, stem: stem(info2.artifact_path) });
+    for (const [name] of info2.messages) {
+      if (!messageChannel.has(name)) messageChannel.set(name, address);
+    }
+  }
+  return { messageChannel, channelProducer, channelPage };
 }
 function releaseTags(name) {
   const releases = [];
@@ -7944,12 +8443,29 @@ function systemEntry(manifests, raw) {
 function buildData(manifests, specs2, mocks) {
   const [index, consumers] = channelIndex(manifests, specs2);
   const surfaces = surfaceIndex(manifests, specs2);
+  const lookups = flowLookups(index);
   const services = [];
   for (const m of manifests) {
     const name = m.name;
     const examples = loadExamples(mocks, name);
     const restExamples = loadRestExamples(mocks, name);
     const histories = artifactHistories(m);
+    const ops = httpOperations(m, specs2, restExamples);
+    const ctx = {
+      service: name,
+      title: m.title,
+      actor: "Client",
+      ops: ops.map((o) => ({
+        op_id: o.op_id,
+        method: o.method,
+        path: o.path,
+        statuses: o.responses.map((r) => r.status),
+        stem: stem(o.artifact_path)
+      })),
+      produces: m.produces ?? [],
+      consumes: m.consumes ?? [],
+      ...lookups
+    };
     const artifacts = [];
     for (const a of m.artifacts ?? []) {
       const entry = {
@@ -7966,17 +8482,16 @@ function buildData(manifests, specs2, mocks) {
         const odcs = readYaml(source);
         entry.odcs = odcs;
         const er = odcsEr(odcs);
-        if (er.length) entry.er_mermaid = unfence(er);
+        if (er.length) entry.er_mermaid = unfence2(er);
       } else if (a.kind === "feature") {
         entry.text = readFileSync3(source, "utf-8");
-        entry.feature = featureData(a, entry.text);
+        entry.feature = featureData(a, entry.text, ctx);
       } else if (a.kind === "doc") {
         entry.text = readFileSync3(source, "utf-8");
         entry.label = docLabel(source, a.summary ?? "");
       }
       artifacts.push(entry);
     }
-    const ops = httpOperations(m, specs2, restExamples);
     const surface = surfaces.get(name) ?? { ops: [], data: [] };
     const changelog = changelogData(m);
     const released = changelog.filter((r) => !r.unreleased);
@@ -8002,6 +8517,8 @@ function buildData(manifests, specs2, mocks) {
       ahead: changelog.length > 0 && changelog[0].unreleased
     });
   }
+  backLinks(services);
+  const flows = deriveFlows(services);
   const produced = {};
   for (const m of manifests) {
     for (const address of m.produces ?? []) produced[address] = m.name;
@@ -8020,7 +8537,8 @@ function buildData(manifests, specs2, mocks) {
     system: systemEntry(manifests, loadSystem(specs2)),
     services,
     edges,
-    unconsumed: Object.entries(unconsumed).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0).map(([a, s]) => ({ channel: a, producer: s }))
+    unconsumed: Object.entries(unconsumed).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0).map(([a, s]) => ({ channel: a, producer: s })),
+    flows
   };
 }
 function collectMermaid(data) {
@@ -8031,8 +8549,18 @@ function collectMermaid(data) {
     }
     for (const a of s.artifacts) {
       if (a.er_mermaid) charts.push([`${s.name} ${a.stem} ER`, a.er_mermaid]);
+      if (a.feature?.flow_mermaid) charts.push([`${s.name} ${a.stem} flow`, a.feature.flow_mermaid]);
+      (a.feature?.scenarios ?? []).forEach((sc, i) => {
+        if (sc.sequence_mermaid) {
+          charts.push([`${s.name} ${a.stem} scenario ${i + 1} sequence`, sc.sequence_mermaid]);
+        }
+      });
     }
   }
+  for (const j of data.flows?.journeys ?? []) {
+    charts.push([`flows journey ${j.id}`, j.sequence_mermaid]);
+  }
+  if (data.flows?.graph_mermaid) charts.push(["flows graph", data.flows.graph_mermaid]);
   return charts;
 }
 function runData(specsDir, siteDir, mocksDir = "mocks") {
@@ -8062,6 +8590,7 @@ var init_docs_data = __esm({
   "src/docs-data.ts"() {
     "use strict";
     init_docs_gen();
+    init_flows();
     init_util();
     import_yaml3 = __toESM(require_dist(), 1);
     stem = (p) => path3.basename(p).replace(/\.[^.]*$/, "");
@@ -8227,7 +8756,7 @@ function jsonBodySchema(doc, holder) {
   return deref(doc, (content["application/json"] ?? {}).schema ?? {});
 }
 function mermaidLabel(text) {
-  return String(text).replace(/[\r\n]+/g, " ").replace(/[;#]/g, " ").trim();
+  return String(text).replace(/[\r\n]+/g, " ").replace(/[;#]/g, " ").replace(/"/g, "'").replace(/</g, "\u2039").replace(/>/g, "\u203A").trim();
 }
 function channelSequence(address, info2, consuming, messages = null) {
   const producer = nodeId(info2.service);
@@ -20909,13 +21438,13 @@ var ADDED = {
   asyncapi: asyncapiAdded,
   "data-contract": odcsAdded
 };
-function escapeRe(s) {
+function escapeRe2(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 function mentioned(token, corpus) {
   const left = /^\w/.test(token) ? "\\b" : "";
   const right = /\w$/.test(token) ? "\\b" : "";
-  return new RegExp(left + escapeRe(token) + right, "i").test(corpus);
+  return new RegExp(left + escapeRe2(token) + right, "i").test(corpus);
 }
 function runGate3(base, only, specsDir, allowMissingBase = false) {
   const mb = mergeBase(base);
@@ -21473,16 +22002,11 @@ var KIND_DIRS = [
   ["feature", "features"]
 ];
 var SPEC_SUFFIXES = /* @__PURE__ */ new Set([".yaml", ".yml", ".feature"]);
-var MESSAGE_RE = /"([A-Z][a-z0-9]*(?:[A-Z][a-z0-9]*)+)"/g;
-var CHANNEL_RE = /"([a-z0-9]+(?:\.[a-z0-9-]+)*\.v\d+)"/g;
 function readYaml2(file) {
   return (0, import_yaml8.parse)(readFileSync8(file, "utf-8")) ?? {};
 }
 function channelList(value) {
   return Array.isArray(value) ? value.map(String) : [];
-}
-function findAll(re, text) {
-  return new Set([...text.matchAll(re)].map((m) => m[1]));
 }
 function messageIndex(dirs) {
   const byAddress = /* @__PURE__ */ new Map();

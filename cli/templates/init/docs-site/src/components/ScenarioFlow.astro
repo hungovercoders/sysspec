@@ -1,0 +1,27 @@
+---
+// One scenario as a sequence diagram, folded under a one-line digest
+// of what it does (request → answer → events) so a page of scenarios
+// stays scannable. Mermaid renders into a body-attached container, so
+// a closed <details> is fine.
+import Mermaid from './Mermaid.astro';
+import type { Scenario } from '../lib/specs';
+
+interface Props {
+  scenario: Scenario;
+}
+const { scenario } = Astro.props;
+const { refs } = scenario;
+
+const digest = [
+  ...refs.inbound.map((r) => `${r.message ?? r.channel} in`),
+  ...refs.operations.map((o) => o.op_id),
+  ...refs.statuses,
+  ...refs.outbound.map((r) => (r.negated ? `no ${r.message ?? r.channel}` : r.message ?? r.channel)),
+].join(' → ');
+---
+{scenario.sequence_mermaid && (
+  <details class="sc-diagram">
+    <summary>Sequence <span class="sc-digest">{digest}</span></summary>
+    <Mermaid chart={scenario.sequence_mermaid} />
+  </details>
+)}

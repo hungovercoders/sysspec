@@ -17,6 +17,11 @@ Feature: Settling a payment
     And the data carries the payment_id, order_id, settled_at and amount_pence
     And handlers dedupe on the envelope id
 
+  Scenario: Settlement is anchored to an observed order placement
+    Given an "OrderPlaced" event arrived on "orders.placed.v2" for order "o-4"
+    When the payment for "o-4" is authorised and the processor confirms settlement
+    Then the "PaymentSettled" event's order_id matches the placed order
+
   Scenario: Duplicate settlement callbacks are idempotent
     Given payment "p-1" has already settled
     When the processor sends the settlement callback again

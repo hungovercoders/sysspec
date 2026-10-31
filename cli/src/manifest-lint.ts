@@ -27,7 +27,18 @@ import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { parse } from "yaml";
 export { serviceDirs } from "./util.js";
-import { globYaml, isDir, isFile, ORG_RE, pyRepr, pySorted, serviceDirs } from "./util.js";
+import {
+  CHANNEL_RE,
+  findAll,
+  globYaml,
+  isDir,
+  isFile,
+  MESSAGE_RE,
+  ORG_RE,
+  pyRepr,
+  pySorted,
+  serviceDirs,
+} from "./util.js";
 
 const KIND_DIRS: [string, string][] = [
   ["asyncapi", "asyncapi"],
@@ -37,10 +48,6 @@ const KIND_DIRS: [string, string][] = [
 ];
 const SPEC_SUFFIXES = new Set([".yaml", ".yml", ".feature"]);
 
-// Quoted PascalCase with at least two humps: "OrderPlaced" but not "Placed",
-// "SKU-RED" or "c-1001". Quoted dotted address ending .v<major>.
-const MESSAGE_RE = /"([A-Z][a-z0-9]*(?:[A-Z][a-z0-9]*)+)"/g;
-const CHANNEL_RE = /"([a-z0-9]+(?:\.[a-z0-9-]+)*\.v\d+)"/g;
 
 function readYaml(file: string): Record<string, any> {
   return (parse(readFileSync(file, "utf-8")) ?? {}) as Record<string, any>;
@@ -50,10 +57,6 @@ function readYaml(file: string): Record<string, any> {
  * not a list reads as empty here and is reported by lintService. */
 function channelList(value: unknown): string[] {
   return Array.isArray(value) ? value.map(String) : [];
-}
-
-function findAll(re: RegExp, text: string): Set<string> {
-  return new Set([...text.matchAll(re)].map((m) => m[1]));
 }
 
 /** [channel address -> message names on it, service name -> own message names] */

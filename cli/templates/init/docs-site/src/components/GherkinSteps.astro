@@ -1,18 +1,65 @@
 ---
 import type { GherkinStep } from '../lib/specs';
 
+/** Where the names a step uses resolve to: quoted messages and
+ * channels, bare operation ids. Built by the page from the scenario's
+ * refs, so a link exists exactly when the catalog drew the reference. */
+export interface StepLinks {
+  messages: Record<string, string>;
+  channels: Record<string, string>;
+  operations: Record<string, string>;
+}
+
 interface Props {
   steps: GherkinStep[];
+  links?: StepLinks;
 }
-const { steps } = Astro.props;
+const { steps, links } = Astro.props;
 
-/** Step text split so quoted values and <placeholders> render as code. */
-const segments = (text: string) =>
-  text.split(/("[^"]*"|<[^<>\s]+>)/).map((part) =>
-    part.startsWith('"') || part.startsWith('<')
-      ? { code: part.replace(/^"|"$/g, '') }
-      : { text: part },
-  );
+const opNames = Object.keys(links?.operations ?? {});
+const opSplit = opNames.length
+  ? new RegExp(`\\b(${opNames.map((o) => o.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\$&')).join('|')})\\b`)
+  : null;
+const STATUS = /\b(status is )(\d{3})\b/;
+
+type Segment =
+  | { text: string }
+  | { code: string; href?: string }
+  | { status: string }
+  | { op: string; href: string };
+
+/** Plain text split further on operation ids and status assertions. */
+const plain = (text: string): Segment[] => {
+  const out: Segment[] = [];
+  const byStatus = text.split(STATUS);
+  // split with two groups yields [before, 'status is ', '201', after, ...]
+  for (let i = 0; i < byStatus.length; i += 3) {
+    const chunk = byStatus[i];
+    const parts = opSplit ? chunk.split(opSplit) : [chunk];
+    parts.forEach((part, j) => {
+      if (!part) return;
+      if (j % 2 === 1 && links) out.push({ op: part, href: links.operations[part] });
+      else out.push({ text: part });
+    });
+    if (i + 2 < byStatus.length) {
+      out.push({ text: byStatus[i + 1] }, { status: byStatus[i + 2] });
+    }
+  }
+  return out;
+};
+
+/** Step text split so quoted values and <placeholders> render as code,
+ * and the ones that name a contract element link to it. */
+const segments = (text: string): Segment[] =>
+  text.split(/("[^"]*"|<[^<>\s]+>)/).flatMap((part) => {
+    if (part.startsWith('"')) {
+      const value = part.replace(/^"|"$/g, '');
+      const href = links?.messages[value] ?? links?.channels[value];
+      return [{ code: value, href }];
+    }
+    if (part.startsWith('<')) return [{ code: part }];
+    return plain(part);
+  });
 ---
 <!-- Safari/VoiceOver deliberately drops list semantics from lists styled
      with list-style: none (as .sc-scenario ul is); the explicit role
@@ -40,9 +87,14 @@ const segments = (text: string) =>
     return (
       <li>
         <span class={`sc-kw sc-kw--${step.phase}`}>{step.keyword}</span>
-        {segments(step.text ?? '').map((s) =>
-          'code' in s ? <code>{s.code}</code> : <>{s.text}</>,
-        )}
+        {segments(step.text ?? '').map((s) => {
+          if ('code' in s)
+            return s.href ? <a class="sc-ref" href={s.href}><code>{s.code}</code></a> : <code>{s.code}</code>;
+          if ('status' in s)
+            return <span class={`sc-status sc-status--${s.status[0]}`}>{s.status}</span>;
+          if ('op' in s) return <a class="sc-ref" href={s.href}><code>{s.op}</code></a>;
+          return <>{s.text}</>;
+        })}
       </li>
     );
   })}

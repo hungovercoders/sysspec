@@ -4,9 +4,12 @@
  * manifests, the produces/consumes graph, the whole message surface
  * (commands and queries from OpenAPI, events with their schemas and
  * Microcks examples, data products with ER diagrams), structured
- * acceptance criteria, tag-driven changelogs, and the mermaid charts the
- * site renders (delivery sequences and ER diagrams, gated by
- * `sysspec docs diagrams`; the system graphs are react islands). Raw
+ * acceptance criteria with the contract references each scenario
+ * makes, tag-driven changelogs, the cross-service journeys those
+ * references chain into, and the mermaid charts the site renders
+ * (delivery sequences, ER diagrams, scenario sequences, feature flow
+ * maps and journeys, all gated by `sysspec docs diagrams`; the system
+ * graphs are react islands). Raw
  * artifacts are copied under the site's public/ dir so spec renderers
  * and contract-of-record links reach them by URL. The manifests are the
  * only input; a new service appears on the site with no config edits.
@@ -38,6 +41,16 @@ import {
   STEP_RE,
   surfaceIndex,
 } from "./docs-gen.js";
+import {
+  backLinks,
+  deriveFlows,
+  extractRefs,
+  featureActor,
+  featureFlow,
+  FlowContext,
+  FlowScenario,
+  scenarioSequence,
+} from "./flows.js";
 import { Exit, pyJson, pyRepr, pySorted, splitLines } from "./util.js";
 
 /** A fenced ```mermaid block from docs-gen as a bare chart string. */
@@ -251,17 +264,56 @@ export function structuredSteps(blockLines: string[]): Dict[] {
   return out;
 }
 
-export function featureData(a: Dict, source: string): Dict {
+/** A feature as data: its prose, background and scenarios as structured
+ * steps and, given the service's flow context, what each scenario does
+ * to the contract (refs), drawn as a sequence per scenario and a flow
+ * map for the feature. */
+export function featureData(a: Dict, source: string, ctx: FlowContext | null = null): Dict {
   const [title, description, background, scenarios] = parseFeature(source);
   const prose = description.map((line) => line.trim());
   while (prose.length && !prose[0]) prose.shift();
   while (prose.length && !prose[prose.length - 1]) prose.pop();
-  return {
+  const backgroundSteps = structuredSteps(background);
+  const out: Dict = {
     title: title || stem(a.path),
     description: prose,
-    background: structuredSteps(background),
+    background: backgroundSteps,
     scenarios: scenarios.map(([t, lines]) => ({ title: t, steps: structuredSteps(lines) })),
   };
+  if (ctx) {
+    const actor = featureActor(prose);
+    const flowCtx = { ...ctx, actor };
+    out.actor = actor;
+    for (const sc of out.scenarios) {
+      const extraction = extractRefs([...backgroundSteps, ...sc.steps], flowCtx);
+      sc.refs = extraction.refs;
+      const chart = scenarioSequence(extraction, flowCtx);
+      sc.sequence_mermaid = chart.length ? unfence(chart) : null;
+    }
+    const flow = featureFlow(out.scenarios as FlowScenario[], flowCtx);
+    out.flow_mermaid = flow.length ? unfence(flow) : null;
+  }
+  return out;
+}
+
+/** The suite-wide lookups a service's scenarios are read against: which
+ * channel each message name lives on, who produces each channel, and
+ * where that channel renders. Built once from the channel index. */
+export function flowLookups(index: Map<string, Dict>): Pick<
+  FlowContext,
+  "messageChannel" | "channelProducer" | "channelPage"
+> {
+  const messageChannel = new Map<string, string>();
+  const channelProducer = new Map<string, string>();
+  const channelPage = new Map<string, { service: string; stem: string }>();
+  for (const [address, info] of [...index].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) {
+    channelProducer.set(address, info.service);
+    channelPage.set(address, { service: info.service, stem: stem(info.artifact_path) });
+    for (const [name] of info.messages as [string, Dict][]) {
+      if (!messageChannel.has(name)) messageChannel.set(name, address);
+    }
+  }
+  return { messageChannel, channelProducer, channelPage };
 }
 
 /** [version, tag] for the service's release tags, oldest first. */
@@ -389,6 +441,7 @@ export function systemEntry(manifests: Dict[], raw: Dict | null): Dict {
 export function buildData(manifests: Dict[], specs: string, mocks: string): Dict {
   const [index, consumers] = channelIndex(manifests, specs);
   const surfaces = surfaceIndex(manifests, specs);
+  const lookups = flowLookups(index);
 
   const services: Dict[] = [];
   for (const m of manifests) {
@@ -396,6 +449,22 @@ export function buildData(manifests: Dict[], specs: string, mocks: string): Dict
     const examples = loadExamples(mocks, name);
     const restExamples = loadRestExamples(mocks, name);
     const histories = artifactHistories(m);
+    const ops = httpOperations(m, specs, restExamples);
+    const ctx: FlowContext = {
+      service: name,
+      title: m.title,
+      actor: "Client",
+      ops: ops.map((o) => ({
+        op_id: o.op_id,
+        method: o.method,
+        path: o.path,
+        statuses: o.responses.map((r: Dict) => r.status),
+        stem: stem(o.artifact_path),
+      })),
+      produces: m.produces ?? [],
+      consumes: m.consumes ?? [],
+      ...lookups,
+    };
     const artifacts: Dict[] = [];
     for (const a of m.artifacts ?? []) {
       const entry: Dict = {
@@ -415,7 +484,7 @@ export function buildData(manifests: Dict[], specs: string, mocks: string): Dict
         if (er.length) entry.er_mermaid = unfence(er);
       } else if (a.kind === "feature") {
         entry.text = readFileSync(source, "utf-8");
-        entry.feature = featureData(a, entry.text);
+        entry.feature = featureData(a, entry.text, ctx);
       } else if (a.kind === "doc") {
         entry.text = readFileSync(source, "utf-8");
         entry.label = docLabel(source, a.summary ?? "");
@@ -423,7 +492,6 @@ export function buildData(manifests: Dict[], specs: string, mocks: string): Dict
       artifacts.push(entry);
     }
 
-    const ops = httpOperations(m, specs, restExamples);
     const surface = surfaces.get(name) ?? { ops: [], data: [] };
     const changelog = changelogData(m);
     const released = changelog.filter((r) => !r.unreleased);
@@ -452,6 +520,11 @@ export function buildData(manifests: Dict[], specs: string, mocks: string): Dict
     });
   }
 
+  // Scenarios back onto the contracts they exercise, and the journeys
+  // they chain into across services - both need every service built.
+  backLinks(services);
+  const flows = deriveFlows(services);
+
   const produced: Record<string, string> = {};
   for (const m of manifests) {
     for (const address of m.produces ?? []) produced[address] = m.name;
@@ -473,6 +546,7 @@ export function buildData(manifests: Dict[], specs: string, mocks: string): Dict
     unconsumed: Object.entries(unconsumed)
       .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
       .map(([a, s]) => ({ channel: a, producer: s })),
+    flows,
   };
 }
 
@@ -487,8 +561,18 @@ export function collectMermaid(data: Dict): [string, string][] {
     }
     for (const a of s.artifacts) {
       if (a.er_mermaid) charts.push([`${s.name} ${a.stem} ER`, a.er_mermaid]);
+      if (a.feature?.flow_mermaid) charts.push([`${s.name} ${a.stem} flow`, a.feature.flow_mermaid]);
+      (a.feature?.scenarios ?? []).forEach((sc: Dict, i: number) => {
+        if (sc.sequence_mermaid) {
+          charts.push([`${s.name} ${a.stem} scenario ${i + 1} sequence`, sc.sequence_mermaid]);
+        }
+      });
     }
   }
+  for (const j of data.flows?.journeys ?? []) {
+    charts.push([`flows journey ${j.id}`, j.sequence_mermaid]);
+  }
+  if (data.flows?.graph_mermaid) charts.push(["flows graph", data.flows.graph_mermaid]);
   return charts;
 }
 

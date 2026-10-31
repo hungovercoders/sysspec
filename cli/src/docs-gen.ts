@@ -234,9 +234,19 @@ export function jsonBodySchema(doc: Dict, holder: Dict): Dict {
   return deref(doc, (content["application/json"] ?? {}).schema ?? {});
 }
 
-/** Mermaid label text: the separators that would end a label early. */
-function mermaidLabel(text: string): string {
-  return String(text).replace(/[\r\n]+/g, " ").replace(/[;#]/g, " ").trim();
+/** Mermaid label text: the separators that would end a label early,
+ * and the quote and angle brackets that would open a string or a tag
+ * (scenario steps carry both - `"OrderPlaced"`, `<reason>`). Angle
+ * brackets become their single-guillemet lookalikes rather than HTML
+ * entities, which the `#` stripping would otherwise eat. */
+export function mermaidLabel(text: string): string {
+  return String(text)
+    .replace(/[\r\n]+/g, " ")
+    .replace(/[;#]/g, " ")
+    .replace(/"/g, "'")
+    .replace(/</g, "\u2039")
+    .replace(/>/g, "\u203a")
+    .trim();
 }
 
 /** One channel's delivery as a fenced sequence diagram.

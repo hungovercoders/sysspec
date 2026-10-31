@@ -54,6 +54,43 @@ pass, so they get the same protection as a schema. If an implementation
 disagrees with a gated artifact, the implementation is wrong; adjusting the
 artifact is always a finding, not a fix.
 
+## What the catalog draws from a feature
+
+The generated docs render every contract visually, and the feature files
+alongside them. A scenario already names the contract it exercises, in the
+spellings the gates enforce, and the catalog reads those names back out:
+
+| In a step | Read as |
+| --- | --- |
+| a quoted `"PascalCase"` message, `"OrderPlaced"` | the message, on the channel its AsyncAPI publishes it to |
+| a quoted dotted address, `"orders.placed.v2"` | the channel |
+| a bare operation id, `placeOrder` | the HTTP operation |
+| `the response status is 201` | the response, and the operation when only one can answer it |
+
+Direction is never guessed from verbs. A message on a channel the service
+`produces` is one the scenario publishes; on a channel it `consumes`, one
+the scenario receives. The one verb that matters is `no`: `no second
+"OrderPlaced" event is published` reads as a withheld event, drawn with a
+crossed arrow.
+
+From those references the catalog draws, deterministically and gated by
+`docs diagrams` like every other chart:
+
+- a **sequence diagram per scenario**: the caller's request, the service's
+  answer, the events it consumes and publishes;
+- a **flow map per feature**: triggers (operations, inbound channels) to
+  scenarios to outcomes (statuses, published events), every node linking
+  to the contract section or scenario it names, and a scenario that names
+  nothing standing alone so the gap shows;
+- a **Business flows** page: scenarios chained across services by the
+  messages they publish and consume, each chain as an end-to-end sequence,
+  plus one graph of every hand-over;
+- on each operation and channel, the scenarios that **exercise** it.
+
+Nothing is authored for these views and the feature files are not touched.
+Write scenarios with those spellings and they draw themselves; the same
+spellings are what `lint:manifest` and `check:intent` already require.
+
 ## Versioned change
 
 When you change a gated artifact deliberately:

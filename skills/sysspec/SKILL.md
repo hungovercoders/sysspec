@@ -132,6 +132,15 @@ and the scenario wins on behaviour. Raise the conflict either way.
   change, not an afterthought; `check:intent` enforces this with no escape
   hatch. If it is not worth a scenario, it is not worth adding to the
   contract yet.
+- Name things in scenarios the way the contracts spell them: a message as
+  `"OrderPlaced"`, a channel as `"orders.placed.v2"`, an operation by its
+  bare id (`placeOrder`), a response as `the response status is 201`, and
+  a withheld event as `no "OrderPlaced" event is published`. The gates
+  resolve those spellings, and the generated catalog draws from them: a
+  sequence per scenario, a flow map per feature, and the cross-service
+  business flows that appear when one service's scenario publishes what
+  another's consumes. A scenario spelled differently still binds, but it
+  draws nothing and links to nothing.
 
 ## Data contracts (ODCS 3.2)
 

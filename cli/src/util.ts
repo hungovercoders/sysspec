@@ -354,6 +354,32 @@ export function pySorted(items: Iterable<string>): string[] {
 /** Reverse-DNS org namespace, e.g. com.acme - the CloudEvents type prefix. */
 export const ORG_RE = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/;
 
+/** The two tokens a scenario uses to name the contract it exercises.
+ *
+ * A quoted PascalCase word with at least two humps is a message
+ * ("OrderPlaced", never "Placed", "SKU-RED" or "c-1001"); a quoted
+ * dotted address ending .v<major> is a channel. lint:manifest resolves
+ * both against the service's contracts, and the catalog draws its flows
+ * from the same spellings. Global regexes: iterate with findAll /
+ * matchAll, never `.test()`, which would carry lastIndex across calls. */
+export const MESSAGE_RE = /"([A-Z][a-z0-9]*(?:[A-Z][a-z0-9]*)+)"/g;
+export const CHANNEL_RE = /"([a-z0-9]+(?:\.[a-z0-9-]+)*\.v\d+)"/g;
+
+/** Distinct first capture groups of a global regex, in match order. */
+export function findAll(re: RegExp, text: string): Set<string> {
+  return new Set([...text.matchAll(re)].map((m) => m[1]));
+}
+
+/** Deterministic heading id from arbitrary text - the same function the
+ * docs site uses for its scenario anchors, so a generated diagram can
+ * link to a heading the site will render. */
+export function slug(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 export function isFile(p: string): boolean {
   try {
     return statSync(p).isFile();

@@ -1,0 +1,40 @@
+---
+// "Exercised by": the scenarios that name a contract element, linking
+// back to their headings. For a channel the list spans the suite -
+// the producer's publishing scenarios first, then every consumer's.
+import { scenarioHref, serviceByName } from '../lib/specs';
+import type { ChannelScenario } from '../lib/specs';
+
+interface Props {
+  /** The service whose operation this is (operation lists carry no service). */
+  service?: string;
+  scenarios: ({ feature: string; title: string } | ChannelScenario)[];
+}
+const { service, scenarios } = Astro.props;
+
+const owner = (s: Props['scenarios'][number]) => ('service' in s ? s.service : service!);
+const note = (s: Props['scenarios'][number]) => {
+  if (!('direction' in s)) return null;
+  const what = s.message ?? 'an event';
+  if (s.direction === 'consumes') return `consumes ${what}`;
+  return s.negated ? `must not publish ${what}` : `publishes ${what}`;
+};
+---
+{scenarios.length > 0 ? (
+  <>
+    <h4>Exercised by</h4>
+    <ul class="sc-rows sc-scenario-links">
+      {scenarios.map((s) => (
+        <li>
+          <a href={scenarioHref(owner(s), s.title)}>{s.title}</a>
+          <span class="sc-row-note">
+            {serviceByName[owner(s)]?.title ?? owner(s)}
+            {note(s) && <> · {note(s)}</>}
+          </span>
+        </li>
+      ))}
+    </ul>
+  </>
+) : (
+  <p class="sc-row-note sc-scenario-links-none">No scenario names this yet.</p>
+)}
